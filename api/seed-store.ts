@@ -156,6 +156,7 @@ async function main() {
     }
 
     let defaultVariationId: string | null = null;
+    const createdVariationIds = new Set<string>();
     for (const variation of item.variations) {
       const created = await prisma.productVariation.create({
         data: {
@@ -174,6 +175,7 @@ async function main() {
         },
       });
       variationCount += 1;
+      createdVariationIds.add(created.id);
       if (!defaultVariationId) defaultVariationId = created.id;
 
       for (const link of variation.attributes) {
@@ -184,7 +186,9 @@ async function main() {
       }
     }
 
-    if (!product.defaultVariationId && defaultVariationId) {
+    const storedDefault = product.defaultVariationId;
+    const storedDefaultStillExists = storedDefault ? createdVariationIds.has(storedDefault) : false;
+    if (defaultVariationId && !storedDefaultStillExists) {
       await prisma.product.update({ where: { id: product.id }, data: { defaultVariationId } });
     }
 
