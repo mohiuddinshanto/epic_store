@@ -108,21 +108,40 @@ FRONTEND_URL=https://yourstore.com
 
 or set them in hPanel → **Node.js app → Environment variables**.
 
-### 5. Install, build, migrate
+### 5. Build and migrate
 
-Open the **Node.js terminal** (or SSH) inside the app folder:
+hPanel runs the **Build command** (`npm run build`) for you, so nothing else is
+needed there. It performs, in order:
+
+```bash
+prisma generate && npm run migrate:deploy && next build && npm run build:api && npm run seed:store:prod:empty
+```
+
+| Step | Purpose |
+| --- | --- |
+| `prisma generate` | Regenerates the Prisma client |
+| `npm run migrate:deploy` | Applies `prisma/migrations/*` and records them in `_prisma_migrations` |
+| `next build` | Builds the storefront |
+| `npm run build:api` | Compiles `api/**` into `dist/` (required by `server.js`) |
+| `npm run seed:store:prod:empty` | Imports the storefront catalog, but only while the catalog is empty |
+
+Running the build again is safe: migrations are skipped when already applied, and
+the catalog import is skipped as soon as any product exists, so later admin edits
+are never overwritten.
+
+> **Why a custom migration runner?** Some shared hosts execute native binaries
+> inside a `noexec` sandbox, which makes Prisma's own `prisma migrate deploy` fail
+> with `EACCES` on the bundled `schema-engine`. `scripts/migrate-deploy.js` applies
+> the exact same SQL through `mysql2`, which is pure JavaScript, and writes the
+> same `_prisma_migrations` bookkeeping (SHA-256 checksums) so `prisma migrate
+> status` still reports the database as up to date.
+
+To rebuild by hand over SSH:
 
 ```bash
 npm install
-npm run deploy     # prisma generate + migrate deploy + next build + tsc
+npm run deploy
 ```
-
-`npm run deploy` is idempotent, so re-running it after every deploy applies any
-new migrations.
-
-> If the host only allows `npm install --omit=dev`, the Next.js build cannot run
-> there. In that case build on your machine (`npm run build`), upload `.next`
-> and `dist` too, then run `npm install --omit=dev` on the server.
 
 ### 6. Start the app
 
