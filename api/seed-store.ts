@@ -51,6 +51,18 @@ const seedPath = join(__dirname, "..", "prisma", "storefront-seed.json");
 const blank = (value: string | null | undefined) => (value && value.trim() ? value.trim() : null);
 
 async function main() {
+  const ifEmpty = process.argv.slice(2).includes("--if-empty");
+
+  if (ifEmpty) {
+    const existingProducts = await prisma.product.count();
+    if (existingProducts > 0) {
+      console.log(`skipped (--if-empty): catalog already has ${existingProducts} products.`);
+      console.log("Run `npm run seed:store:prod` without --if-empty to overwrite the catalog.");
+      return;
+    }
+    console.log(`--if-empty: catalog is empty, seeding now.`);
+  }
+
   const seed = JSON.parse(readFileSync(seedPath, "utf8")) as SeedFile;
   console.log(`loaded ${seed.products.length} products from ${seedPath}`);
 
