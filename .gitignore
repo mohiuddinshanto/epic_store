@@ -1,0 +1,32 @@
+# dependencies
+/node_modules
+
+# next.js
+/.next
+/out
+
+# build output
+/dist
+
+# environment
+.env
+.env.local
+.env.*.local
+
+# logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# misc
+.DS_Store
+*.pem
+*.tsbuildinfo
+
+# prisma local artefacts (keep migrations committed)
+prisma/*.db
+prisma/*.db-journal
+
+# typescript
+*.tsbuildinfo

@@ -1,0 +1,102 @@
+import { NextResponse, type NextRequest } from "next/server";
+import { internalApiUrl } from "./lib/internal-api";
+
+const PUBLIC_FILES = /\.(?:png|jpg|jpeg|webp|avif|svg|ico|css|js|woff|woff2|ttf|eot|otf|json|map|mp4|webm)$/i;
+const IP_HOST = /^\d{1,3}(?:\.\d{1,3}){3}$/;
+const TWO_PART_TLDS = new Set(["co.uk", "com.bd", "org.bd", "edu.bd", "gov.bd", "com.au", "co.nz", "co.in", "co.za"]);
+
+let cachedOnboarded: { value: boolean; expiresAt: number } | null = null;
+
+async function checkStoreOnboarded(bustCache = false): Promise<boolean> {
+  const now = Date.now();
+  if (!bustCache && cachedOnboarded && cachedOnboarded.expiresAt > now) {
+    return cachedOnboarded.value;
+  }
+
+  try {
+    const statusUrl = internalApiUrl("/api/store/status");
+    const response = await fetch(statusUrl, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(1_500),
+    });
+    if (!response.ok) throw new Error("Status check failed");
+    const data = (await response.json()) as { onboarded: boolean };
+    const isOnboarded = Boolean(data.onboarded);
+
+    // Cache onboarded=true for 60s, onboarded=false for 3s
+    cachedOnboarded = {
+      value: isOnboarded,
+      expiresAt: now + (isOnboarded ? 60_000 : 3_000),
+    };
+    return isOnboarded;
+  } catch {
+    // API may be booting or unreachable; preserve accessibility
+    return cachedOnboarded ? cachedOnboarded.value : true;
+  }
+}
+
+function subdomainFrom(hostname: string): string | undefined {
+  const host = hostname.toLowerCase().split(":")[0].trim();
+  if (!host || IP_HOST.test(host)) return undefined;
+
+  const labels = host.split(".");
+  if (labels.length < 2) return undefined;
+
+  // Localhost (e.g. "shoes.localhost")
+  if (labels.length === 2 && labels[1] === "localhost") {
+    return labels[0] === "www" ? undefined : labels[0];
+  }
+
+  // Two-part TLD (e.g. "shoes.mystore.com.bd")
+  const lastTwo = labels.slice(-2).join(".");
+  if (TWO_PART_TLDS.has(lastTwo)) {
+    if (labels.length <= 3) return undefined;
+    const first = labels[0];
+    return first === "www" ? undefined : first;
+  }
+
+  // Standard TLD (e.g. "shoes.mystore.com")
+  if (labels.length > 2) {
+    const first = labels[0];
+    return first === "www" ? undefined : first;
+  }
+
+  return undefined;
+}
+
+export async function middleware(request: NextRequest) {
+  const { pathname, hostname } = request.nextUrl;
+
+  // Skip static files, Next.js assets, API routes, and uploads
+  if (
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/api") ||
+    pathname.startsWith("/uploads") ||
+    PUBLIC_FILES.test(pathname)
+  ) {
+    return NextResponse.next();
+  }
+
+  const bustCache = request.nextUrl.searchParams.has("refresh_onboarding");
+  const isOnboarded = await checkStoreOnboarded(bustCache);
+
+  if (!isOnboarded && pathname !== "/onboarding") {
+    return NextResponse.redirect(new URL("/onboarding", request.url));
+  }
+
+  if (isOnboarded && pathname === "/onboarding") {
+    return NextResponse.redirect(new URL("/", request.url));
+  }
+
+  // Rewrite root request to category page when visiting via a valid subdomain
+  const subdomain = subdomainFrom(hostname);
+  if (subdomain && pathname === "/") {
+    return NextResponse.rewrite(new URL(`/categories/${subdomain}`, request.url));
+  }
+
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|uploads).*)"],
+};
