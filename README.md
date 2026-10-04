@@ -158,6 +158,22 @@ Logs appear under the same screen.
 The storefront, `/api/*`, `/uploads/*`, `/admin` and `/onboarding` are all
 served from the same domain.
 
+### If the host runs `next start` instead of `server.js`
+
+Some hosts lock the startup file and always launch their own Next.js runner.
+In that case no Express process exists and `/api/*` returns 404, which makes the
+storefront render with empty categories.
+
+`app/api/[...path]/route.ts` handles this: it imports the Express app from
+`api/server.ts`, binds it to an ephemeral loopback port on first use, and
+proxies each incoming request to it. Everything still lives in one process, so
+`next start` alone is enough — no host configuration required.
+
+The bridge is inert when `server.js` is the entry point, because Express claims
+`/api/*` before Next.js sees the request. Both paths were verified to return
+identical responses for JSON reads, authenticated requests and multipart
+uploads.
+
 ## Local file storage vs S3
 
 New installs have no storage provider configured. Open `/admin` →

@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "dev": "tsx watch --clear-screen=false --ignore \".next/**\" --ignore \"app/**\" --ignore \"components/**\" --ignore \"lib/**\" --ignore \"public/**\" server.js --dev",
-    "build": "prisma generate && npm run migrate:deploy && next build && npm run build:api && npm run seed:store:prod:empty",
+    "build": "prisma generate && npm run build:api && npm run migrate:deploy && next build && npm run seed:store:prod:empty",
     "build:api": "tsc -p tsconfig.server.json",
     "start": "node server.js",
     "lint": "next lint",
