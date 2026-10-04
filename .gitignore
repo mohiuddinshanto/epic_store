@@ -28,5 +28,9 @@ yarn-error.log*
 prisma/*.db
 prisma/*.db-journal
 
+# user uploads are runtime data, not source. The folder is created on demand by
+# api/lib/storage.ts, and prisma/storefront-seed.json only points at external URLs.
+public/uploads/
+
 # typescript
 *.tsbuildinfo
