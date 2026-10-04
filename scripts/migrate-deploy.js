@@ -61,6 +61,53 @@ function readMigrations() {
     });
 }
 
+const REFERENCE_PATTERNS = [
+  /ALTER\s+TABLE\s+`?([A-Za-z0-9_]+)`?/gi,
+  /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?`?([A-Za-z0-9_]+)`?/gi,
+  /DROP\s+TABLE\s+(?:IF\s+EXISTS\s+)?`?([A-Za-z0-9_]+)`?/gi,
+  /INSERT\s+INTO\s+`?([A-Za-z0-9_]+)`?/gi,
+  /UPDATE\s+`?([A-Za-z0-9_]+)`?\s+SET/gi,
+  /REFERENCES\s+`?([A-Za-z0-9_]+)`?\s*\(/gi,
+];
+
+const createdTablePattern = /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?`?([A-Za-z0-9_]+)`?/gi;
+
+function referencedTables(sql) {
+  const refs = new Set();
+  for (const pattern of REFERENCE_PATTERNS) {
+    for (const match of sql.matchAll(pattern)) {
+      if (match[1] !== "_prisma_migrations") refs.add(match[1]);
+    }
+  }
+  return refs;
+}
+
+function verifyTableReferences(migrations, existingTables) {
+  const created = new Set();
+  for (const migration of migrations) {
+    for (const match of migration.sql.matchAll(createdTablePattern)) created.add(match[1]);
+  }
+
+  const known = new Set([...existingTables, ...created]);
+  const unknown = new Map();
+
+  for (const migration of migrations) {
+    for (const table of referencedTables(migration.sql)) {
+      if (known.has(table)) continue;
+      if (!unknown.has(table)) unknown.set(table, migration.name);
+    }
+  }
+
+  if (unknown.size > 0) {
+    const lines = [...unknown].map(
+      ([table, migration]) => `  - \`${table}\` (referenced by ${migration})`,
+    );
+    throw new Error(
+      `table names do not match the schema (MySQL table names are case sensitive on Linux). Unknown tables:\n${lines.join("\n")}\nKnown tables: ${[...existingTables].join(", ")}`,
+    );
+  }
+}
+
 async function main() {
   const target = parseDatabaseUrl(process.env.DATABASE_URL);
   console.log(`[migrate] target ${target.user}@${target.host}:${target.port}/${target.database}`);
@@ -73,45 +120,70 @@ async function main() {
 
   try {
     await ensureMigrationsTable(connection);
+
+    const migrations = readMigrations();
+    const [tableRows] = await connection.query("SHOW TABLES");
+    const existingTables = tableRows.map((row) => Object.values(row)[0]);
+
+    verifyTableReferences(migrations, existingTables);
+    console.log(`[migrate] verified table references against ${existingTables.length} existing table(s)`);
+
     const [rows] = await connection.query(
       "SELECT migration_name, checksum, finished_at, rolled_back_at FROM _prisma_migrations",
     );
 
     const done = new Map();
+    const failed = new Set();
     for (const row of rows) {
       if (row.finished_at && !row.rolled_back_at) done.set(row.migration_name, row.checksum);
-      else console.log(`[migrate] retrying previously failed migration ${row.migration_name}`);
+      else failed.add(row.migration_name);
     }
 
-    const migrations = readMigrations();
-    const pending = migrations.filter((m) => done.get(m.name) !== m.checksum);
+    for (const name of failed) {
+      if (done.has(name)) {
+        await connection.query("DELETE FROM _prisma_migrations WHERE migration_name = ? AND finished_at IS NULL", [name]);
+        console.log(`[migrate] cleared a stale failed record for ${name} (it has since been applied)`);
+      } else {
+        console.log(`[migrate] retrying previously failed migration ${name}`);
+      }
+    }
+
+    const pending = migrations.filter((m) => !done.has(m.name));
 
     const drifted = migrations.filter((m) => done.has(m.name) && done.get(m.name) !== m.checksum);
     for (const migration of drifted) {
-      console.log(`[migrate] WARNING ${migration.name} checksum differs from the applied copy, re-applying`);
+      console.log(`[migrate] WARNING ${migration.name} was applied from a different file revision.`);
+      console.log(`[migrate] WARNING keeping the applied schema and only refreshing its recorded checksum.`);
+      await connection.query(
+        "UPDATE _prisma_migrations SET checksum = ? WHERE migration_name = ? AND finished_at IS NOT NULL",
+        [migration.checksum, migration.name],
+      );
     }
 
     console.log(`[migrate] ${migrations.length} migrations found, ${pending.length} pending`);
 
     for (const migration of pending) {
+      await connection.query("DELETE FROM _prisma_migrations WHERE migration_name = ? AND finished_at IS NULL", [migration.name]);
+
+      const recordId = randomUUID();
       await connection.query(
         "INSERT INTO _prisma_migrations (id, checksum, migration_name, started_at, applied_steps_count) VALUES (?, ?, ?, CURRENT_TIMESTAMP(3), 0)",
-        [randomUUID(), migration.checksum, migration.name],
+        [recordId, migration.checksum, migration.name],
       );
 
       try {
         await connection.query(migration.sql);
       } catch (error) {
-        await connection.query(
-          "UPDATE _prisma_migrations SET logs = ? WHERE migration_name = ? AND finished_at IS NULL",
-          [String(error.message).slice(0, 2000), migration.name],
-        );
+        await connection.query("UPDATE _prisma_migrations SET logs = ? WHERE id = ?", [
+          String(error.message).slice(0, 2000),
+          recordId,
+        ]);
         throw new Error(`${migration.name} failed: ${error.message}`);
       }
 
       await connection.query(
-        "UPDATE _prisma_migrations SET finished_at = CURRENT_TIMESTAMP(3), applied_steps_count = 1, logs = NULL WHERE migration_name = ? AND finished_at IS NULL",
-        [migration.name],
+        "UPDATE _prisma_migrations SET finished_at = CURRENT_TIMESTAMP(3), applied_steps_count = 1, logs = NULL WHERE id = ?",
+        [recordId],
       );
       console.log(`[migrate] applied ${migration.name}`);
     }

@@ -1,2 +1,2 @@
 -- AlterTable
-ALTER TABLE `storeconfig` ADD COLUMN `homePageConfig` JSON NULL;
+ALTER TABLE `StoreConfig` ADD COLUMN `homePageConfig` JSON NULL;

@@ -1,5 +1,5 @@
 -- AlterTable
-ALTER TABLE `product` ADD COLUMN `variationImages` JSON NULL;
+ALTER TABLE `Product` ADD COLUMN `variationImages` JSON NULL;
 
 -- CreateTable
 CREATE TABLE `ProductImage` (

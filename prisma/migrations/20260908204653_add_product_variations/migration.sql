@@ -1,5 +1,5 @@
 -- AlterTable
-ALTER TABLE `product` ADD COLUMN `defaultVariationId` VARCHAR(191) NULL,
+ALTER TABLE `Product` ADD COLUMN `defaultVariationId` VARCHAR(191) NULL,
     ADD COLUMN `productType` ENUM('SIMPLE', 'VARIABLE') NOT NULL DEFAULT 'SIMPLE',
     ADD COLUMN `sku` VARCHAR(191) NULL;
 

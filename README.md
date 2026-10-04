@@ -136,6 +136,13 @@ are never overwritten.
 > same `_prisma_migrations` bookkeeping (SHA-256 checksums) so `prisma migrate
 > status` still reports the database as up to date.
 
+> **Writing migrations:** MySQL table names are case sensitive on Linux hosts, so
+> always write them exactly as the `CREATE TABLE` statement spelled them
+> (`` `Product` ``, `` `StoreConfig` ``, `` `Order` ``). Never `product` or
+> `storeconfig`. The runner checks every table reference against the schema before
+> it applies anything, so a mismatch fails the build with a clear message instead
+> of a mid-migration error. Column, index and constraint names are not affected.
+
 To rebuild by hand over SSH:
 
 ```bash

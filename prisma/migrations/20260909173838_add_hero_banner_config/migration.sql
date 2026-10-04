@@ -1,2 +1,2 @@
 -- AlterTable
-ALTER TABLE `storeconfig` ADD COLUMN `heroBannerConfig` JSON NULL;
+ALTER TABLE `StoreConfig` ADD COLUMN `heroBannerConfig` JSON NULL;

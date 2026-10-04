@@ -1,2 +1,2 @@
 -- AlterTable
-ALTER TABLE `storeconfig` ADD COLUMN `checkoutForm` JSON NULL;
+ALTER TABLE `StoreConfig` ADD COLUMN `checkoutForm` JSON NULL;
