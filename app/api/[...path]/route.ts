@@ -1,3 +1,4 @@
+import { gunzipSync, inflateSync, brotliDecompressSync } from "node:zlib";
 import {
   HOP_BY_HOP,
   apiOrigin,
@@ -18,6 +19,8 @@ async function forward(request: Request): Promise<Response> {
   request.headers.forEach((value, key) => {
     if (!HOP_BY_HOP.has(key.toLowerCase())) headers[key] = value;
   });
+  // Request uncompressed response from loopback express
+  headers["accept-encoding"] = "identity";
 
   const body =
     method === "GET" || method === "HEAD" ? null : Buffer.from(await request.arrayBuffer());
@@ -30,9 +33,22 @@ async function forward(request: Request): Promise<Response> {
     body,
   );
 
+  let bodyBuffer: Buffer = upstream.body;
+  const encoding = typeof upstream.headers["content-encoding"] === "string"
+    ? upstream.headers["content-encoding"].toLowerCase().trim()
+    : undefined;
+
+  if (encoding === "gzip") {
+    try { bodyBuffer = gunzipSync(bodyBuffer); } catch { /* ignore */ }
+  } else if (encoding === "deflate") {
+    try { bodyBuffer = inflateSync(bodyBuffer); } catch { /* ignore */ }
+  } else if (encoding === "br") {
+    try { bodyBuffer = brotliDecompressSync(bodyBuffer); } catch { /* ignore */ }
+  }
+
   const responseHeaders = new Headers();
   for (const [key, value] of Object.entries(upstream.headers)) {
-    if (value === undefined || HOP_BY_HOP.has(key.toLowerCase())) continue;
+    if (value === undefined || HOP_BY_HOP.has(key.toLowerCase()) || key.toLowerCase() === "content-encoding") continue;
     if (Array.isArray(value)) {
       for (const item of value) responseHeaders.append(key, item);
     } else {
@@ -40,7 +56,7 @@ async function forward(request: Request): Promise<Response> {
     }
   }
 
-  return new Response(new Uint8Array(upstream.body), {
+  return new Response(new Uint8Array(bodyBuffer), {
     status: upstream.status,
     statusText: upstream.statusText || undefined,
     headers: responseHeaders,
