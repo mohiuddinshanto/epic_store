@@ -23,9 +23,12 @@ const allowedOrigins = (process.env.FRONTEND_URL ?? "http://localhost:3000")
 app.use(
   cors({
     origin(origin, cb) {
-      if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
-      cb(null, false);
+      if (!origin || allowedOrigins.includes(origin) || origin.endsWith("gadgetlagbe.online") || origin.includes("localhost")) {
+        return cb(null, true);
+      }
+      cb(null, true);
     },
+    credentials: true,
   })
 );
 app.use(express.json());

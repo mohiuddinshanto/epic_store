@@ -1,4 +1,5 @@
 import { createServer, request as httpRequest, type Server } from "node:http";
+import net from "node:net";
 import type { Express } from "express";
 
 export const HOP_BY_HOP = new Set([
@@ -40,7 +41,8 @@ export function startApiServer(): Promise<Server> {
       const server: Server = createServer(apiApp);
       await new Promise<void>((resolve, reject) => {
         server.once("error", reject);
-        server.listen(0, "127.0.0.1", () => resolve());
+        // Bypass Passenger's monkey-patched http.Server.listen() by calling net.Server.prototype.listen directly
+        Reflect.apply(net.Server.prototype.listen, server, [0, "127.0.0.1", () => resolve()]);
       });
       const address = server.address();
       const port = typeof address === "object" && address ? address.port : 0;
