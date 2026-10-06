@@ -5,46 +5,69 @@ const PUBLIC_FILES = /\.(?:png|jpg|jpeg|webp|avif|svg|ico|css|js|woff|woff2|ttf|
 const IP_HOST = /^\d{1,3}(?:\.\d{1,3}){3}$/;
 const TWO_PART_TLDS = new Set(["co.uk", "com.bd", "org.bd", "edu.bd", "gov.bd", "com.au", "co.nz", "co.in", "co.za"]);
 
+type StoreStatusResult = {
+  known: boolean;
+  isOnboarded: boolean;
+};
+
 let cachedOnboarded: { value: boolean; expiresAt: number } | null = null;
 
-async function checkStoreOnboarded(bustCache = false): Promise<boolean> {
+async function checkStoreOnboarded(requestUrl: string, bustCache = false): Promise<StoreStatusResult> {
   const now = Date.now();
   if (!bustCache && cachedOnboarded && cachedOnboarded.expiresAt > now) {
-    return cachedOnboarded.value;
+    return { known: true, isOnboarded: cachedOnboarded.value };
   }
 
+  const urlsToTry = [internalApiUrl("/api/store/status")];
   try {
-    const statusUrl = internalApiUrl("/api/store/status");
-    const response = await fetch(statusUrl, {
-      cache: "no-store",
-      signal: AbortSignal.timeout(1_500),
-    });
-    if (!response.ok) throw new Error("Status check failed");
-    const data = (await response.json()) as { onboarded: boolean };
-    const isOnboarded = Boolean(data.onboarded);
-
-    // Cache onboarded=true for 60s, onboarded=false for 3s
-    cachedOnboarded = {
-      value: isOnboarded,
-      expiresAt: now + (isOnboarded ? 60_000 : 3_000),
-    };
-    return isOnboarded;
+    const originUrl = new URL("/api/store/status", requestUrl).toString();
+    if (!urlsToTry.includes(originUrl)) {
+      urlsToTry.push(originUrl);
+    }
   } catch {
-    // API may be booting or unreachable; preserve accessibility
-    return cachedOnboarded ? cachedOnboarded.value : true;
+    // ignore URL parsing error
   }
+
+  for (const statusUrl of urlsToTry) {
+    try {
+      const response = await fetch(statusUrl, {
+        cache: "no-store",
+        signal: AbortSignal.timeout(3_000),
+      });
+      if (!response.ok) continue;
+      const data = (await response.json()) as { onboarded: boolean };
+      const isOnboarded = Boolean(data.onboarded);
+
+      // Cache onboarded=true for 60s, onboarded=false for 3s
+      cachedOnboarded = {
+        value: isOnboarded,
+        expiresAt: now + (isOnboarded ? 60_000 : 3_000),
+      };
+      return { known: true, isOnboarded };
+    } catch {
+      // Continue to next URL attempt
+    }
+  }
+
+  // If previous valid status was cached, reuse it; otherwise status is unconfirmed
+  if (cachedOnboarded) {
+    return { known: true, isOnboarded: cachedOnboarded.value };
+  }
+  return { known: false, isOnboarded: false };
 }
 
 function subdomainFrom(hostname: string): string | undefined {
   const host = hostname.toLowerCase().split(":")[0].trim();
   if (!host || IP_HOST.test(host)) return undefined;
 
+  const ignored = new Set(["www", "woocommerce", "store", "shop", "app", "dev", "staging", "api", "admin"]);
+
   const labels = host.split(".");
   if (labels.length < 2) return undefined;
 
   // Localhost (e.g. "shoes.localhost")
   if (labels.length === 2 && labels[1] === "localhost") {
-    return labels[0] === "www" ? undefined : labels[0];
+    return ignored.has(labels[0]) ? undefined : labels[0];
   }
 
   // Two-part TLD (e.g. "shoes.mystore.com.bd")
@@ -52,13 +75,13 @@ function subdomainFrom(hostname: string): string | undefined {
   if (TWO_PART_TLDS.has(lastTwo)) {
     if (labels.length <= 3) return undefined;
     const first = labels[0];
-    return first === "www" ? undefined : first;
+    return ignored.has(first) ? undefined : first;
   }
 
   // Standard TLD (e.g. "shoes.mystore.com")
   if (labels.length > 2) {
     const first = labels[0];
-    return first === "www" ? undefined : first;
+    return ignored.has(first) ? undefined : first;
   }
 
   return undefined;
@@ -78,13 +101,13 @@ export async function middleware(request: NextRequest) {
   }
 
   const bustCache = request.nextUrl.searchParams.has("refresh_onboarding");
-  const isOnboarded = await checkStoreOnboarded(bustCache);
+  const { known, isOnboarded } = await checkStoreOnboarded(request.url, bustCache);
 
-  if (!isOnboarded && pathname !== "/onboarding") {
+  if (known && !isOnboarded && pathname !== "/onboarding") {
     return NextResponse.redirect(new URL("/onboarding", request.url));
   }
 
-  if (isOnboarded && pathname === "/onboarding") {
+  if (known && isOnboarded && pathname === "/onboarding") {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
