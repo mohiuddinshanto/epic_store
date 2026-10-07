@@ -3856,11 +3856,7 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
     for (const s of sections) {
       if (!s.categoryIds.length) return toast.error("Each section needs at least one category");
     }
-    save({ homePageConfig: { ...(config.homePageConfig ?? {}), layout, sections, promoBanners: promos, trustBadges: trust } });
-  }
-
-  function saveFlash() {
-    const clean: FlashDealDef = {
+    const cleanFlash: FlashDealDef = {
       ...flash,
       enabled: flash.enabled !== false,
       autoPick: flash.autoPick !== false,
@@ -3868,8 +3864,23 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
       countdownMode: flash.countdownMode === "hours" ? "hours" : "midnight",
       countdownHours: flash.countdownMode === "hours" ? Math.min(168, Math.max(1, Number(flash.countdownHours) || 1)) : undefined,
     };
+    if (cleanFlash.autoPick) delete cleanFlash.productId;
+    save({ homePageConfig: { ...(config.homePageConfig ?? {}), layout, sections, promoBanners: promos, trustBadges: trust, flashDeal: cleanFlash } });
+  }
+
+  function saveFlash(targetFlash?: FlashDealDef) {
+    const target = targetFlash ?? flash;
+    const clean: FlashDealDef = {
+      ...target,
+      enabled: target.enabled !== false,
+      autoPick: target.autoPick !== false,
+      showCountdown: target.showCountdown !== false,
+      countdownMode: target.countdownMode === "hours" ? "hours" : "midnight",
+      countdownHours: target.countdownMode === "hours" ? Math.min(168, Math.max(1, Number(target.countdownHours) || 1)) : undefined,
+    };
     if (clean.autoPick) delete clean.productId;
-    save({ homePageConfig: { ...(config.homePageConfig ?? {}), flashDeal: clean } });
+    setFlashDirty(false);
+    return save({ homePageConfig: { ...(config.homePageConfig ?? {}), flashDeal: clean } });
   }
 
   function savePromos() {
@@ -4030,13 +4041,21 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
           </div>
           <div className="flex items-center gap-3">
             <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300">
-              <Switch isSelected={flash.enabled !== false} onValueChange={(v) => { setFlash((f) => ({ ...f, enabled: v })); setFlashDirty(true); }} color="primary" />
+              <Switch
+                isSelected={flash.enabled !== false}
+                onValueChange={(v) => {
+                  const updated = { ...flash, enabled: v };
+                  setFlash(updated);
+                  saveFlash(updated);
+                }}
+                color="primary"
+              />
               Show banner
             </label>
             {flashDirty && (
               <button
                 type="button"
-                onClick={saveFlash}
+                onClick={() => saveFlash()}
                 disabled={saving}
                 className="flex items-center gap-2 px-4 h-9 bg-gradient-to-r from-primary to-indigo-500 text-white text-sm font-bold rounded-xl hover:shadow-lg hover:shadow-primary/30 transition-all disabled:opacity-60"
               >

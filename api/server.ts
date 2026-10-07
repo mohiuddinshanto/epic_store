@@ -1488,7 +1488,7 @@ app.patch("/api/admin/config", requireAuth, requireRole("ADMIN"), async (req, re
   const input = data.data;
   const existing = await prisma.storeConfig.findUnique({
     where: { id: "store-config-singleton" },
-    select: { featureFlags: true, paymentConfig: true, emailConfig: true, courierConfig: true, storageConfig: true, aiConfig: true, heroBannerConfig: true },
+    select: { featureFlags: true, paymentConfig: true, emailConfig: true, courierConfig: true, storageConfig: true, aiConfig: true, heroBannerConfig: true, homePageConfig: true },
   });
   const priorPayment = decrypt<PaymentSettings>((existing?.paymentConfig as { encrypted?: string } | null)?.encrypted) ?? {};
   const mergeGateway = <T extends Record<string, unknown>>(oldValue: T | undefined, newValue: T | undefined) =>
@@ -1518,7 +1518,20 @@ app.patch("/api/admin/config", requireAuth, requireRole("ADMIN"), async (req, re
       featureFlags: input.featureFlags ? ({ ...defaultFeatureFlags, ...((existing?.featureFlags as object | null) ?? {}), ...input.featureFlags } as Prisma.InputJsonValue) : undefined,
       marketingPixels: input.marketingPixels as Prisma.InputJsonValue,
       chatConfig: input.chatConfig as Prisma.InputJsonValue,
-      homePageConfig: input.homePageConfig as Prisma.InputJsonValue,
+      homePageConfig: input.homePageConfig
+        ? ({
+            ...((existing?.homePageConfig as Record<string, unknown>) ?? {}),
+            ...input.homePageConfig,
+            ...(input.homePageConfig.flashDeal !== undefined
+              ? {
+                  flashDeal: {
+                    ...(((existing?.homePageConfig as Record<string, unknown>)?.flashDeal as Record<string, unknown>) ?? {}),
+                    ...input.homePageConfig.flashDeal,
+                  },
+                }
+              : {}),
+          } as Prisma.InputJsonValue)
+        : undefined,
       heroBannerConfig: input.heroBannerConfig
         ? ({ ...((existing?.heroBannerConfig as Record<string, unknown>) ?? {}), ...Object.fromEntries(Object.entries(input.heroBannerConfig).filter(([, v]) => v !== undefined)) } as Prisma.InputJsonValue)
         : undefined,

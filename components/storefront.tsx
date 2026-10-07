@@ -151,8 +151,8 @@ type TrustBadgeConfig = {
   subtitle?: string;
 };
 
-type HomePageConfig = {
-  sections: HomeSection[];
+export type HomePageConfig = {
+  sections?: HomeSection[];
   layout?: "classic" | "catalog";
   categories?: CategoryDisplayConfig & { eyebrow?: string; title?: string; accent?: string; countLabel?: string };
   flashDeal?: FlashDealConfig;
@@ -355,7 +355,13 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   lifestyle: <FiLayers size={24} />,
 };
 
-export function Storefront({ initialLayout = "classic" }: { initialLayout?: "classic" | "catalog" } = {}) {
+export function Storefront({
+  initialLayout = "classic",
+  initialHomeConfig = null,
+}: {
+  initialLayout?: "classic" | "catalog";
+  initialHomeConfig?: HomePageConfig | null;
+} = {}) {
   const pathname = usePathname();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -368,6 +374,7 @@ export function Storefront({ initialLayout = "classic" }: { initialLayout?: "cla
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [homeConfig, setHomeConfig] = useState<HomePageConfig | null>(() => {
+    if (initialHomeConfig) return initialHomeConfig;
     if (typeof window !== "undefined") {
       try {
         const saved = localStorage.getItem("epic_home_config");
