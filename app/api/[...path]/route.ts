@@ -1,7 +1,6 @@
 import { gunzipSync, inflateSync, brotliDecompressSync } from "node:zlib";
 import {
   HOP_BY_HOP,
-  apiOrigin,
   proxyRequest,
   startApiServer,
 } from "../../../lib/api-bridge";
@@ -10,8 +9,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 async function forward(request: Request): Promise<Response> {
-  void startApiServer();
-  const origin = await apiOrigin();
+  await startApiServer();
   const incoming = new URL(request.url);
   const method = request.method.toUpperCase();
 
@@ -26,7 +24,6 @@ async function forward(request: Request): Promise<Response> {
     method === "GET" || method === "HEAD" ? null : Buffer.from(await request.arrayBuffer());
 
   const upstream = await proxyRequest(
-    origin,
     `${incoming.pathname}${incoming.search}`,
     method,
     headers,

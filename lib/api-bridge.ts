@@ -1,5 +1,8 @@
 import { createServer, request as httpRequest, type Server } from "node:http";
 import net from "node:net";
+import fs from "node:fs";
+import path from "node:path";
+import os from "node:os";
 import type { Express } from "express";
 
 export const HOP_BY_HOP = new Set([
@@ -26,6 +29,8 @@ export type Upstream = {
 };
 
 let apiHandle: Promise<Server> | null = null;
+const isWindows = process.platform === "win32";
+const socketPath = isWindows ? null : path.join(os.tmpdir(), `epic-store-${process.pid}.sock`);
 let activePort = Number(process.env.API_BRIDGE_PORT || 41235);
 
 async function loadApiApp() {
@@ -40,38 +45,47 @@ export function startApiServer(): Promise<Server> {
     apiHandle = (async () => {
       const apiApp = await loadApiApp();
       const server: Server = createServer(apiApp);
-      const tryPorts = [activePort, 41236, 41237, 41238, 41239];
-      let started = false;
 
-      for (const p of tryPorts) {
+      if (socketPath) {
         try {
-          await new Promise<void>((resolve, reject) => {
-            const onError = (err: unknown) => {
-              server.removeListener("error", onError);
-              reject(err);
-            };
-            server.once("error", onError);
-            Reflect.apply(net.Server.prototype.listen, server, [
-              p,
-              "127.0.0.1",
-              () => {
-                server.removeListener("error", onError);
-                activePort = p;
-                resolve();
-              },
-            ]);
-          });
-          started = true;
-          console.log(`[api-bridge] listening on 127.0.0.1:${activePort}`);
-          break;
+          fs.unlinkSync(socketPath);
         } catch {
-          // Port busy, try next port
+          // ignore if doesn't exist
         }
+        await new Promise<void>((resolve, reject) => {
+          const onError = (err: unknown) => {
+            server.removeListener("error", onError);
+            reject(err);
+          };
+          server.once("error", onError);
+          Reflect.apply(net.Server.prototype.listen, server, [
+            socketPath,
+            () => {
+              server.removeListener("error", onError);
+              resolve();
+            },
+          ]);
+        });
+        process.on("exit", () => {
+          try {
+            fs.unlinkSync(socketPath);
+          } catch {
+            // ignore
+          }
+        });
+        console.log(`[api-bridge] listening on unix socket: ${socketPath}`);
+      } else {
+        await new Promise<void>((resolve, reject) => {
+          server.once("error", reject);
+          Reflect.apply(net.Server.prototype.listen, server, [
+            activePort,
+            "127.0.0.1",
+            () => resolve(),
+          ]);
+        });
+        console.log(`[api-bridge] listening on 127.0.0.1:${activePort}`);
       }
 
-      if (!started) {
-        throw new Error("Could not bind API bridge server to any loopback port");
-      }
       return server;
     })().catch((error) => {
       apiHandle = null;
@@ -83,26 +97,25 @@ export function startApiServer(): Promise<Server> {
 
 export async function warmApi(): Promise<void> {
   await startApiServer();
-  const probe = await fetch(`http://127.0.0.1:${activePort}/api/store/status`, {
-    cache: "no-store",
-  }).catch(() => null);
-  console.log(`[api-bridge] warm probe status=${probe ? probe.status : "failed"}`);
 }
 
 export async function apiOrigin(): Promise<string> {
   await startApiServer();
-  return `http://127.0.0.1:${activePort}`;
+  return socketPath ? socketPath : `http://127.0.0.1:${activePort}`;
 }
 
 export function proxyRequest(
-  origin: string,
   pathname: string,
   method: string,
   headers: Record<string, string>,
   body: Buffer | null,
 ): Promise<Upstream> {
   return new Promise((resolve, reject) => {
-    const req = httpRequest(`${origin}${pathname}`, { method, headers }, (res) => {
+    const reqOptions = socketPath
+      ? { socketPath, path: pathname, method, headers }
+      : { host: "127.0.0.1", port: activePort, path: pathname, method, headers };
+
+    const req = httpRequest(reqOptions, (res) => {
       const chunks: Buffer[] = [];
       res.on("data", (chunk: Buffer) => chunks.push(chunk));
       res.on("end", () =>
