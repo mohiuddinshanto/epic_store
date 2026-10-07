@@ -53,6 +53,11 @@ async function forward(request: Request): Promise<Response> {
     }
   }
 
+  // Force anti-cache headers so Hostinger CDN / LiteSpeed / browser never caches dynamic API responses
+  responseHeaders.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0");
+  responseHeaders.set("Pragma", "no-cache");
+  responseHeaders.set("Expires", "0");
+
   return new Response(new Uint8Array(bodyBuffer), {
     status: upstream.status,
     statusText: upstream.statusText || undefined,
@@ -66,7 +71,12 @@ function handle(request: Request): Promise<Response> {
     console.error("[api-bridge] request failed:", error);
     return new Response(JSON.stringify({ error: "API bridge unavailable", detail }), {
       status: 502,
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        "cache-control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
+        pragma: "no-cache",
+        expires: "0",
+      },
     });
   });
 }

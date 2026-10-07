@@ -355,7 +355,7 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   lifestyle: <FiLayers size={24} />,
 };
 
-export function Storefront() {
+export function Storefront({ initialLayout = "classic" }: { initialLayout?: "classic" | "catalog" } = {}) {
   const pathname = usePathname();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -367,7 +367,15 @@ export function Storefront() {
   const [chatOpen, setChatOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [countdown, setCountdown] = useState(0);
-  const [homeConfig, setHomeConfig] = useState<HomePageConfig | null>(null);
+  const [homeConfig, setHomeConfig] = useState<HomePageConfig | null>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("epic_home_config");
+        if (saved) return JSON.parse(saved);
+      } catch {}
+    }
+    return initialLayout === "catalog" ? ({ layout: "catalog" } as HomePageConfig) : null;
+  });
   const [bannerConfig, setBannerConfig] = useState<HeroBannerConfig | null>(null);
   const [navMenus, setNavMenus] = useState<MenuItem[]>([]);
   const [storeName, setStoreName] = useState("EPIC");
@@ -376,16 +384,26 @@ export function Storefront() {
   const [bottomNav, setBottomNav] = useState(true);
 
   useEffect(() => {
+    const cacheOpts: RequestInit = {
+      cache: "no-store",
+      headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
+    };
+    const t = Date.now();
     Promise.all([
-      fetch(`${apiUrl}/api/products?home=1`).then((r) => r.json()),
-      fetch(`${apiUrl}/api/categories`).then((r) => r.json()),
-      fetch(`${apiUrl}/api/store/status`).then((r) => r.json()),
+      fetch(`${apiUrl}/api/products?home=1&_t=${t}`, cacheOpts).then((r) => r.json()),
+      fetch(`${apiUrl}/api/categories?_t=${t}`, cacheOpts).then((r) => r.json()),
+      fetch(`${apiUrl}/api/store/status?_t=${t}`, cacheOpts).then((r) => r.json()),
     ])
       .then(([p, c, status]) => {
         if (Array.isArray(p)) setProducts(p);
         if (Array.isArray(c)) setCategories(c);
         if (status?.config?.chatConfig) setChatConfig(status.config.chatConfig);
-        if (status?.config?.homePageConfig) setHomeConfig(status.config.homePageConfig);
+        if (status?.config?.homePageConfig) {
+          setHomeConfig(status.config.homePageConfig);
+          try {
+            localStorage.setItem("epic_home_config", JSON.stringify(status.config.homePageConfig));
+          } catch {}
+        }
         if (status?.config?.heroBannerConfig) setBannerConfig(status.config.heroBannerConfig);
         if (status?.config?.navigationConfig?.menus?.[0]?.items) setNavMenus(status.config.navigationConfig.menus[0].items);
         if (typeof status?.config?.storeName === "string" && status.config.storeName.trim()) setStoreName(status.config.storeName.trim());

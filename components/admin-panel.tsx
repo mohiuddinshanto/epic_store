@@ -367,6 +367,11 @@ export function AdminPanel() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
       setConfig(data);
+      if (data.homePageConfig) {
+        try {
+          localStorage.setItem("epic_home_config", JSON.stringify(data.homePageConfig));
+        } catch {}
+      }
       toast.success("Settings saved");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not save settings");
@@ -3984,14 +3989,29 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
   return (
     <div className="space-y-6 max-w-4xl">
       <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-6">
-        <p className="text-sm font-medium text-gray-800 dark:text-slate-200 mb-1">Default home page style</p>
-        <p className="text-xs text-gray-400 dark:text-slate-500 mb-4">
-          Customers will see this layout on the home page and the /shop page. You can switch any time.
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+          <div>
+            <p className="text-sm font-medium text-gray-800 dark:text-slate-200 mb-1">Default home page style</p>
+            <p className="text-xs text-gray-400 dark:text-slate-500">
+              Customers will see this layout on the home page and the /shop page. You can switch any time.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => save({ homePageConfig: { ...(config.homePageConfig ?? {}), layout } })}
+            disabled={saving}
+            className="flex items-center gap-2 px-4 h-9 bg-primary text-white text-sm font-bold rounded-xl hover:bg-primary-dark transition-all disabled:opacity-60 shadow-sm"
+          >
+            {saving ? "Saving…" : "Save Layout"}
+          </button>
+        </div>
         <Select
           label="Home layout"
           selectedKeys={[layout]}
-          onSelectionChange={(keys) => setLayout((Array.from(keys as Set<string>)[0] as "classic" | "catalog") ?? "classic")}
+          onSelectionChange={(keys) => {
+            const next = (Array.from(keys as Set<string>)[0] as "classic" | "catalog") ?? "classic";
+            setLayout(next);
+          }}
           className="max-w-md"
         >
           <SelectItem key="classic">Classic — current minimal design</SelectItem>

@@ -474,15 +474,31 @@ export function ShopView({ initialLayout = "classic" }: { initialLayout?: "class
   const [allowAddToCart, setAllowAddToCart] = useState(true);
   const [chatConfig, setChatConfig] = useState<{ whatsapp?: { enabled?: boolean; number?: string } } | null>(null);
   const [wishlist, setWishlist] = useState<string[]>([]);
-  const [activeLayout, setActiveLayout] = useState<"classic" | "catalog">(initialLayout);
+  const [activeLayout, setActiveLayout] = useState<"classic" | "catalog">(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("epic_home_config");
+        if (saved) {
+          const cfg = JSON.parse(saved);
+          if (cfg?.layout) return cfg.layout;
+        }
+      } catch {}
+    }
+    return initialLayout;
+  });
 
   // Fetch initial data
   useEffect(() => {
     setLoading(true);
+    const cacheOpts: RequestInit = {
+      cache: "no-store",
+      headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
+    };
+    const t = Date.now();
     Promise.all([
-      fetch(`${apiUrl}/api/products`).then((r) => r.json()),
-      fetch(`${apiUrl}/api/categories`).then((r) => r.json()),
-      fetch(`${apiUrl}/api/store/status`).then((r) => r.json()),
+      fetch(`${apiUrl}/api/products?_t=${t}`, cacheOpts).then((r) => r.json()),
+      fetch(`${apiUrl}/api/categories?_t=${t}`, cacheOpts).then((r) => r.json()),
+      fetch(`${apiUrl}/api/store/status?_t=${t}`, cacheOpts).then((r) => r.json()),
     ])
       .then(([prods, cats, status]) => {
         const prodList: Product[] = Array.isArray(prods) ? prods : [];
@@ -501,7 +517,12 @@ export function ShopView({ initialLayout = "classic" }: { initialLayout?: "class
 
         setAllowAddToCart(status?.config?.featureFlags?.addToCart !== false);
         setChatConfig(status?.config?.chatConfig);
-        setActiveLayout(status?.config?.homePageConfig?.layout ?? "classic");
+        if (status?.config?.homePageConfig?.layout) {
+          setActiveLayout(status.config.homePageConfig.layout);
+          try {
+            localStorage.setItem("epic_home_config", JSON.stringify(status.config.homePageConfig));
+          } catch {}
+        }
         setLoading(false);
       })
       .catch(() => setLoading(false));
