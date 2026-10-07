@@ -26,6 +26,7 @@ export type Upstream = {
 };
 
 let apiHandle: Promise<Server> | null = null;
+let activePort = Number(process.env.API_BRIDGE_PORT || 41235);
 
 async function loadApiApp() {
   const apiModule = await import("../api/server");
@@ -39,14 +40,38 @@ export function startApiServer(): Promise<Server> {
     apiHandle = (async () => {
       const apiApp = await loadApiApp();
       const server: Server = createServer(apiApp);
-      await new Promise<void>((resolve, reject) => {
-        server.once("error", reject);
-        // Bypass Passenger's monkey-patched http.Server.listen() by calling net.Server.prototype.listen directly
-        Reflect.apply(net.Server.prototype.listen, server, [0, "127.0.0.1", () => resolve()]);
-      });
-      const address = server.address();
-      const port = typeof address === "object" && address ? address.port : 0;
-      console.log(`[api-bridge] listening on 127.0.0.1:${port}`);
+      const tryPorts = [activePort, 41236, 41237, 41238, 41239];
+      let started = false;
+
+      for (const p of tryPorts) {
+        try {
+          await new Promise<void>((resolve, reject) => {
+            const onError = (err: unknown) => {
+              server.removeListener("error", onError);
+              reject(err);
+            };
+            server.once("error", onError);
+            Reflect.apply(net.Server.prototype.listen, server, [
+              p,
+              "127.0.0.1",
+              () => {
+                server.removeListener("error", onError);
+                activePort = p;
+                resolve();
+              },
+            ]);
+          });
+          started = true;
+          console.log(`[api-bridge] listening on 127.0.0.1:${activePort}`);
+          break;
+        } catch {
+          // Port busy, try next port
+        }
+      }
+
+      if (!started) {
+        throw new Error("Could not bind API bridge server to any loopback port");
+      }
       return server;
     })().catch((error) => {
       apiHandle = null;
@@ -57,20 +82,16 @@ export function startApiServer(): Promise<Server> {
 }
 
 export async function warmApi(): Promise<void> {
-  const server = await startApiServer();
-  const address = server.address();
-  const port = typeof address === "object" && address ? address.port : 0;
-  const probe = await fetch(`http://127.0.0.1:${port}/api/store/status`, {
+  await startApiServer();
+  const probe = await fetch(`http://127.0.0.1:${activePort}/api/store/status`, {
     cache: "no-store",
   }).catch(() => null);
   console.log(`[api-bridge] warm probe status=${probe ? probe.status : "failed"}`);
 }
 
 export async function apiOrigin(): Promise<string> {
-  const server = await startApiServer();
-  const address = server.address();
-  const port = typeof address === "object" && address ? address.port : 0;
-  return `http://127.0.0.1:${port}`;
+  await startApiServer();
+  return `http://127.0.0.1:${activePort}`;
 }
 
 export function proxyRequest(
