@@ -313,6 +313,7 @@ export function CatalogHome({
   sections,
   promoBanners,
   trustBadges,
+  sectionVisibility,
 }: {
   products: Product[];
   categories: Category[];
@@ -325,6 +326,7 @@ export function CatalogHome({
   sections?: HomeSectionDef[];
   promoBanners?: PromoBannerDef[];
   trustBadges?: TrustBadgeDef[];
+  sectionVisibility?: Partial<Record<"hero" | "categories" | "products" | "collections" | "trust" | "promos", boolean>>;
 }) {
   const [activeTab, setActiveTab] = useState<string>("all");
 
@@ -433,7 +435,7 @@ export function CatalogHome({
   return (
     <>
       {/* HERO */}
-      <section className="mx-auto max-w-7xl px-4 py-4 md:py-6">
+      {sectionVisibility?.hero !== false && <section className="mx-auto max-w-7xl px-4 py-4 md:py-6">
         <div className="overflow-hidden rounded-2xl shadow-xl">
           <CarouselSlider
             items={heroSlides.map((s) => (
@@ -484,10 +486,10 @@ export function CatalogHome({
             ariaLabel="Hero banner carousel"
           />
         </div>
-      </section>
+      </section>}
 
       {/* CATEGORIES */}
-      <section id="categories" className="mx-auto max-w-7xl px-4 py-8">
+      {sectionVisibility?.categories !== false && <section id="categories" className="mx-auto max-w-7xl px-4 py-8">
         <div className="mb-5 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-[var(--primary)]">
@@ -520,10 +522,10 @@ export function CatalogHome({
             </Link>
           ))}
         </div>
-      </section>
+      </section>}
 
       {/* POPULAR PRODUCTS */}
-      <section id="shop" className="mx-auto max-w-7xl px-4 py-8">
+      {sectionVisibility?.products !== false && <section id="shop" className="mx-auto max-w-7xl px-4 py-8">
         <div className="mb-7 flex flex-col justify-between gap-4 md:flex-row md:items-end">
           <div>
             <p className="mb-1 text-sm font-semibold text-amber-700">আমাদের জনপ্রিয় কালেকশন</p>
@@ -559,10 +561,10 @@ export function CatalogHome({
           spaceBetween={12}
           ariaLabel="Popular products"
         />
-      </section>
+      </section>}
 
       {/* CATEGORY SLIDERS */}
-      {sectionList.map((c) => (
+      {sectionVisibility?.collections !== false && sectionList.map((c) => (
         <section key={c.id} className="mx-auto max-w-7xl px-4 py-8">
           <div className="mb-5 flex items-end justify-between border-b border-gray-100 pb-3">
             <div>
@@ -594,7 +596,7 @@ export function CatalogHome({
       ))}
 
       {/* TRUST */}
-      {(() => {
+      {sectionVisibility?.trust !== false && (() => {
         const defaults: { key: string; icon: string; title: string; subtitle: string }[] = [
           { key: "shield", icon: "shield", title: "১০০% অরিজিনাল পণ্য", subtitle: "নকল পণ্যের সাথে আপস নয়" },
           { key: "truck", icon: "truck", title: "সারা বাংলাদেশে ডেলিভারি", subtitle: "দ্রুত ও নিরাপদ ডেলিভারি" },
@@ -635,7 +637,7 @@ export function CatalogHome({
       })()}
 
       {/* PROMO */}
-      {visiblePromos.length > 0 && (
+      {sectionVisibility?.promos !== false && visiblePromos.length > 0 && (
         <section className="mx-auto max-w-7xl px-4 py-6">
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             {visiblePromos.map((p, i) => (

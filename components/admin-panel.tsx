@@ -42,6 +42,7 @@ type FlashDealDef = {
 type HomePageConfigShape = {
   sections: HomeSectionDef[];
   layout?: "classic" | "catalog";
+  sectionVisibility?: Partial<Record<"hero" | "categories" | "products" | "collections" | "trust" | "promos", boolean>>;
   categories?: CategoryDisplay & { eyebrow?: string; title?: string; accent?: string; countLabel?: string };
   flashDeal?: FlashDealDef;
   promoBanners?: PromoBannerDef[];
@@ -3742,7 +3743,6 @@ type SmallCategory = { id: string; name: string; _count?: { products?: number } 
 
 function HomeLayoutSettings({ config, save, saving, token }: { config: Config; save: (payload: object) => Promise<void>; saving: boolean; token: string }) {
   const [cats, setCats] = useState<SmallCategory[]>([]);
-  const [layout, setLayout] = useState<"classic" | "catalog">(config.homePageConfig?.layout ?? "classic");
   const [sections, setSections] = useState<HomeSectionDef[]>(
     config.homePageConfig?.sections?.length
       ? config.homePageConfig.sections
@@ -3830,6 +3830,10 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
     setSections((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
   }
 
+  function setSectionVisibility(key: "hero" | "categories" | "products" | "collections" | "trust" | "promos", enabled: boolean) {
+    return save({ homePageConfig: { ...(config.homePageConfig ?? {}), layout: "catalog", sectionVisibility: { ...(config.homePageConfig?.sectionVisibility ?? {}), [key]: enabled } } });
+  }
+
   function remove(id: string) {
     setSections((prev) => prev.filter((s) => s.id !== id));
   }
@@ -3865,7 +3869,7 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
       countdownHours: flash.countdownMode === "hours" ? Math.min(168, Math.max(1, Number(flash.countdownHours) || 1)) : undefined,
     };
     if (cleanFlash.autoPick) delete cleanFlash.productId;
-    save({ homePageConfig: { ...(config.homePageConfig ?? {}), layout, sections, promoBanners: promos, trustBadges: trust, flashDeal: cleanFlash } });
+    save({ homePageConfig: { ...(config.homePageConfig ?? {}), layout: "catalog", sections, promoBanners: promos, trustBadges: trust, flashDeal: cleanFlash } });
   }
 
   function saveFlash(targetFlash?: FlashDealDef) {
@@ -4009,26 +4013,22 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
           </div>
           <button
             type="button"
-            onClick={() => save({ homePageConfig: { ...(config.homePageConfig ?? {}), layout } })}
+            onClick={() => save({ homePageConfig: { ...(config.homePageConfig ?? {}), layout: "catalog" } })}
             disabled={saving}
             className="flex items-center gap-2 px-4 h-9 bg-primary text-white text-sm font-bold rounded-xl hover:bg-primary-dark transition-all disabled:opacity-60 shadow-sm"
           >
             {saving ? "Saving…" : "Save Layout"}
           </button>
         </div>
-        <Select
-          label="Home layout"
-          selectedKeys={[layout]}
-          onSelectionChange={(keys) => {
-            const next = (Array.from(keys as Set<string>)[0] as "classic" | "catalog") ?? "classic";
-            setLayout(next);
-          }}
-          className="max-w-md"
-        >
-          <SelectItem key="classic">Classic — current minimal design</SelectItem>
-          <SelectItem key="catalog">Catalog — storefront-style catalogue (home2)</SelectItem>
-        </Select>
-        <p className="text-xs text-gray-400 dark:text-slate-500 mt-2">The section list below only applies to the Classic layout. The Catalog layout shows a hero, category grid, popular products and per-category collections automatically.</p>
+        <div className="space-y-3">
+          <p className="text-sm font-semibold text-gray-800 dark:text-slate-200">Show or hide home page sections</p>
+          {([ ["hero", "Hero banner"], ["categories", "Categories"], ["products", "Popular products"], ["collections", "Category collections"], ["trust", "Trust badges"], ["promos", "Promo banners"] ] as const).map(([key, label]) => (
+            <label key={key} className="flex items-center justify-between gap-4 rounded-xl border border-gray-100 dark:border-white/10 px-4 py-3 text-sm text-gray-700 dark:text-slate-200">
+              {label}
+              <Switch isSelected={config.homePageConfig?.sectionVisibility?.[key] !== false} isDisabled={saving} onValueChange={(value) => setSectionVisibility(key, value)} />
+            </label>
+          ))}
+        </div>
       </div>
       {/* FLASH DEAL SETTINGS */}
       <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-5 sm:p-6 space-y-4">

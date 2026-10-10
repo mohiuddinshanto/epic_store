@@ -153,7 +153,8 @@ type TrustBadgeConfig = {
 
 export type HomePageConfig = {
   sections?: HomeSection[];
-  layout?: "classic" | "catalog";
+  layout?: "catalog";
+  sectionVisibility?: Partial<Record<"hero" | "categories" | "products" | "collections" | "trust" | "promos", boolean>>;
   categories?: CategoryDisplayConfig & { eyebrow?: string; title?: string; accent?: string; countLabel?: string };
   flashDeal?: FlashDealConfig;
   promoBanners?: PromoBannerConfig[];
@@ -528,7 +529,7 @@ export function Storefront({
     [products]
   );
 
-  const activeLayout = homeConfig?.layout ?? "classic";
+  const activeLayout = "catalog" as const;
 
   const categoryConfig = homeConfig?.categories ?? {};
   const categoryMode: "grid" | "carousel" | "loop" = categoryConfig.mode ?? "grid";
@@ -858,6 +859,7 @@ export function Storefront({
           sections={homeConfig?.sections}
           promoBanners={homeConfig?.promoBanners}
           trustBadges={homeConfig?.trustBadges}
+          sectionVisibility={homeConfig?.sectionVisibility}
         />
       ) : (
         <>
