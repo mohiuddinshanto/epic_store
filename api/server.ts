@@ -1278,6 +1278,16 @@ app.patch("/api/admin/config", requireAuth, requireRole("ADMIN"), async (req, re
       homePageConfig: z
         .object({
           layout: z.enum(["classic", "catalog"]).optional(),
+          sectionVisibility: z
+            .object({
+              hero: z.boolean().optional(),
+              categories: z.boolean().optional(),
+              products: z.boolean().optional(),
+              collections: z.boolean().optional(),
+              trust: z.boolean().optional(),
+              promos: z.boolean().optional(),
+            })
+            .optional(),
           flashDeal: z
             .object({
               enabled: z.boolean().optional(),
