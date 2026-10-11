@@ -1378,20 +1378,6 @@ app.patch("/api/admin/config", requireAuth, requireRole("ADMIN"), async (req, re
               announcement: z.boolean().optional(),
             })
             .optional(),
-          flashDeal: z
-            .object({
-              enabled: z.boolean().optional(),
-              badge: z.string().max(120).optional(),
-              titlePrefix: z.string().max(120).optional(),
-              description: z.string().max(400).optional(),
-              buttonLabel: z.string().max(60).optional(),
-              productId: z.string().optional(),
-              autoPick: z.boolean().optional(),
-              countdownMode: z.enum(["midnight", "hours"]).optional(),
-              countdownHours: z.number().int().min(1).max(168).optional(),
-              showCountdown: z.boolean().optional(),
-            })
-            .optional(),
           categories: z
             .object({
               mode: z.enum(["grid", "carousel", "loop"]).optional(),
@@ -1623,14 +1609,6 @@ app.patch("/api/admin/config", requireAuth, requireRole("ADMIN"), async (req, re
         ? ({
             ...((existing?.homePageConfig as Record<string, unknown>) ?? {}),
             ...input.homePageConfig,
-            ...(input.homePageConfig.flashDeal !== undefined
-              ? {
-                  flashDeal: {
-                    ...(((existing?.homePageConfig as Record<string, unknown>)?.flashDeal as Record<string, unknown>) ?? {}),
-                    ...input.homePageConfig.flashDeal,
-                  },
-                }
-              : {}),
           } as Prisma.InputJsonValue)
         : undefined,
       heroBannerConfig: input.heroBannerConfig

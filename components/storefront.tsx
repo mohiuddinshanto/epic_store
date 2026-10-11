@@ -120,19 +120,6 @@ type CategoryDisplayConfig = {
   perView?: { mobile: number; tablet: number; desktop: number };
 };
 
-type FlashDealConfig = {
-  enabled?: boolean;
-  badge?: string;
-  titlePrefix?: string;
-  description?: string;
-  buttonLabel?: string;
-  productId?: string;
-  autoPick?: boolean;
-  countdownMode?: "midnight" | "hours";
-  countdownHours?: number;
-  showCountdown?: boolean;
-};
-
 type PromoBannerConfig = {
   enabled?: boolean;
   badge?: string;
@@ -156,7 +143,6 @@ export type HomePageConfig = {
   layout?: "catalog";
   sectionVisibility?: Partial<Record<"hero" | "categories" | "products" | "collections" | "trust" | "promos" | "announcement", boolean>>;
   categories?: CategoryDisplayConfig & { eyebrow?: string; title?: string; accent?: string; countLabel?: string };
-  flashDeal?: FlashDealConfig;
   promoBanners?: PromoBannerConfig[];
   trustBadges?: TrustBadgeConfig[];
   testimonials?: {
@@ -374,7 +360,6 @@ export function Storefront({
   const [chatConfig, setChatConfig] = useState<ChatConfig | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [countdown, setCountdown] = useState(0);
   const [homeConfig, setHomeConfig] = useState<HomePageConfig | null>(() => {
     if (initialHomeConfig) return initialHomeConfig;
     if (typeof window !== "undefined") {
@@ -443,26 +428,6 @@ export function Storefront({
       .catch(() => {});
   }, []);
 
-  useEffect(() => {
-    const cfg = homeConfig?.flashDeal;
-    const mode = cfg?.countdownMode ?? "midnight";
-    const hours = Math.min(168, Math.max(1, Number(cfg?.countdownHours) || 1));
-    const tick = () => {
-      const now = new Date();
-      let target: Date;
-      if (mode === "hours") {
-        target = new Date(now.getTime() + hours * 3600 * 1000);
-      } else {
-        target = new Date(now);
-        target.setHours(24, 0, 0, 0);
-      }
-      setCountdown(Math.max(0, Math.floor((target.getTime() - now.getTime()) / 1000)));
-    };
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, [homeConfig?.flashDeal?.countdownMode, homeConfig?.flashDeal?.countdownHours]);
-
   const categorySections = useMemo(
     () =>
       categories
@@ -511,16 +476,6 @@ export function Storefront({
       })
       .filter((s) => s.items.length > 0);
   }, [homeConfig, categories, products, defaultSections]);
-
-  const featuredDeal = useMemo(() => {
-    const cfg = homeConfig?.flashDeal;
-    const auto = cfg?.autoPick !== false;
-    if (!auto && cfg?.productId) {
-      const picked = products.find((p) => p.id === cfg.productId || p.slug === cfg.productId);
-      if (picked) return picked;
-    }
-    return products.find((p) => p.salePrice && Number(p.salePrice) < Number(p.price)) ?? products[0];
-  }, [products, homeConfig?.flashDeal?.autoPick, homeConfig?.flashDeal?.productId]);
 
   const heroImage = useMemo(
     () =>
@@ -579,14 +534,6 @@ export function Storefront({
 
   const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
   const totalCount = cart.reduce((s, i) => s + i.qty, 0);
-  const dealHasSale = Boolean(
-    featuredDeal?.salePrice && Number(featuredDeal.salePrice) < Number(featuredDeal?.price)
-  );
-  const flashDealCfg = homeConfig?.flashDeal ?? {};
-  const hours = String(Math.floor(countdown / 3600)).padStart(2, "0");
-  const mins = String(Math.floor((countdown % 3600) / 60)).padStart(2, "0");
-  const secs = String(countdown % 60).padStart(2, "0");
-
   function add(p: Product, variation?: Variation) {
     if (p.productType === "VARIABLE" && !variation) {
       window.location.href = "/products/" + p.slug;
@@ -1105,92 +1052,6 @@ export function Storefront({
           </section>
         );
       })}
-
-      {/* Flash Deal Banner */}
-      {featuredDeal && homeConfig?.flashDeal?.enabled !== false && (
-        <section className="relative overflow-hidden bg-white py-12">
-          <div className="mx-auto max-w-[1400px] px-[6vw]">
-            <div className="relative overflow-hidden rounded-3xl border border-indigo-500/20 bg-gradient-to-br from-indigo-50 via-white to-cyan-50 p-8 shadow-inner lg:p-12">
-              <div
-                aria-hidden
-                className="pointer-events-none absolute -right-20 -top-24 h-80 w-80 rounded-full bg-gradient-to-br from-primary/15 to-cyan/15 blur-3xl"
-              />
-              <div className="relative grid items-center gap-8 lg:grid-cols-12">
-                <div className="space-y-4 lg:col-span-7">
-                  <span className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-primary">
-                    <span className="h-2 w-2 animate-pulse rounded-full bg-primary" />
-                    {flashDealCfg.badge ?? "Limited Time Offer"}
-                  </span>
-                  <h2 className="font-display text-3xl font-extrabold tracking-tight text-slate-900 lg:text-4xl">
-                    {flashDealCfg.titlePrefix ?? "Daily drop:"} <span className="gradient-text">{featuredDeal.name}</span>
-                  </h2>
-                  <p className="max-w-lg text-[0.95rem] leading-relaxed text-slate-500">
-                    {flashDealCfg.description ?? "One standout piece at a standout price, refreshed every day. Valid till midnight."}
-                  </p>
-                  {flashDealCfg.showCountdown !== false && (
-                  <div className="flex flex-wrap items-center gap-2.5 pt-1 sm:gap-3">
-                    {[
-                      { v: hours, l: "Hours" },
-                      { v: mins, l: "Mins" },
-                      { v: secs, l: "Secs" },
-                    ].map((t, i) => (
-                      <div key={t.l} className="flex items-center gap-2 sm:gap-3">
-                        <div className="grid min-w-[52px] place-items-center rounded-xl border border-slate-200 bg-white px-2 py-1.5 shadow-sm sm:min-w-[64px] sm:px-3 sm:py-2">
-                          <span className="font-mono text-lg font-bold text-primary sm:text-2xl">{t.v}</span>
-                          <span className="text-xs uppercase tracking-wider text-slate-400 sm:text-[0.75rem]">
-                            {t.l}
-                          </span>
-                        </div>
-                        {i < 2 && <span className="font-mono text-lg font-bold text-slate-300 sm:text-2xl">:</span>}
-                      </div>
-                    ))}
-                  </div>
-                  )}
-                  <div className="flex flex-wrap items-center gap-4 pt-2">
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-3xl font-bold text-primary">
-                        {dealHasSale ? money(featuredDeal.salePrice!) : money(featuredDeal.price)}
-                      </span>
-                      {dealHasSale && (
-                        <span className="text-sm text-slate-400 line-through">
-                          {money(featuredDeal.price)}
-                        </span>
-                      )}
-                    </div>
-                    <Button
-                      color="primary"
-                      radius="full"
-                      size="lg"
-                      className="font-bold shadow-lg shadow-indigo-500/30"
-                      onPress={() => add(featuredDeal)}
-                    >
-                      <FiShoppingBag /> {flashDealCfg.buttonLabel ?? "Claim Deal"}
-                    </Button>
-                  </div>
-                </div>
-                <div className="relative lg:col-span-5">
-                  <Link href={`/products/${featuredDeal.slug}`} className="group relative block">
-                    <div className="overflow-hidden rounded-2xl border border-white/70 shadow-xl shadow-indigo-500/10">
-                      <div className="relative aspect-video">
-                        <Image
-                          src={featuredDeal.images[0] || FALLBACK_IMG}
-                          alt={featuredDeal.name}
-                          fill
-                          sizes="(max-width: 1024px) 100vw, 40vw"
-                          className="object-cover transition-transform duration-500 group-hover:scale-105"
-                        />
-                      </div>
-                      <div className="absolute bottom-3 left-3 rounded-full border border-white/60 bg-white/85 px-3 py-1 text-xs font-bold text-slate-700 backdrop-blur-md">
-                        Save {dealHasSale ? Math.round((1 - Number(featuredDeal.salePrice) / Number(featuredDeal.price)) * 100) : 0}% today
-                      </div>
-                    </div>
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
 
       {/* Customer Reviews */}
       {(() => {

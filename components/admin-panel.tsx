@@ -8,68 +8,9 @@ import { FiArrowDown, FiArrowUp, FiBox, FiCheck, FiChevronDown, FiCopy, FiEdit2,
 
 const apiUrl = "";
 
-type PromoBannerDef = {
-  enabled?: boolean;
-  badge?: string;
-  title?: string;
-  accent?: string;
-  subtitle?: string;
-  buttonLabel?: string;
-  buttonLink?: string;
-  image?: string;
-};
-
-type TrustBadgeDef = {
-  enabled?: boolean;
-  icon?: string;
-  title?: string;
-  subtitle?: string;
-};
-
-type FlashDealDef = {
-  enabled?: boolean;
-  badge?: string;
-  titlePrefix?: string;
-  description?: string;
-  buttonLabel?: string;
-  productId?: string;
-  autoPick?: boolean;
-  countdownMode?: "midnight" | "hours";
-  countdownHours?: number;
-  showCountdown?: boolean;
-};
-
 type HomePageConfigShape = {
-  sections: HomeSectionDef[];
-  layout?: "classic" | "catalog";
   sectionVisibility?: Partial<Record<"hero" | "categories" | "products" | "collections" | "trust" | "promos" | "announcement", boolean>>;
   categories?: CategoryDisplay & { eyebrow?: string; title?: string; accent?: string; countLabel?: string };
-  flashDeal?: FlashDealDef;
-  promoBanners?: PromoBannerDef[];
-  trustBadges?: TrustBadgeDef[];
-  testimonials?: {
-    enabled?: boolean;
-    eyebrow?: string;
-    title?: string;
-    accent?: string;
-    subtitle?: string;
-    items?: { init?: string; image?: string; name?: string; role?: string; quote?: string; rating?: number }[];
-  };
-  newsletter?: {
-    enabled?: boolean;
-    badge?: string;
-    title?: string;
-    accent?: string;
-    subtitle?: string;
-    placeholder?: string;
-    button?: string;
-    note?: string;
-  };
-  footer?: {
-    enabled?: boolean;
-    copyright?: string;
-    links?: { label?: string; url?: string }[];
-  };
 };
 
 type Config = {
@@ -109,19 +50,6 @@ type Config = {
   homePageConfig?: HomePageConfigShape;
   heroBannerConfig?: HeroBannerConfig | null;
   navigationConfig?: { menus: { id: string; label: string; location: string; items: MenuItem[] }[] };
-};
-
-type HomeSectionDef = {
-  id: string;
-  title?: string;
-  categoryIds: string[];
-  mode: "carousel" | "grid" | "responsive";
-  auto: boolean;
-  seconds: number;
-  perView: { mobile: number; tablet: number; desktop: number };
-  pagination: boolean;
-  loop: boolean;
-  showViewAll: boolean;
 };
 
 type HeroBannerConfig = {
@@ -245,7 +173,7 @@ type Coupon = { id: string; code: string; type: string; value: string; minSpend?
 type Review = { id: string; rating: number; comment?: string; isApproved: boolean; product: { name: string }; user: { name: string; email: string } };
 type StaffUser = { id: string; name: string; email: string; staffType: string; allowedCategories?: string };
 
-const money = (value: number | string) => "৳ " + Number(value).toLocaleString("en-BD");
+const money = (value: number | string) => "à§³ " + Number(value).toLocaleString("en-BD");
 const tokenKey = "epic-admin-token";
 
 const api = (path: string, token: string, init?: RequestInit) =>
@@ -281,22 +209,22 @@ const STATUS_LABEL: Record<string, string> = {
 type Section = "overview" | "products" | "categories" | "orders" | "coupons" | "reviews" | "staff" | "home" | "banner" | "menu" | "marketing" | "features" | "payments" | "delivery" | "checkout" | "storage";
 
 const NAV: { key: Section; label: string; icon: string }[] = [
-  { key: "overview", label: "Overview", icon: "◈" },
-  { key: "products", label: "Products", icon: "▦" },
-  { key: "categories", label: "Categories", icon: "▤" },
-  { key: "orders", label: "Orders", icon: "⊞" },
-  { key: "coupons", label: "Coupons", icon: "℅" },
-  { key: "reviews", label: "Reviews", icon: "★" },
-  { key: "staff", label: "Staff Team", icon: "◉" },
-  { key: "home", label: "Home Layout", icon: "⌂" },
-  { key: "banner", label: "Hero Banner", icon: "▰" },
-  { key: "menu", label: "Menu Builder", icon: "☰" },
-  { key: "marketing", label: "Pixels & Chat", icon: "⬡" },
-  { key: "features", label: "Store Features", icon: "⊕" },
-  { key: "payments", label: "Payments", icon: "¢" },
-  { key: "delivery", label: "Delivery", icon: "◫" },
-  { key: "checkout", label: "Checkout Form", icon: "▤" },
-  { key: "storage", label: "Storage", icon: "▣" },
+  { key: "overview", label: "Overview", icon: "â—ˆ" },
+  { key: "products", label: "Products", icon: "â–¦" },
+  { key: "categories", label: "Categories", icon: "â–¤" },
+  { key: "orders", label: "Orders", icon: "âŠž" },
+  { key: "coupons", label: "Coupons", icon: "â„…" },
+  { key: "reviews", label: "Reviews", icon: "â˜…" },
+  { key: "staff", label: "Staff Team", icon: "â—‰" },
+  { key: "home", label: "Home Layout", icon: "âŒ‚" },
+  { key: "banner", label: "Hero Banner", icon: "â–°" },
+  { key: "menu", label: "Menu Builder", icon: "â˜°" },
+  { key: "marketing", label: "Pixels & Chat", icon: "â¬¡" },
+  { key: "features", label: "Store Features", icon: "âŠ•" },
+  { key: "payments", label: "Payments", icon: "Â¢" },
+  { key: "delivery", label: "Delivery", icon: "â—«" },
+  { key: "checkout", label: "Checkout Form", icon: "â–¤" },
+  { key: "storage", label: "Storage", icon: "â–£" },
 ];
 
 const title = (section: Section) => NAV.find((n) => n.key === section)?.label ?? "";
@@ -398,7 +326,7 @@ export function AdminPanel() {
 
           <form onSubmit={login} className="flex flex-col gap-4">
             <Input isRequired name="email" type="email" label="Admin email" placeholder="admin@store.com" />
-            <Input isRequired name="password" type={showPassword ? "text" : "password"} label="Password" placeholder="••••••••"
+            <Input isRequired name="password" type={showPassword ? "text" : "password"} label="Password" placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
               endContent={
                 <button type="button" aria-label="Toggle password visibility" onClick={() => setShowPassword((v) => !v)} className="cursor-pointer text-gray-400 hover:text-primary transition-colors">
                   {showPassword ? <FiEyeOff size={16} /> : <FiEye size={16} />}
@@ -480,7 +408,7 @@ export function AdminPanel() {
             onClick={() => setCollapsed(!collapsed)}
             className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl text-gray-400 dark:text-slate-500 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors text-sm border border-gray-200 dark:border-white/8"
           >
-            <span className={`transition-transform duration-300 ${collapsed ? "rotate-180" : ""}`}>◁</span>
+            <span className={`transition-transform duration-300 ${collapsed ? "rotate-180" : ""}`}>â—</span>
             <span className={`text-xs ${collapsed ? "lg:hidden" : ""}`}>Collapse</span>
           </button>
         </div>
@@ -533,7 +461,7 @@ export function AdminPanel() {
           {section === "coupons" && <AdminCoupons token={token} />}
           {section === "reviews" && <AdminReviews token={token} />}
           {section === "staff" && <AdminStaff token={token} />}
-          {section === "home" && <HomeLayoutSettings config={config} save={save} saving={saving} token={token} />}
+          {section === "home" && <HomeLayoutSettings config={config} save={save} saving={saving} />}
           {section === "banner" && <BannerSettings config={config} save={save} saving={saving} token={token} />}
           {section === "menu" && <MenuBuilder config={config} save={save} saving={saving} />}
           {section === "marketing" && <MarketingChatSettings config={config} save={save} saving={saving} />}
@@ -549,10 +477,10 @@ export function AdminPanel() {
       <div className="lg:hidden fixed bottom-0 inset-x-0 z-40 border-t border-gray-200 dark:border-white/6 bg-white/95 dark:bg-[#0d0d1a]/95 backdrop-blur px-1 py-1.5">
         <div className="grid grid-cols-5 gap-1">
           {[
-            { key: "overview", label: "Home", icon: "◈" },
-            { key: "orders", label: "Orders", icon: "⊞" },
-            { key: "products", label: "Products", icon: "▦" },
-            { key: "home", label: "Layout", icon: "⌂" },
+            { key: "overview", label: "Home", icon: "â—ˆ" },
+            { key: "orders", label: "Orders", icon: "âŠž" },
+            { key: "products", label: "Products", icon: "â–¦" },
+            { key: "home", label: "Layout", icon: "âŒ‚" },
           ].map((item) => (
             <button
               key={item.key}
@@ -572,7 +500,7 @@ export function AdminPanel() {
             onClick={() => setMobileSidebar(true)}
             className="flex flex-col items-center gap-0.5 py-1.5 rounded-xl text-[10px] font-semibold text-gray-400 dark:text-slate-500 hover:text-gray-700 dark:hover:text-slate-300"
           >
-            <span className="text-base leading-none">☰</span>
+            <span className="text-base leading-none">â˜°</span>
             Menu
           </button>
         </div>
@@ -605,19 +533,19 @@ function AdminOverview({ token }: { token: string }) {
     try {
       const res = await api(`/api/admin/orders/${id}`, token, { method: "PATCH", body: JSON.stringify({ status, paymentStatus }) });
       if (res.ok) {
-        toast.success("অর্ডার স্ট্যাটাস আপডেট হয়েছে");
+        toast.success("à¦…à¦°à§à¦¡à¦¾à¦° à¦¸à§à¦Ÿà§à¦¯à¦¾à¦Ÿà¦¾à¦¸ à¦†à¦ªà¦¡à§‡à¦Ÿ à¦¹à¦¯à¦¼à§‡à¦›à§‡");
         load();
       }
     } catch {
-      toast.error("আপডেট করা যায়নি");
+      toast.error("à¦†à¦ªà¦¡à§‡à¦Ÿ à¦•à¦°à¦¾ à¦¯à¦¾à¦¯à¦¼à¦¨à¦¿");
     }
   }
 
   const KPI = [
-    { label: "Active Products", value: data ? String(data.products) : "—", icon: "▦", color: "from-primary to-indigo-400" },
-    { label: "Total Orders", value: data ? String(data.orders) : "—", icon: "⊞", color: "from-cyan to-teal-400" },
-    { label: "Customers", value: data ? String(data.customers) : "—", icon: "◉", color: "from-violet-500 to-purple-400" },
-    { label: "Paid Revenue", value: data ? money(data.paidRevenue) : "—", icon: "¢", color: "from-amber to-orange-400" },
+    { label: "Active Products", value: data ? String(data.products) : "â€”", icon: "â–¦", color: "from-primary to-indigo-400" },
+    { label: "Total Orders", value: data ? String(data.orders) : "â€”", icon: "âŠž", color: "from-cyan to-teal-400" },
+    { label: "Customers", value: data ? String(data.customers) : "â€”", icon: "â—‰", color: "from-violet-500 to-purple-400" },
+    { label: "Paid Revenue", value: data ? money(data.paidRevenue) : "â€”", icon: "Â¢", color: "from-amber to-orange-400" },
   ];
 
   return (
@@ -905,11 +833,11 @@ function MenuBuilder({ config, save, saving }: { config: Config; save: (payload:
           <span className="rounded bg-primary/10 px-2 py-1 text-[0.7rem] font-semibold text-primary">Category</span>
         )}
         <div className="flex items-center gap-0.5">
-          <button type="button" title="Indent (sub)" onClick={() => indent(n.id, 1)} className="icon-square-btn w-7 h-7 rounded-md bg-gray-100 dark:bg-white/5 text-gray-500 hover:bg-primary/10 hover:text-primary text-xs font-bold">→</button>
-          <button type="button" title="Outdent" onClick={() => indent(n.id, -1)} className="icon-square-btn w-7 h-7 rounded-md bg-gray-100 dark:bg-white/5 text-gray-500 hover:bg-primary/10 hover:text-primary text-xs font-bold">←</button>
-          <button type="button" title="Move up" onClick={() => move(n.id, -1)} className="icon-square-btn w-7 h-7 rounded-md bg-gray-100 dark:bg-white/5 text-gray-500 hover:bg-primary/10 hover:text-primary text-xs font-bold">↑</button>
-          <button type="button" title="Move down" onClick={() => move(n.id, 1)} className="icon-square-btn w-7 h-7 rounded-md bg-gray-100 dark:bg-white/5 text-gray-500 hover:bg-primary/10 hover:text-primary text-xs font-bold">↓</button>
-          <button type="button" title="Delete" onClick={() => removeItem(n.id)} className="icon-square-btn w-7 h-7 rounded-md bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white text-xs font-bold">×</button>
+          <button type="button" title="Indent (sub)" onClick={() => indent(n.id, 1)} className="icon-square-btn w-7 h-7 rounded-md bg-gray-100 dark:bg-white/5 text-gray-500 hover:bg-primary/10 hover:text-primary text-xs font-bold">â†’</button>
+          <button type="button" title="Outdent" onClick={() => indent(n.id, -1)} className="icon-square-btn w-7 h-7 rounded-md bg-gray-100 dark:bg-white/5 text-gray-500 hover:bg-primary/10 hover:text-primary text-xs font-bold">â†</button>
+          <button type="button" title="Move up" onClick={() => move(n.id, -1)} className="icon-square-btn w-7 h-7 rounded-md bg-gray-100 dark:bg-white/5 text-gray-500 hover:bg-primary/10 hover:text-primary text-xs font-bold">â†‘</button>
+          <button type="button" title="Move down" onClick={() => move(n.id, 1)} className="icon-square-btn w-7 h-7 rounded-md bg-gray-100 dark:bg-white/5 text-gray-500 hover:bg-primary/10 hover:text-primary text-xs font-bold">â†“</button>
+          <button type="button" title="Delete" onClick={() => removeItem(n.id)} className="icon-square-btn w-7 h-7 rounded-md bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white text-xs font-bold">Ã—</button>
         </div>
       </div>
       {n.children.length > 0 && <ul className="mt-1 space-y-1">{n.children.map((c) => renderItem(c, depth + 1))}</ul>}
@@ -935,7 +863,7 @@ function MenuBuilder({ config, save, saving }: { config: Config; save: (payload:
         <Input label="Menu title" value={title} onValueChange={setTitle} className="max-w-xs" />
         <Select
           label="Add a category"
-          placeholder="Pick category…"
+          placeholder="Pick categoryâ€¦"
           className="max-w-xs"
           selectedKeys={pendingCat ? [pendingCat] : []}
           onSelectionChange={(keys) => setPendingCat(Array.from(keys)[0] as string || "")}
@@ -965,7 +893,7 @@ function MenuBuilder({ config, save, saving }: { config: Config; save: (payload:
         <>
           {!hasSavedMenu && (
             <p className="text-xs text-gray-400 dark:text-slate-500">
-              এগুলো বর্তমানে হোম পেজের হেডারে দেখানো হচ্ছে (অটো)। এডিট করে নিচের Save Menu-এ ক্লিক করুন।
+              à¦à¦—à§à¦²à§‹ à¦¬à¦°à§à¦¤à¦®à¦¾à¦¨à§‡ à¦¹à§‹à¦® à¦ªà§‡à¦œà§‡à¦° à¦¹à§‡à¦¡à¦¾à¦°à§‡ à¦¦à§‡à¦–à¦¾à¦¨à§‹ à¦¹à¦šà§à¦›à§‡ (à¦…à¦Ÿà§‹)à¥¤ à¦à¦¡à¦¿à¦Ÿ à¦•à¦°à§‡ à¦¨à¦¿à¦šà§‡à¦° Save Menu-à¦ à¦•à§à¦²à¦¿à¦• à¦•à¦°à§à¦¨à¥¤
             </p>
           )}
           <ul className="space-y-1">{items.map((n) => renderItem(n, 0))}</ul>
@@ -976,7 +904,7 @@ function MenuBuilder({ config, save, saving }: { config: Config; save: (payload:
         <Button color="primary" onPress={saveMenu} isLoading={saving} className="font-bold">
           Save Menu
         </Button>
-        <span className="text-xs text-gray-400">Use → to nest an item under the one above it.</span>
+        <span className="text-xs text-gray-400">Use â†’ to nest an item under the one above it.</span>
       </div>
     </div>
   );
@@ -1210,7 +1138,7 @@ function AdminProducts({ token }: { token: string }) {
   function generateVariationsFromAttributes() {
     const validAttrs = attributes.filter((a) => a.name.trim() && a.values.some((v) => v.value.trim()));
     if (validAttrs.length < 1) {
-      toast.error("Add attributes with values first (e.g. Color → Black, White)");
+      toast.error("Add attributes with values first (e.g. Color â†’ Black, White)");
       return;
     }
     setGenerating(true);
@@ -1421,7 +1349,7 @@ function AdminProducts({ token }: { token: string }) {
       const response = await api(url, token, { method, body: JSON.stringify(body) });
       const data = await response.json();
       if (!response.ok) {
-        const detail = Array.isArray(data.details) ? ` — ${data.details.join(", ")}` : "";
+        const detail = Array.isArray(data.details) ? ` â€” ${data.details.join(", ")}` : "";
         throw new Error(data.error + detail);
       }
       toast.success(editingProduct ? "Product updated!" : "Product created!");
@@ -1465,7 +1393,7 @@ function AdminProducts({ token }: { token: string }) {
                   : "text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300"
               }`}
             >
-              {t === "list" ? "Product List" : (editingProduct ? "← Back to List" : "+ Add Product")}
+              {t === "list" ? "Product List" : (editingProduct ? "â† Back to List" : "+ Add Product")}
             </button>
           ))}
         </div>
@@ -1491,7 +1419,7 @@ function AdminProducts({ token }: { token: string }) {
               <option value="">All categories ({products.length})</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.parentId ? `↳ ${c.name}` : c.name} ({products.filter((p) => p.categoryId === c.id).length})
+                  {c.parentId ? `â†³ ${c.name}` : c.name} ({products.filter((p) => p.categoryId === c.id).length})
                 </option>
               ))}
             </select>
@@ -1514,7 +1442,7 @@ function AdminProducts({ token }: { token: string }) {
               <Input label="Slug (Leave empty to auto-generate)" name="slug" placeholder="classic-cotton-shirt" defaultValue={editingProduct?.slug ?? ""} />
               <Select label="Category" name="categoryId" isRequired placeholder="Select a category" defaultSelectedKeys={editingProduct?.categoryId ? [editingProduct.categoryId] : []}>
                 {categoryOptions(categories).map((category) => (
-                  <SelectItem key={category.id}>{category.parentId ? `↳  ${category.name}` : category.name}</SelectItem>
+                  <SelectItem key={category.id}>{category.parentId ? `â†³  ${category.name}` : category.name}</SelectItem>
                 ))}
               </Select>
               <Input label="Regular Price (BDT)" name="price" type="text" inputMode="decimal" isRequired placeholder="1500" defaultValue={editingProduct ? String(editingProduct.price) : ""} />
@@ -1522,19 +1450,19 @@ function AdminProducts({ token }: { token: string }) {
               <Input label="Initial Stock Qty" name="stock" type="number" defaultValue={String(editingProduct?.stock ?? 10)} />
             </div>
 
-            <Textarea label="Short Description" name="description" isRequired minRows={3} placeholder="One or two crisp sentences for cards, search and quick glance…" defaultValue={editingProduct?.description ?? ""} />
-            <Textarea label="Long Description (Full Details)" name="longDescription" minRows={5} placeholder="Extended description for the product page — materials, care, shipping, what's in the box…" defaultValue={editingProduct?.longDescription ?? ""} />
+            <Textarea label="Short Description" name="description" isRequired minRows={3} placeholder="One or two crisp sentences for cards, search and quick glanceâ€¦" defaultValue={editingProduct?.description ?? ""} />
+            <Textarea label="Long Description (Full Details)" name="longDescription" minRows={5} placeholder="Extended description for the product page â€” materials, care, shipping, what's in the boxâ€¦" defaultValue={editingProduct?.longDescription ?? ""} />
 
             <div>
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-semibold text-gray-700 dark:text-slate-200">Product Images &amp; Gallery</span>
-                <span className="text-[10px] text-gray-400 dark:text-slate-500">★ = Featured (shown on cards &amp; default)</span>
+                <span className="text-[10px] text-gray-400 dark:text-slate-500">â˜… = Featured (shown on cards &amp; default)</span>
               </div>
 
               <label className="border-2 border-dashed border-gray-200 dark:border-white/10 rounded-2xl p-6 text-center hover:border-primary/50 transition-colors cursor-pointer flex flex-col items-center gap-2">
-                <span className="text-2xl">📤</span>
+                <span className="text-2xl">ðŸ“¤</span>
                 <span className="text-sm text-gray-500 dark:text-slate-400">
-                  {uploading ? "Uploading…" : "Drop images here or click to upload (multiple allowed)"}
+                  {uploading ? "Uploadingâ€¦" : "Drop images here or click to upload (multiple allowed)"}
                 </span>
                 <input type="file" accept="image/*" multiple onChange={pickImages} hidden />
               </label>
@@ -1616,7 +1544,7 @@ function AdminProducts({ token }: { token: string }) {
                 <input
                   value={sku}
                   onChange={(e) => setSku(e.target.value)}
-                  placeholder="Product SKU (e.g. SHIRT-01) — basis for generated variation SKUs"
+                  placeholder="Product SKU (e.g. SHIRT-01) â€” basis for generated variation SKUs"
                   className="text-xs bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-3 h-9 outline-none text-gray-700 dark:text-slate-200 placeholder-gray-400"
                 />
               </div>
@@ -1626,7 +1554,7 @@ function AdminProducts({ token }: { token: string }) {
                   {/* Attributes */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-semibold text-gray-500 dark:text-slate-400">Product Attributes <span className="text-[10px] text-gray-400 dark:text-slate-500 font-normal">(Color, Size, Material…)</span></span>
+                      <span className="text-xs font-semibold text-gray-500 dark:text-slate-400">Product Attributes <span className="text-[10px] text-gray-400 dark:text-slate-500 font-normal">(Color, Size, Materialâ€¦)</span></span>
                       <button
                         type="button"
                         onClick={addAttribute}
@@ -1638,7 +1566,7 @@ function AdminProducts({ token }: { token: string }) {
 
                     {attributes.length === 0 ? (
                       <p className="text-xs text-gray-400 dark:text-slate-500 border border-dashed border-gray-200 dark:border-white/10 rounded-xl p-3 text-center">
-                        Add attributes like Color and Size, fill in their values, then press “Generate Variations”.
+                        Add attributes like Color and Size, fill in their values, then press â€œGenerate Variationsâ€.
                       </p>
                     ) : (
                       <div className="space-y-3">
@@ -1682,7 +1610,7 @@ function AdminProducts({ token }: { token: string }) {
                                   >
                                     <option value="">No image</option>
                                     {gallery.map((g, gi) => (
-                                      <option key={gi} value={g.url}>{`Image ${gi + 1}${g.altText ? ` — ${g.altText}` : ""}`}</option>
+                                      <option key={gi} value={g.url}>{`Image ${gi + 1}${g.altText ? ` â€” ${g.altText}` : ""}`}</option>
                                     ))}
                                   </select>
                                   <button type="button" onClick={() => removeAttributeValue(aIndex, valIndex)} className="icon-square-btn w-6 h-6 rounded-md flex items-center justify-center text-gray-300 dark:text-slate-600 hover:text-rose-500" title="Remove value">
@@ -1708,11 +1636,11 @@ function AdminProducts({ token }: { token: string }) {
                       disabled={generating}
                       className="px-4 h-9 rounded-xl bg-gradient-to-r from-primary to-indigo-500 text-white text-xs font-semibold flex items-center gap-1.5 hover:shadow-lg hover:shadow-primary/30 transition-all disabled:opacity-50"
                     >
-                      <FiShuffle size={13} className={generating ? "animate-spin" : ""} /> {generating ? "Generating…" : "Generate Variations"}
+                      <FiShuffle size={13} className={generating ? "animate-spin" : ""} /> {generating ? "Generatingâ€¦" : "Generate Variations"}
                     </button>
                     {variations.length > 0 && (
                       <span className="text-xs text-gray-400 dark:text-slate-500">
-                        {variations.length} variation{variations.length > 1 ? "s" : ""} — edits below are saved with the product
+                        {variations.length} variation{variations.length > 1 ? "s" : ""} â€” edits below are saved with the product
                       </span>
                     )}
                   </div>
@@ -1821,10 +1749,10 @@ function AdminProducts({ token }: { token: string }) {
                                       ))}
                                   </div>
                                   <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                                    <span className="text-[10px] text-gray-400 dark:text-slate-500">{v.sku || "— SKU —"}</span>
-                                    <span className="text-[10px] font-semibold text-gray-600 dark:text-slate-300">৳ {Number(v.price ?? 0).toLocaleString("en-BD")}</span>
+                                    <span className="text-[10px] text-gray-400 dark:text-slate-500">{v.sku || "â€” SKU â€”"}</span>
+                                    <span className="text-[10px] font-semibold text-gray-600 dark:text-slate-300">à§³ {Number(v.price ?? 0).toLocaleString("en-BD")}</span>
                                     {v.salePrice ? (
-                                      <span className="text-[10px] text-rose-500 line-through">৳ {Number(v.salePrice).toLocaleString("en-BD")}</span>
+                                      <span className="text-[10px] text-rose-500 line-through">à§³ {Number(v.salePrice).toLocaleString("en-BD")}</span>
                                     ) : null}
                                     <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-semibold ${Number(v.stock) > 0 ? "bg-emerald-100/70 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-rose-100/70 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400"}`}>
                                       {Number(v.stock) > 0 ? `${v.stock} in stock` : v.manageStock ? "Out of stock" : "Stock not managed"}
@@ -1843,7 +1771,7 @@ function AdminProducts({ token }: { token: string }) {
                                       className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md transition-colors ${v.isDefault || defaultVariationId === v.id ? "bg-indigo-100/70 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400" : "bg-gray-100 dark:bg-white/10 text-gray-400 dark:text-slate-500 hover:text-indigo-500"}`}
                                       title="Set as default (pre-selected on product page)"
                                     >
-                                      {v.isDefault || defaultVariationId === v.id ? "★ Default" : "☆ Default"}
+                                      {v.isDefault || defaultVariationId === v.id ? "â˜… Default" : "â˜† Default"}
                                     </button>
                                   </div>
                                 </div>
@@ -1854,7 +1782,7 @@ function AdminProducts({ token }: { token: string }) {
                                   <button
                                     type="button"
                                     onClick={() => {
-                                      if (!window.confirm(`Delete variation “${v.name || "(unnamed)"}”?`)) return;
+                                      if (!window.confirm(`Delete variation â€œ${v.name || "(unnamed)"}â€?`)) return;
                                       removeVariation(v.id);
                                       toast.success("Variation deleted");
                                     }}
@@ -1897,7 +1825,7 @@ function AdminProducts({ token }: { token: string }) {
                                       />
                                     </div>
                                     <div>
-                                      <label className="text-[10px] text-gray-400 dark:text-slate-500 mb-1 block">Sale price (BDT — blank = none)</label>
+                                      <label className="text-[10px] text-gray-400 dark:text-slate-500 mb-1 block">Sale price (BDT â€” blank = none)</label>
                                       <input
                                         value={v.salePrice ?? ""}
                                         onChange={(e) => updateVariation(v.id, { salePrice: e.target.value ? e.target.value : null })}
@@ -1959,7 +1887,7 @@ function AdminProducts({ token }: { token: string }) {
                                       >
                                         <option value="">Product image</option>
                                         {gallery.map((g, gi) => (
-                                          <option key={gi} value={g.url}>{`Image ${gi + 1}${g.altText ? ` — ${g.altText}` : ""}`}</option>
+                                          <option key={gi} value={g.url}>{`Image ${gi + 1}${g.altText ? ` â€” ${g.altText}` : ""}`}</option>
                                         ))}
                                       </select>
                                     </div>
@@ -1976,9 +1904,9 @@ function AdminProducts({ token }: { token: string }) {
                                         }}
                                         className="w-full text-xs bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-2.5 py-1.5 outline-none text-gray-700 dark:text-slate-200"
                                       >
-                                        <option value="">Add gallery image…</option>
+                                        <option value="">Add gallery imageâ€¦</option>
                                         {gallery.map((g, gi) => (
-                                          <option key={gi} value={g.url}>{`Image ${gi + 1}${g.altText ? ` — ${g.altText}` : ""}`}</option>
+                                          <option key={gi} value={g.url}>{`Image ${gi + 1}${g.altText ? ` â€” ${g.altText}` : ""}`}</option>
                                         ))}
                                       </select>
                                       {v.gallery && v.gallery.length > 0 && (
@@ -2017,7 +1945,7 @@ function AdminProducts({ token }: { token: string }) {
                   {variations.length === 0 && (
                     <p className="text-xs text-gray-400 dark:text-slate-500 border border-dashed border-gray-200 dark:border-white/10 rounded-xl p-3 text-center">
                       <FiBox size={14} className="inline mb-0.5 mr-1" />
-                      No variations yet — add attributes above and tap “Generate Variations”.
+                      No variations yet â€” add attributes above and tap â€œGenerate Variationsâ€.
                     </p>
                   )}
                 </div>
@@ -2066,7 +1994,7 @@ function AdminProducts({ token }: { token: string }) {
                         </div>
                       </div>
                     </td>
-                    <td className="py-3 px-4 text-xs text-gray-600 dark:text-slate-400">{p.category?.name ?? "—"}</td>
+                    <td className="py-3 px-4 text-xs text-gray-600 dark:text-slate-400">{p.category?.name ?? "â€”"}</td>
                     <td className="py-3 px-4 font-bold text-xs text-gray-900 dark:text-white">{money(p.salePrice ?? p.price)}</td>
                     <td className="py-3 px-4">
                       <span className={`font-mono text-xs font-bold ${p.stock === 0 ? "text-rose-500" : p.stock < 20 ? "text-amber" : "text-emerald"}`}>{p.stock}</span>
@@ -2248,7 +2176,7 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
       body: JSON.stringify({ moveToCategoryId: moveToCategoryId ?? "" }),
     });
     if (res.ok) {
-      toast.success(moveToCategoryId ? "Category deleted · products moved" : "Category deleted");
+      toast.success(moveToCategoryId ? "Category deleted Â· products moved" : "Category deleted");
       load();
     } else {
       const data = await res.json().catch(() => ({}));
@@ -2332,9 +2260,9 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
               setDisplayDirty(true);
             }}
           >
-            <SelectItem key="grid">Grid — static cards</SelectItem>
-            <SelectItem key="carousel">Carousel — swipeable</SelectItem>
-            <SelectItem key="loop">Loop — auto-sliding carousel</SelectItem>
+            <SelectItem key="grid">Grid â€” static cards</SelectItem>
+            <SelectItem key="carousel">Carousel â€” swipeable</SelectItem>
+            <SelectItem key="loop">Loop â€” auto-sliding carousel</SelectItem>
           </Select>
           {(display.mode === "carousel" || display.mode === "loop") && (
             <Input
@@ -2355,7 +2283,7 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Input
               type="number"
-              label="Per view — mobile"
+              label="Per view â€” mobile"
               min={1}
               max={4}
               value={String(display.perView?.mobile ?? 1)}
@@ -2366,7 +2294,7 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
             />
             <Input
               type="number"
-              label="Per view — tablet"
+              label="Per view â€” tablet"
               min={1}
               max={5}
               value={String(display.perView?.tablet ?? 2)}
@@ -2377,7 +2305,7 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
             />
             <Input
               type="number"
-              label="Per view — desktop"
+              label="Per view â€” desktop"
               min={1}
               max={6}
               value={String(display.perView?.desktop ?? 4)}
@@ -2429,11 +2357,11 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
       {creating && (
         <form onSubmit={createCategory} className="p-5 bg-gray-50 dark:bg-white/4 rounded-xl border border-gray-200 dark:border-white/8 space-y-4">
           <Input label="Category Name" name="name" isRequired placeholder="e.g. T-Shirts, Men's Wear, Shoes..." />
-          <Input label="Slug (Optional – auto-generated if empty)" name="slug" placeholder="e.g. t-shirts" />
+          <Input label="Slug (Optional â€“ auto-generated if empty)" name="slug" placeholder="e.g. t-shirts" />
           <Select label="Parent Category (Optional)" aria-label="Parent category" selectedKeys={parentId ? [parentId] : []} onChange={(e) => setParentId(e.target.value)}>
             <>
               <SelectItem key="none" textValue="none">
-                — Top-level category (no parent) —
+                â€” Top-level category (no parent) â€”
               </SelectItem>
               {(categories.filter((c) => !c.parentId) ?? []).map((c) => (
                 <SelectItem key={c.id}>{c.name}</SelectItem>
@@ -2513,7 +2441,7 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
                       <>
                         <p className="font-display font-bold text-sm text-gray-900 dark:text-white">{cat.name}</p>
                         <p className="text-xs text-gray-400 dark:text-slate-500">
-                          /{cat.slug} · {subs.length} sub-categories · {cat._count?.products ?? 0} products
+                          /{cat.slug} Â· {subs.length} sub-categories Â· {cat._count?.products ?? 0} products
                         </p>
                       </>
                     )}
@@ -2548,9 +2476,9 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
                   <div className="px-5 pb-4 space-y-2">
                     {subs.map((sub) => (
                       <div key={sub.id} className="flex items-center gap-3 px-3 py-2.5 bg-gray-50 dark:bg-white/4 rounded-xl">
-                        <span className="text-xs text-primary font-bold">↳</span>
+                        <span className="text-xs text-primary font-bold">â†³</span>
                         <p className="flex-1 text-sm font-medium text-gray-700 dark:text-slate-300">{sub.name}</p>
-                        <p className="text-xs text-gray-400 dark:text-slate-500">/{sub.slug} · {sub._count?.products ?? 0}</p>
+                        <p className="text-xs text-gray-400 dark:text-slate-500">/{sub.slug} Â· {sub._count?.products ?? 0}</p>
                         <a
                           href={`/categories/${sub.slug}`}
                           target="_blank"
@@ -2584,9 +2512,9 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
           >
             <h4 className="font-display font-bold text-gray-900 dark:text-white text-base">Delete & Move Products</h4>
             <p className="mt-2 text-sm text-gray-500 dark:text-slate-400">
-              Category <strong className="text-gray-900 dark:text-white">“{deleteTarget.name}”</strong>-এ{" "}
-              <strong className="text-gray-900 dark:text-white">{deleteTarget.productCount}টি প্রোডাক্ট</strong> আছে। প্রোডাক্টগুলো কোন ক্যাটাগরিতে
-              সরিয়ে তারপর ক্যাটাগরিটা মুছবেন — সেটা বেছে নিন।
+              Category <strong className="text-gray-900 dark:text-white">â€œ{deleteTarget.name}â€</strong>-à¦{" "}
+              <strong className="text-gray-900 dark:text-white">{deleteTarget.productCount}à¦Ÿà¦¿ à¦ªà§à¦°à§‹à¦¡à¦¾à¦•à§à¦Ÿ</strong> à¦†à¦›à§‡à¥¤ à¦ªà§à¦°à§‹à¦¡à¦¾à¦•à§à¦Ÿà¦—à§à¦²à§‹ à¦•à§‹à¦¨ à¦•à§à¦¯à¦¾à¦Ÿà¦¾à¦—à¦°à¦¿à¦¤à§‡
+              à¦¸à¦°à¦¿à¦¯à¦¼à§‡ à¦¤à¦¾à¦°à¦ªà¦° à¦•à§à¦¯à¦¾à¦Ÿà¦¾à¦—à¦°à¦¿à¦Ÿà¦¾ à¦®à§à¦›à¦¬à§‡à¦¨ â€” à¦¸à§‡à¦Ÿà¦¾ à¦¬à§‡à¦›à§‡ à¦¨à¦¿à¦¨à¥¤
             </p>
             <div className="mt-4">
               <Select
@@ -2655,9 +2583,9 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
   async function updateStatus(id: string, status: string, paymentStatus: string) {
     const res = await api(`/api/admin/orders/${id}`, token, { method: "PATCH", body: JSON.stringify({ status, paymentStatus }) });
     if (res.ok) {
-      toast.success("অর্ডার স্ট্যাটাস আপডেট হয়েছে");
+      toast.success("à¦…à¦°à§à¦¡à¦¾à¦° à¦¸à§à¦Ÿà§à¦¯à¦¾à¦Ÿà¦¾à¦¸ à¦†à¦ªà¦¡à§‡à¦Ÿ à¦¹à¦¯à¦¼à§‡à¦›à§‡");
       load();
-    } else toast.error("আপডেট করা যায়নি");
+    } else toast.error("à¦†à¦ªà¦¡à§‡à¦Ÿ à¦•à¦°à¦¾ à¦¯à¦¾à¦¯à¦¼à¦¨à¦¿");
   }
 
   const courierPrefix: Record<string, string> = { steadfast: "ST", pathao: "PT", redx: "RX" };
@@ -2681,17 +2609,17 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
       const res = await api(`/api/admin/orders/${o.id}/send-steadfast`, token, { method: "POST" });
       const data = (await res.json().catch(() => ({}))) as { error?: string; consignment?: { tracking_code?: string } };
       if (res.ok) {
-        toast.success(`#${o.id.slice(0, 6)} → Steadfast ${data.consignment?.tracking_code ?? ""}`);
+        toast.success(`#${o.id.slice(0, 6)} â†’ Steadfast ${data.consignment?.tracking_code ?? ""}`);
         load();
-      } else toast.error(data.error || "Steadfast এ পাঠানো যায়নি");
+      } else toast.error(data.error || "Steadfast à¦ à¦ªà¦¾à¦ à¦¾à¦¨à§‹ à¦¯à¦¾à¦¯à¦¼à¦¨à¦¿");
       return;
     }
     const tracking = o.courierTrackingId || `${courierPrefix[c.key] ?? "PC"}-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
     const res = await api(`/api/admin/orders/${o.id}`, token, { method: "PATCH", body: JSON.stringify({ status: "IN_COURIER", courierName: c.label, courierTrackingId: tracking }) });
     if (res.ok) {
-      toast.success(`#${o.id.slice(0, 6)} → ${c.label}`);
+      toast.success(`#${o.id.slice(0, 6)} â†’ ${c.label}`);
       load();
-    } else toast.error("Sent করা যায়নি");
+    } else toast.error("Sent à¦•à¦°à¦¾ à¦¯à¦¾à¦¯à¦¼à¦¨à¦¿");
   }
 
   const columns = ["PENDING", "CONFIRMED", "IN_COURIER", "SHIPPED", "DELIVERED", "CANCELLED"];
@@ -2760,7 +2688,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
       if (res.ok) {
         toast.success(`Status: ${sfStatusLabel[data.delivery_status ?? ""] ?? data.delivery_status}`);
         load();
-      } else toast.error(data.error || "Sync করা যায়নি");
+      } else toast.error(data.error || "Sync à¦•à¦°à¦¾ à¦¯à¦¾à¦¯à¦¼à¦¨à¦¿");
     } finally {
       setSyncing(null);
     }
@@ -2774,7 +2702,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
       if (res.ok) {
         toast.success(`${data.synced ?? 0} parcels synced`);
         load();
-      } else toast.error(data.error || "Sync করা যায়নি");
+      } else toast.error(data.error || "Sync à¦•à¦°à¦¾ à¦¯à¦¾à¦¯à¦¼à¦¨à¦¿");
     } finally {
       setSyncingAll(false);
     }
@@ -2786,7 +2714,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
       const res = await api("/api/admin/steadfast/balance", token);
       const data = (await res.json().catch(() => ({}))) as { error?: string; balance?: number };
       if (res.ok && typeof data.balance === "number") setSfBalance(data.balance);
-      else toast.error(data.error || "Balance load করা যায়নি");
+      else toast.error(data.error || "Balance load à¦•à¦°à¦¾ à¦¯à¦¾à¦¯à¦¼à¦¨à¦¿");
     } finally {
       setLoadingBal(false);
     }
@@ -2796,7 +2724,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
     const sd = o.shippingDetails ?? {};
     const items = o.orderItems ?? [];
     const win = window.open("", "_blank", "width=480,height=640");
-    if (!win) return toast.error("Browser popup ব্লক করছে");
+    if (!win) return toast.error("Browser popup à¦¬à§à¦²à¦• à¦•à¦°à¦›à§‡");
     const row = (l: string, r: string) => `<tr><td style="padding:3px 0;color:#444">${l}</td><td style="padding:3px 0;text-align:right;font-weight:700">${r}</td></tr>`;
     const itemRows = items.map((it) => `<tr><td style="padding:2px 0;font-size:12px">${it.name}</td><td style="padding:2px 0;font-size:12px;text-align:right">${it.qty} x ${money(it.price)}</td></tr>`).join("");
     const isSf = o.courierName?.toLowerCase() === "steadfast";
@@ -2820,9 +2748,9 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
       <table><tr><td style="padding:3px 0"></td><td style="padding:3px 0"></td></tr>${row("Subtotal", money(o.subtotal ?? o.totalAmount))}${Number(o.shippingCharge) ? row("Shipping", money(o.shippingCharge ?? 0)) : ""}${row("Total", money(o.totalAmount))}</table>
       <div class="dashed"></div>
       <div style="text-align:center;font-size:11px">Address: ${sd.address ?? ""}, ${sd.district ?? ""}</div>
-      ${o.courierName ? `<div class="dashed"></div><div style="text-align:center"><b>${o.courierName}</b></div>${invoiceRef.startsWith("SF-") ? `<div class="c" style="font-size:11px;margin-top:3px">Consignment ID: <span class="big">${sfRef}</span></div>` : ""}<div class="c" style="margin-top:2px"><span style="font-size:11px">Delivery Status: </span> <span class="big">${o.shippingDetails?.sfStatus ? (sfStatusLabel[o.shippingDetails.sfStatus] ?? o.shippingDetails.sfStatus) : "—"}</span></div>` : ""}
+      ${o.courierName ? `<div class="dashed"></div><div style="text-align:center"><b>${o.courierName}</b></div>${invoiceRef.startsWith("SF-") ? `<div class="c" style="font-size:11px;margin-top:3px">Consignment ID: <span class="big">${sfRef}</span></div>` : ""}<div class="c" style="margin-top:2px"><span style="font-size:11px">Delivery Status: </span> <span class="big">${o.shippingDetails?.sfStatus ? (sfStatusLabel[o.shippingDetails.sfStatus] ?? o.shippingDetails.sfStatus) : "â€”"}</span></div>` : ""}
       <div class="dashed"></div>
-      <div style="text-align:center">ধন্যবাদ!</div>
+      <div style="text-align:center">à¦§à¦¨à§à¦¯à¦¬à¦¾à¦¦!</div>
     </body></html>`);
     win.document.close();
     win.focus();
@@ -2841,7 +2769,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
                 view === v ? "bg-white dark:bg-[#1a1a2e] text-gray-900 dark:text-white shadow-sm" : "text-gray-400 dark:text-slate-500"
               }`}
             >
-              {v === "kanban" ? "⊞ Kanban" : "≡ Table"}
+              {v === "kanban" ? "âŠž Kanban" : "â‰¡ Table"}
             </button>
           ))}
           <span className="px-3 py-1.5 text-xs font-semibold text-gray-400 dark:text-slate-500 self-center">{orders.length} orders</span>
@@ -2855,12 +2783,12 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
               <div
                 onClick={() => sfBalance === null && !loadingBal && fetchSfBalance()}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white dark:bg-white/4 border border-gray-100 dark:border-white/6 text-gray-600 dark:text-slate-300 cursor-pointer"
-                title="SteadFast একাউন্ট ব্যালেন্স (ক্লিক করে load করুন)"
+                title="SteadFast à¦à¦•à¦¾à¦‰à¦¨à§à¦Ÿ à¦¬à§à¦¯à¦¾à¦²à§‡à¦¨à§à¦¸ (à¦•à§à¦²à¦¿à¦• à¦•à¦°à§‡ load à¦•à¦°à§à¦¨)"
               >
                 <FiBox size={12} className="text-primary" />
                 <span>SF Balance</span>
                 <span className="font-mono font-bold text-gray-900 dark:text-white">
-                  {loadingBal ? <FiRefreshCw size={12} className="animate-spin" /> : sfBalance !== null ? (sfBalVisible ? money(sfBalance) : "৳ •••") : "—"}
+                  {loadingBal ? <FiRefreshCw size={12} className="animate-spin" /> : sfBalance !== null ? (sfBalVisible ? money(sfBalance) : "à§³ â€¢â€¢â€¢") : "â€”"}
                 </span>
                 <button
                   onClick={(e) => {
@@ -2868,7 +2796,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
                     setSfBalVisible((v) => !v);
                   }}
                   className="ml-0.5 flex items-center justify-center w-4 h-4 rounded hover:bg-gray-100 dark:hover:bg-white/10"
-                  title={sfBalVisible ? "ব্যালেন্স লুকান" : "ব্যালেন্স দেখুন"}
+                  title={sfBalVisible ? "à¦¬à§à¦¯à¦¾à¦²à§‡à¦¨à§à¦¸ à¦²à§à¦•à¦¾à¦¨" : "à¦¬à§à¦¯à¦¾à¦²à§‡à¦¨à§à¦¸ à¦¦à§‡à¦–à§à¦¨"}
                 >
                   {sfBalVisible ? <FiEyeOff size={12} /> : <FiEye size={12} />}
                 </button>
@@ -2885,7 +2813,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
       >
         <span className="flex-1 text-left">Dashboard info & courier parcels</span>
         <span>{showInfo ? "Hide" : "Show"}</span>
-        <span className={`transition-transform ${showInfo ? "" : "rotate-180"}`}>▾</span>
+        <span className={`transition-transform ${showInfo ? "" : "rotate-180"}`}>â–¾</span>
       </button>
       {showInfo && (
         <>
@@ -2926,7 +2854,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
               <div className="min-w-0">
                 <h3 className="font-display font-bold text-gray-900 dark:text-white text-sm">Courier Parcels</h3>
                 <p className="text-xs text-gray-400 dark:text-slate-500 truncate">
-                  {allParcels.length} parcels sent · {money(courierTotalAmount)} total value
+                  {allParcels.length} parcels sent Â· {money(courierTotalAmount)} total value
                 </p>
               </div>
             </div>
@@ -2991,7 +2919,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
                           <tr key={o.id}>
                             <td className="py-2.5 px-4 text-xs text-primary font-bold whitespace-nowrap">#{o.id.slice(0, 8)}</td>
                             <td className="py-2.5 px-4 text-xs text-gray-700 dark:text-slate-300">{o.shippingDetails?.name ?? "Guest"}</td>
-                            <td className="py-2.5 px-4 text-xs text-gray-500">{o.courierTrackingId || "—"}</td>
+                            <td className="py-2.5 px-4 text-xs text-gray-500">{o.courierTrackingId || "â€”"}</td>
                             <td className="py-2.5 px-4 text-xs text-gray-500">
                               {o.courierName?.toLowerCase() === "steadfast" ? (
                                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold inline-flex items-center gap-1 ${sfStatusStyle[o.shippingDetails?.sfStatus ?? ""] ?? "bg-gray-100 dark:bg-white/8 text-gray-500"}`}>
@@ -3001,7 +2929,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
                                   </button>
                                 </span>
                               ) : (
-                                <span className="text-xs text-gray-400">—</span>
+                                <span className="text-xs text-gray-400">â€”</span>
                               )}
                             </td>
                             <td className="py-2.5 px-4 font-bold text-xs text-gray-800 dark:text-slate-200">{money(o.totalAmount)}</td>
@@ -3239,7 +3167,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
                 </span>
                 {detail.courierName && (
                   <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-indigo-500/10 text-indigo-500">
-                    {detail.courierName}{detail.courierTrackingId ? ` · ${detail.courierTrackingId}` : ""}
+                    {detail.courierName}{detail.courierTrackingId ? ` Â· ${detail.courierTrackingId}` : ""}
                   </span>
                 )}
               </div>
@@ -3248,12 +3176,12 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
                 <p className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-slate-500 mb-3">Customer Details</p>
                 <div className="grid grid-cols-1 gap-2 text-xs">
                   <p className="flex items-center gap-2 text-gray-800 dark:text-slate-200 font-semibold"><FiUser className="text-primary" /> {detail.shippingDetails?.name ?? "Guest"}</p>
-                  <p className="flex items-center gap-2 text-gray-700 dark:text-slate-300"><FiPhone className="text-primary" /> {detail.shippingDetails?.phone ?? "—"}</p>
-                  <p className="flex items-center gap-2 text-gray-700 dark:text-slate-300"><FiMail className="text-primary" /> {detail.shippingDetails?.email || "—"}</p>
+                  <p className="flex items-center gap-2 text-gray-700 dark:text-slate-300"><FiPhone className="text-primary" /> {detail.shippingDetails?.phone ?? "â€”"}</p>
+                  <p className="flex items-center gap-2 text-gray-700 dark:text-slate-300"><FiMail className="text-primary" /> {detail.shippingDetails?.email || "â€”"}</p>
                   <p className="flex items-start gap-2 text-gray-700 dark:text-slate-300">
                     <FiTruck className="text-primary mt-0.5 shrink-0" />
                     <span>
-                      {[detail.shippingDetails?.address, detail.shippingDetails?.district, detail.shippingDetails?.division].filter(Boolean).join(", ") || "—"}
+                      {[detail.shippingDetails?.address, detail.shippingDetails?.district, detail.shippingDetails?.division].filter(Boolean).join(", ") || "â€”"}
                     </span>
                   </p>
                 </div>
@@ -3265,7 +3193,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
                   {(detail.orderItems ?? []).map((item, i) => (
                     <div key={i} className="flex items-center justify-between gap-3 text-xs">
                       <span className="text-gray-800 dark:text-slate-200">
-                        {item.name} <span className="text-gray-400">× {item.qty}</span>
+                        {item.name} <span className="text-gray-400">Ã— {item.qty}</span>
                         {item.sku && <span className="ml-2 font-mono text-[10px] text-gray-400">{item.sku}</span>}
                       </span>
                       <strong className="whitespace-nowrap text-gray-900 dark:text-white">{money(Number(item.price) * Number(item.qty))}</strong>
@@ -3426,7 +3354,7 @@ function AdminCoupons({ token }: { token: string }) {
             <div>
               <strong className="font-mono font-bold text-sm text-gray-900 dark:text-white">{c.code}</strong>
               <div className="text-xs text-gray-400 dark:text-slate-500">
-                {c.type === "PERCENTAGE" ? `${c.value}% OFF` : `৳ ${c.value} OFF`} · Used: {c.usedCount} times
+                {c.type === "PERCENTAGE" ? `${c.value}% OFF` : `à§³ ${c.value} OFF`} Â· Used: {c.usedCount} times
               </div>
             </div>
             <button
@@ -3492,7 +3420,7 @@ function AdminReviews({ token }: { token: string }) {
             {r.comment && <p className="mt-2 text-sm text-gray-600 dark:text-slate-400">"{r.comment}"</p>}
             <div className="flex items-center gap-2 mt-3">
               <Button size="sm" color={r.isApproved ? "success" : "default"} variant={r.isApproved ? "solid" : "flat"} onPress={() => toggleApprove(r.id, r.isApproved)}>
-                {r.isApproved ? "Approved ✓" : "Pending Moderation"}
+                {r.isApproved ? "Approved âœ“" : "Pending Moderation"}
               </Button>
               <Button size="sm" color="danger" variant="flat" onPress={() => deleteReview(r.id)}>
                 Delete
@@ -3583,7 +3511,7 @@ function AdminStaff({ token }: { token: string }) {
               </div>
               <div>
                 <strong className="text-sm text-gray-900 dark:text-white">{s.name}</strong>
-                <div className="text-xs text-gray-400 dark:text-slate-500">{s.email} · {s.staffType}</div>
+                <div className="text-xs text-gray-400 dark:text-slate-500">{s.email} Â· {s.staffType}</div>
               </div>
             </div>
             <button
@@ -3643,14 +3571,14 @@ function MarketingChatSettings({ config, save, saving }: { config: Config; save:
             </label>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input label="WhatsApp Number" name="waNumber" defaultValue={chat.whatsapp?.number} placeholder="8801712345678" description="যেকোনো ফরম্যাটে দিন (017..., +880..., 880...) — নিজেই সঠিক হবে" />
+            <Input label="WhatsApp Number" name="waNumber" defaultValue={chat.whatsapp?.number} placeholder="8801712345678" description="à¦¯à§‡à¦•à§‹à¦¨à§‹ à¦«à¦°à¦®à§à¦¯à¦¾à¦Ÿà§‡ à¦¦à¦¿à¦¨ (017..., +880..., 880...) â€” à¦¨à¦¿à¦œà§‡à¦‡ à¦¸à¦ à¦¿à¦• à¦¹à¦¬à§‡" />
             <Input label="WhatsApp Message Template" name="waTemplate" defaultValue={chat.whatsapp?.template} placeholder="Hello, I want to order..." />
             <Input label="Facebook Messenger Page URL" name="messengerUrl" defaultValue={chat.messenger?.url} placeholder="https://m.me/yourpage" />
             <Input label="Support Phone Number" name="phone" defaultValue={chat.phone} placeholder="01712345678" />
           </div>
         </div>
         <button type="submit" className="mt-6 px-5 h-10 bg-primary text-white text-sm font-bold font-display rounded-xl hover:bg-primary-dark transition-colors">
-          {saving ? "Saving…" : "Save Marketing & Chat Settings"}
+          {saving ? "Savingâ€¦" : "Save Marketing & Chat Settings"}
         </button>
       </form>
     </div>
@@ -3740,859 +3668,48 @@ function FeatureSettings({ config, save, saving }: { config: Config; save: (payl
 }
 
 /* ==================== HOME LAYOUT ==================== */
-type SmallCategory = { id: string; name: string; _count?: { products?: number } };
+function HomeLayoutSettings({ config, save, saving }: { config: Config; save: (payload: object) => Promise<void>; saving: boolean }) {
+  const sections = [
+    ["hero", "Hero banner"],
+    ["categories", "Categories"],
+    ["products", "Popular products"],
+    ["collections", "Category collections"],
+    ["trust", "Trust badges"],
+    ["promos", "Promo banners"],
+    ["announcement", "Top announcement bar"],
+  ] as const;
 
-function HomeLayoutSettings({ config, save, saving, token }: { config: Config; save: (payload: object) => Promise<void>; saving: boolean; token: string }) {
-  const [cats, setCats] = useState<SmallCategory[]>([]);
-  const [sections, setSections] = useState<HomeSectionDef[]>(
-    config.homePageConfig?.sections?.length
-      ? config.homePageConfig.sections
-      : []
-  );
-  const [flash, setFlash] = useState<FlashDealDef>(config.homePageConfig?.flashDeal ?? {});
-  const [flashDirty, setFlashDirty] = useState(false);
-  const [promos, setPromos] = useState<PromoBannerDef[]>([...Array(2)].map((_, i) => config.homePageConfig?.promoBanners?.[i] ?? {}));
-  const [promosDirty, setPromosDirty] = useState(false);
-  const [trust, setTrust] = useState<TrustBadgeDef[]>(config.homePageConfig?.trustBadges?.length ? config.homePageConfig.trustBadges : []);
-  const [trustDirty, setTrustDirty] = useState(false);
-  const [catShow, setCatShow] = useState<CategoryDisplay & { eyebrow?: string; title?: string; accent?: string; countLabel?: string }>(config.homePageConfig?.categories ?? {});
-  const [catShowDirty, setCatShowDirty] = useState(false);
-  const [testimonials, setTestimonials] = useState(config.homePageConfig?.testimonials ?? {});
-  const [testimonialsDirty, setTestimonialsDirty] = useState(false);
-  const [newsletter, setNewsletter] = useState(config.homePageConfig?.newsletter ?? {});
-  const [newsletterDirty, setNewsletterDirty] = useState(false);
-  const [footer, setFooter] = useState(config.homePageConfig?.footer ?? {});
-  const [footerDirty, setFooterDirty] = useState(false);
-  const [dealProducts, setDealProducts] = useState<{ id: string; name: string; slug: string; salePrice: number | null; price: number }[]>([]);
-
-  useEffect(() => {
-    api("/api/categories", "")
-      .then(async (r) => {
-        if (r.ok) setCats(await r.json());
-      })
-      .catch(() => {});
-    api("/api/products", "")
-      .then(async (r) => {
-        if (r.ok) {
-          const list = await r.json();
-          if (Array.isArray(list))
-            setDealProducts(
-              list
-                .filter((p: { isActive?: boolean }) => p.isActive !== false)
-                .map((p: { id: string; name: string; slug: string; salePrice: string | number | null; price: string | number }) => ({
-                  id: p.id,
-                  name: p.name,
-                  slug: p.slug,
-                  salePrice: p.salePrice !== null && p.salePrice !== undefined ? Number(p.salePrice) : null,
-                  price: Number(p.price),
-                }))
-            );
-        }
-      })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    setFlash(config.homePageConfig?.flashDeal ?? {});
-    setFlashDirty(false);
-  }, [config.homePageConfig?.flashDeal]);
-
-  useEffect(() => {
-    setPromos([...Array(2)].map((_, i) => config.homePageConfig?.promoBanners?.[i] ?? {}));
-    setPromosDirty(false);
-  }, [config.homePageConfig?.promoBanners]);
-
-  useEffect(() => {
-    setTrust(config.homePageConfig?.trustBadges?.length ? [...config.homePageConfig.trustBadges] : []);
-    setTrustDirty(false);
-  }, [config.homePageConfig?.trustBadges]);
-
-  useEffect(() => {
-    setCatShow(config.homePageConfig?.categories ?? {});
-    setCatShowDirty(false);
-  }, [config.homePageConfig?.categories]);
-
-  useEffect(() => {
-    setTestimonials(config.homePageConfig?.testimonials ?? {});
-    setTestimonialsDirty(false);
-  }, [config.homePageConfig?.testimonials]);
-
-  useEffect(() => {
-    setNewsletter(config.homePageConfig?.newsletter ?? {});
-    setNewsletterDirty(false);
-  }, [config.homePageConfig?.newsletter]);
-
-  useEffect(() => {
-    setFooter(config.homePageConfig?.footer ?? {});
-    setFooterDirty(false);
-  }, [config.homePageConfig?.footer]);
-
-  function update(id: string, patch: Partial<HomeSectionDef>) {
-    setSections((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
-  }
-
-  function setSectionVisibility(key: "hero" | "categories" | "products" | "collections" | "trust" | "promos" | "announcement", enabled: boolean) {
-    const homePageConfig = { ...(config.homePageConfig ?? {}), layout: "catalog" as const, sectionVisibility: { ...(config.homePageConfig?.sectionVisibility ?? {}), [key]: enabled } };
+  function setSectionVisibility(key: (typeof sections)[number][0], enabled: boolean) {
+    const homePageConfig = {
+      ...(config.homePageConfig ?? {}),
+      layout: "catalog" as const,
+      sectionVisibility: { ...(config.homePageConfig?.sectionVisibility ?? {}), [key]: enabled },
+    };
     if (key === "announcement") {
       return save({ homePageConfig, heroBannerConfig: { ...(config.heroBannerConfig ?? {}), announceEnabled: enabled } });
     }
     return save({ homePageConfig });
   }
 
-  function remove(id: string) {
-    setSections((prev) => prev.filter((s) => s.id !== id));
-  }
-
-  function add() {
-    setSections((prev) => [
-      ...prev,
-      {
-        id: `sec-${Date.now()}`,
-        title: "",
-        categoryIds: [],
-        mode: "carousel",
-        auto: true,
-        seconds: 3,
-        perView: { mobile: 1, tablet: 2, desktop: 4 },
-        pagination: false,
-        loop: false,
-        showViewAll: true,
-      },
-    ]);
-  }
-
-  function submit() {
-    for (const s of sections) {
-      if (!s.categoryIds.length) return toast.error("Each section needs at least one category");
-    }
-    const cleanFlash: FlashDealDef = {
-      ...flash,
-      enabled: flash.enabled !== false,
-      autoPick: flash.autoPick !== false,
-      showCountdown: flash.showCountdown !== false,
-      countdownMode: flash.countdownMode === "hours" ? "hours" : "midnight",
-      countdownHours: flash.countdownMode === "hours" ? Math.min(168, Math.max(1, Number(flash.countdownHours) || 1)) : undefined,
-    };
-    if (cleanFlash.autoPick) delete cleanFlash.productId;
-    save({ homePageConfig: { ...(config.homePageConfig ?? {}), layout: "catalog", sections, promoBanners: promos, trustBadges: trust, flashDeal: cleanFlash } });
-  }
-
-  function saveFlash(targetFlash?: FlashDealDef) {
-    const target = targetFlash ?? flash;
-    const clean: FlashDealDef = {
-      ...target,
-      enabled: target.enabled !== false,
-      autoPick: target.autoPick !== false,
-      showCountdown: target.showCountdown !== false,
-      countdownMode: target.countdownMode === "hours" ? "hours" : "midnight",
-      countdownHours: target.countdownMode === "hours" ? Math.min(168, Math.max(1, Number(target.countdownHours) || 1)) : undefined,
-    };
-    if (clean.autoPick) delete clean.productId;
-    setFlashDirty(false);
-    return save({ homePageConfig: { ...(config.homePageConfig ?? {}), flashDeal: clean } });
-  }
-
-  function savePromos() {
-    const clean = promos.map((p) => ({
-      ...p,
-      enabled: p.enabled !== false,
-      badge: p.badge?.trim() || undefined,
-      title: p.title?.trim() || undefined,
-      accent: p.accent?.trim() || undefined,
-      subtitle: p.subtitle?.trim() || undefined,
-      buttonLabel: p.buttonLabel?.trim() || undefined,
-      buttonLink: p.buttonLink?.trim() || undefined,
-      image: p.image?.trim() || undefined,
-    }));
-    save({ homePageConfig: { ...(config.homePageConfig ?? {}), promoBanners: clean } });
-  }
-
-  function saveTrust() {
-    const clean = trust
-      .filter((t) => (t.title?.trim() || t.subtitle?.trim()))
-      .map((t) => ({
-        enabled: t.enabled !== false,
-        icon: t.icon?.trim() || undefined,
-        title: t.title?.trim() || undefined,
-        subtitle: t.subtitle?.trim() || undefined,
-      }));
-    save({ homePageConfig: { ...(config.homePageConfig ?? {}), trustBadges: clean.length ? clean : undefined } });
-  }
-
-  function saveCatShow() {
-    const clean: typeof catShow = {
-      ...catShow,
-      mode: catShow.mode && catShow.mode !== "grid" ? catShow.mode : catShow.mode,
-      eyebrow: catShow.eyebrow?.trim() || undefined,
-      title: catShow.title?.trim() || undefined,
-      accent: catShow.accent?.trim() || undefined,
-      countLabel: catShow.countLabel?.trim() || undefined,
-    };
-    save({ homePageConfig: { ...(config.homePageConfig ?? {}), categories: clean } });
-  }
-
-  function saveTestimonials() {
-    const items = (testimonials.items ?? [])
-      .filter((t) => (t.name?.trim() || t.quote?.trim()))
-      .map((t) => ({
-        init: t.init?.trim() || undefined,
-        image: t.image?.trim() || undefined,
-        name: t.name?.trim() || undefined,
-        role: t.role?.trim() || undefined,
-        quote: t.quote?.trim() || undefined,
-        rating: Math.max(1, Math.min(5, Number(t.rating) || 5)),
-      }));
-    save({
-      homePageConfig: {
-        ...(config.homePageConfig ?? {}),
-        testimonials: {
-          enabled: testimonials.enabled !== false,
-          eyebrow: testimonials.eyebrow?.trim() || undefined,
-          title: testimonials.title?.trim() || undefined,
-          accent: testimonials.accent?.trim() || undefined,
-          subtitle: testimonials.subtitle?.trim() || undefined,
-          items: items.length ? items : undefined,
-        },
-      },
-    });
-  }
-
-  async function uploadTestimonialImage(index: number, file: File) {
-    const form = new FormData();
-    form.append("image", file);
-    try {
-      const response = await fetch(apiUrl + "/api/admin/upload", { method: "POST", headers: { Authorization: "Bearer " + token }, body: form });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error);
-      setTestimonials((t) => ({ ...t, items: (t.items ?? []).map((x, xi) => (xi === index ? { ...x, image: data.url } : x)) }));
-      setTestimonialsDirty(true);
-      toast.success("Photo uploaded");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Photo upload failed");
-    }
-  }
-
-  function saveNewsletter() {
-    save({
-      homePageConfig: {
-        ...(config.homePageConfig ?? {}),
-        newsletter: {
-          enabled: newsletter.enabled !== false,
-          badge: newsletter.badge?.trim() || undefined,
-          title: newsletter.title?.trim() || undefined,
-          accent: newsletter.accent?.trim() || undefined,
-          subtitle: newsletter.subtitle?.trim() || undefined,
-          placeholder: newsletter.placeholder?.trim() || undefined,
-          button: newsletter.button?.trim() || undefined,
-          note: newsletter.note?.trim() || undefined,
-        },
-      },
-    });
-  }
-
-  function saveFooter() {
-    const links = (footer.links ?? [])
-      .filter((l) => l.label?.trim())
-      .map((l) => ({ label: l.label?.trim() || undefined, url: l.url?.trim() || undefined }));
-    save({
-      homePageConfig: {
-        ...(config.homePageConfig ?? {}),
-        footer: {
-          enabled: footer.enabled !== false,
-          copyright: footer.copyright?.trim() || undefined,
-          links: links.length ? links : undefined,
-        },
-      },
-    });
-  }
-
   return (
-    <div className="space-y-6 max-w-4xl">
-      <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-6">
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-          <div>
-            <p className="text-sm font-medium text-gray-800 dark:text-slate-200 mb-1">Default home page style</p>
-            <p className="text-xs text-gray-400 dark:text-slate-500">
-              Customers will see this layout on the home page and the /shop page. You can switch any time.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => save({ homePageConfig: { ...(config.homePageConfig ?? {}), layout: "catalog" } })}
-            disabled={saving}
-            className="flex items-center gap-2 px-4 h-9 bg-primary text-white text-sm font-bold rounded-xl hover:bg-primary-dark transition-all disabled:opacity-60 shadow-sm"
-          >
-            {saving ? "Saving…" : "Save Layout"}
-          </button>
-        </div>
-        <div className="space-y-3">
-          <p className="text-sm font-semibold text-gray-800 dark:text-slate-200">Show or hide home page sections</p>
-          {([ ["hero", "Hero banner"], ["categories", "Categories"], ["products", "Popular products"], ["collections", "Category collections"], ["trust", "Trust badges"], ["promos", "Promo banners"], ["announcement", "Top announcement bar"] ] as const).map(([key, label]) => (
-            <label key={key} className="flex items-center justify-between gap-4 rounded-xl border border-gray-100 dark:border-white/10 px-4 py-3 text-sm text-gray-700 dark:text-slate-200">
-              {label}
-              <Switch
-                isSelected={config.homePageConfig?.sectionVisibility?.[key] ?? (key === "announcement" ? config.heroBannerConfig?.announceEnabled ?? false : true)}
-                isDisabled={saving}
-                onValueChange={(value) => setSectionVisibility(key, value)}
-              />
-            </label>
-          ))}
-        </div>
-      </div>
-      {/* FLASH DEAL SETTINGS */}
-      <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-5 sm:p-6 space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h3 className="font-display font-bold text-gray-900 dark:text-white">Flash Deal — Limited Time Offer</h3>
-            <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
-              The daily limited-time banner on the home page. Classic and Catalog layouts.
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300">
-              <Switch
-                isSelected={flash.enabled !== false}
-                onValueChange={(v) => {
-                  const updated = { ...flash, enabled: v };
-                  setFlash(updated);
-                  saveFlash(updated);
-                }}
-                color="primary"
-              />
-              Show banner
-            </label>
-            {flashDirty && (
-              <button
-                type="button"
-                onClick={() => saveFlash()}
-                disabled={saving}
-                className="flex items-center gap-2 px-4 h-9 bg-gradient-to-r from-primary to-indigo-500 text-white text-sm font-bold rounded-xl hover:shadow-lg hover:shadow-primary/30 transition-all disabled:opacity-60"
-              >
-                {saving ? <FiUpload className="animate-pulse" /> : <FiCheck />} Save Flash Deal
-              </button>
-            )}
-          </div>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input label="Badge label" placeholder="Limited Time Offer" value={flash.badge ?? ""} onValueChange={(v) => { setFlash((f) => ({ ...f, badge: v })); setFlashDirty(true); }} />
-          <Input label="Title prefix" placeholder="Daily drop:" value={flash.titlePrefix ?? ""} onValueChange={(v) => { setFlash((f) => ({ ...f, titlePrefix: v })); setFlashDirty(true); }} />
-        </div>
-        <Textarea
-          label="Description"
-          placeholder="One standout piece at a standout price, refreshed every day. Valid till midnight."
-          value={flash.description ?? ""}
-          onValueChange={(v) => { setFlash((f) => ({ ...f, description: v })); setFlashDirty(true); }}
-        />
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input label="Button label" placeholder="Claim Deal" value={flash.buttonLabel ?? ""} onValueChange={(v) => { setFlash((f) => ({ ...f, buttonLabel: v })); setFlashDirty(true); }} />
-          <Select
-            label="Featured product"
-            selectedKeys={[flash.autoPick === false && flash.productId ? flash.productId : "auto"]}
-            onSelectionChange={(keys) => {
-              const id = Array.from(keys as Set<string>)[0] as string;
-              if (id === "auto") { setFlash((f) => ({ ...f, autoPick: true, productId: undefined })); }
-              else { setFlash((f) => ({ ...f, autoPick: false, productId: id })); }
-              setFlashDirty(true);
-            }}
-          >
-            <>
-              <SelectItem key="auto">Auto — pick a sale product</SelectItem>
-              {dealProducts.map((p) => (
-                <SelectItem key={p.id} textValue={p.name}>
-                  {p.name} {p.salePrice ? `(${money(p.salePrice)})` : ""}
-                </SelectItem>
-              ))}
-            </>
-          </Select>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Select
-            label="Countdown"
-            selectedKeys={[flash.countdownMode === "hours" ? "hours" : "midnight"]}
-            onSelectionChange={(keys) => { setFlash((f) => ({ ...f, countdownMode: (Array.from(keys as Set<string>)[0] as "midnight" | "hours") ?? "midnight" })); setFlashDirty(true); }}
-          >
-            <SelectItem key="midnight">Until midnight</SelectItem>
-            <SelectItem key="hours">Fixed hours</SelectItem>
-          </Select>
-          <Input
-            type="number"
-            label="Hours (for fixed mode)"
-            min={1}
-            max={168}
-            step={1}
-            disabled={flash.countdownMode !== "hours"}
-            value={String(flash.countdownHours ?? 12)}
-            onValueChange={(v) => { setFlash((f) => ({ ...f, countdownHours: Number(v) || 12 })); setFlashDirty(true); }}
-          />
-          <label className="flex items-end gap-2 text-sm font-medium text-gray-700 dark:text-slate-300 pb-2">
-            <Switch isSelected={flash.showCountdown !== false} onValueChange={(v) => { setFlash((f) => ({ ...f, showCountdown: v })); setFlashDirty(true); }} color="primary" />
-            Show countdown
+    <div className="max-w-4xl rounded-2xl border border-gray-100 bg-white p-6 dark:border-white/6 dark:bg-white/4">
+      <h2 className="text-lg font-bold text-gray-900 dark:text-white">Show or hide home page sections</h2>
+      <p className="mb-4 mt-1 text-sm text-gray-500 dark:text-slate-400">Changes are saved automatically when you switch a section.</p>
+      <div className="space-y-3">
+        {sections.map(([key, label]) => (
+          <label key={key} className="flex items-center justify-between gap-4 rounded-xl border border-gray-100 px-4 py-3 text-sm text-gray-700 dark:border-white/10 dark:text-slate-200">
+            {label}
+            <Switch
+              isSelected={config.homePageConfig?.sectionVisibility?.[key] ?? (key === "announcement" ? config.heroBannerConfig?.announceEnabled ?? false : true)}
+              isDisabled={saving}
+              onValueChange={(enabled) => { void setSectionVisibility(key, enabled); }}
+            />
           </label>
-        </div>
-      </div>
-
-      {/* PROMO BANNERS */}
-      <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-5 sm:p-6 space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h3 className="font-display font-bold text-gray-900 dark:text-white">Promo Banners</h3>
-            <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
-              The two small offer banners on the Catalog layout home page.
-            </p>
-          </div>
-          {promosDirty && (
-            <button
-              type="button"
-              onClick={savePromos}
-              disabled={saving}
-              className="flex items-center gap-2 px-4 h-9 bg-gradient-to-r from-primary to-indigo-500 text-white text-sm font-bold rounded-xl hover:shadow-lg hover:shadow-primary/30 transition-all disabled:opacity-60"
-            >
-              {saving ? <FiUpload className="animate-pulse" /> : <FiCheck />} Save Promo Banners
-            </button>
-          )}
-        </div>
-        {promos.map((p, i) => (
-          <div key={i} className="rounded-xl border border-gray-100 dark:border-white/6 p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-bold uppercase tracking-wide text-gray-400">Banner {i + 1}</span>
-                <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-300">
-                  <Switch isSelected={p.enabled !== false} onValueChange={(v) => { setPromos((prev) => prev.map((b, bi) => (bi === i ? { ...b, enabled: v } : b))); setPromosDirty(true); }} color="primary" />
-                  Show
-                </label>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Input label="Badge" placeholder="বিশেষ কালেকশন" value={p.badge ?? ""} onValueChange={(v) => { setPromos((prev) => prev.map((b, bi) => (bi === i ? { ...b, badge: v } : b))); setPromosDirty(true); }} />
-              <Input label="Accent (highlighted text)" placeholder="ঐতিহ্যের ছোঁয়া" value={p.accent ?? ""} onValueChange={(v) => { setPromos((prev) => prev.map((b, bi) => (bi === i ? { ...b, accent: v } : b))); setPromosDirty(true); }} />
-              <Input label="Title" placeholder="ঈদে পরুন" value={p.title ?? ""} onValueChange={(v) => { setPromos((prev) => prev.map((b, bi) => (bi === i ? { ...b, title: v } : b))); setPromosDirty(true); }} className="sm:col-span-2" />
-              <Input label="Subtitle" placeholder="বিশেষ ডিজাইনের পণ্য এখন আপনার জন্য" value={p.subtitle ?? ""} onValueChange={(v) => { setPromos((prev) => prev.map((b, bi) => (bi === i ? { ...b, subtitle: v } : b))); setPromosDirty(true); }} className="sm:col-span-2" />
-              <Input label="Button label" placeholder="কালেকশন দেখুন →" value={p.buttonLabel ?? ""} onValueChange={(v) => { setPromos((prev) => prev.map((b, bi) => (bi === i ? { ...b, buttonLabel: v } : b))); setPromosDirty(true); }} />
-              <Input label="Button link" placeholder="#shop" value={p.buttonLink ?? ""} onValueChange={(v) => { setPromos((prev) => prev.map((b, bi) => (bi === i ? { ...b, buttonLink: v } : b))); setPromosDirty(true); }} />
-              <Input label="Image URL" placeholder="https://…" value={p.image ?? ""} onValueChange={(v) => { setPromos((prev) => prev.map((b, bi) => (bi === i ? { ...b, image: v } : b))); setPromosDirty(true); }} className="sm:col-span-2" />
-              {p.image && (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img src={p.image} alt="" className="h-24 w-36 object-cover rounded-lg border border-gray-100" />
-              )}
-            </div>
-          </div>
         ))}
       </div>
-
-      {/* TRUST BADGES */}
-      <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-5 sm:p-6 space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h3 className="font-display font-bold text-gray-900 dark:text-white">Trust Badges</h3>
-            <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
-              The 4 trust badge strip on the Catalog home. Click "Add Badge" to create new badges.
-            </p>
-          </div>
-          {trustDirty && (
-            <button
-              type="button"
-              onClick={saveTrust}
-              disabled={saving}
-              className="flex items-center gap-2 px-4 h-9 bg-gradient-to-r from-primary to-indigo-500 text-white text-sm font-bold rounded-xl hover:shadow-lg hover:shadow-primary/30 transition-all disabled:opacity-60"
-            >
-              {saving ? <FiUpload className="animate-pulse" /> : <FiCheck />} Save Trust Badges
-            </button>
-          )}
-        </div>
-        {trust.map((t, i) => (
-          <div key={i} className="rounded-xl border border-gray-100 dark:border-white/6 p-4 space-y-3">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-bold uppercase tracking-wide text-gray-400">Badge {i + 1}</span>
-                <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-300">
-                  <Switch isSelected={t.enabled !== false} onValueChange={(v) => { setTrust((prev) => prev.map((b, bi) => (bi === i ? { ...b, enabled: v } : b))); setTrustDirty(true); }} color="primary" />
-                  Show
-                </label>
-              </div>
-              <button type="button" onClick={() => { setTrust((prev) => prev.filter((_, bi) => bi !== i)); setTrustDirty(true); }} className="text-xs text-red-500 font-semibold hover:underline">Remove</button>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <Select
-                label="Icon"
-                selectedKeys={[t.icon || "shield"]}
-                onSelectionChange={(keys) => { setTrust((prev) => prev.map((b, bi) => (bi === i ? { ...b, icon: Array.from(keys as Set<string>)[0] } : b))); setTrustDirty(true); }}
-              >
-                <SelectItem key="shield">Shield</SelectItem>
-                <SelectItem key="truck">Truck</SelectItem>
-                <SelectItem key="refresh">Refresh</SelectItem>
-                <SelectItem key="check">Check</SelectItem>
-                <SelectItem key="clock">Clock</SelectItem>
-                <SelectItem key="star">Star</SelectItem>
-                <SelectItem key="headset">Headset</SelectItem>
-                <SelectItem key="chat">Chat</SelectItem>
-              </Select>
-              <Input label="Title" placeholder="নিরাপদ পেমেন্ট" value={t.title ?? ""} onValueChange={(v) => { setTrust((prev) => prev.map((b, bi) => (bi === i ? { ...b, title: v } : b))); setTrustDirty(true); }} />
-              <Input label="Subtitle" placeholder="ক্যাশ অন ডেলিভারি / বিকাশ / ব্যাংক" value={t.subtitle ?? ""} onValueChange={(v) => { setTrust((prev) => prev.map((b, bi) => (bi === i ? { ...b, subtitle: v } : b))); setTrustDirty(true); }} />
-            </div>
-          </div>
-        ))}
-        {trust.length < 4 && (
-          <button
-            type="button"
-            onClick={() => { setTrust((prev) => [...prev, { enabled: true, icon: "shield", title: "", subtitle: "" }]); setTrustDirty(true); }}
-            className="inline-flex items-center gap-2 px-4 h-9 text-sm font-semibold text-primary border border-primary/30 rounded-xl hover:bg-primary/5 transition"
-          >
-            <FiPlus /> Add Badge
-          </button>
-        )}
-      </div>
-
-      {/* CATEGORY SHOWCASE */}
-      <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-5 sm:p-6 space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h3 className="font-display font-bold text-gray-900 dark:text-white">Shop by Category Showcase</h3>
-            <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
-              The "SHOP BY CATEGORY" grid/carousel on the home page. Edits both heading and display mode.
-            </p>
-          </div>
-          {catShowDirty && (
-            <button
-              type="button"
-              onClick={saveCatShow}
-              disabled={saving}
-              className="flex items-center gap-2 px-4 h-9 bg-gradient-to-r from-primary to-indigo-500 text-white text-sm font-bold rounded-xl hover:shadow-lg hover:shadow-primary/30 transition-all disabled:opacity-60"
-            >
-              {saving ? <FiUpload className="animate-pulse" /> : <FiCheck />} Save Showcase
-            </button>
-          )}
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Input label="Eyebrow" placeholder="SHOP BY CATEGORY" value={catShow.eyebrow ?? ""} onValueChange={(v) => { setCatShow((s) => ({ ...s, eyebrow: v })); setCatShowDirty(true); }} />
-          <Input label="Title" placeholder="Curated collections," value={catShow.title ?? ""} onValueChange={(v) => { setCatShow((s) => ({ ...s, title: v })); setCatShowDirty(true); }} />
-          <Input label="Accent (highlighted)" placeholder="organized for you." value={catShow.accent ?? ""} onValueChange={(v) => { setCatShow((s) => ({ ...s, accent: v })); setCatShowDirty(true); }} />
-          <Input label="Count label" placeholder="CATEGORIES" value={catShow.countLabel ?? ""} onValueChange={(v) => { setCatShow((s) => ({ ...s, countLabel: v })); setCatShowDirty(true); }} />
-          <Select
-            label="Display mode"
-            selectedKeys={[catShow.mode ?? "grid"]}
-            onSelectionChange={(keys) => { setCatShow((s) => ({ ...s, mode: (Array.from(keys as Set<string>)[0] as CategoryDisplay["mode"]) ?? "grid" })); setCatShowDirty(true); }}
-          >
-            <SelectItem key="grid">Grid</SelectItem>
-            <SelectItem key="carousel">Carousel (manual)</SelectItem>
-            <SelectItem key="loop">Carousel (auto-loop)</SelectItem>
-          </Select>
-          <Input
-            type="number"
-            label="Auto-slide seconds"
-            min={1}
-            max={60}
-            value={String(catShow.seconds ?? 3)}
-            onValueChange={(v) => { setCatShow((s) => ({ ...s, seconds: Math.max(1, Math.min(60, Number(v) || 3)) })); setCatShowDirty(true); }}
-          />
-        </div>
-      </div>
-
-      {/* TESTIMONIALS */}
-      <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-5 sm:p-6 space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h3 className="font-display font-bold text-gray-900 dark:text-white">Customer Testimonials</h3>
-            <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
-              The "Customer Chronicles" reviews section. Turn it off, edit copy, or add your own reviews.
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300">
-              <Switch isSelected={testimonials.enabled !== false} onValueChange={(v) => { setTestimonials((t) => ({ ...t, enabled: v })); setTestimonialsDirty(true); }} color="primary" />
-              Show section
-            </label>
-            {testimonialsDirty && (
-              <button
-                type="button"
-                onClick={saveTestimonials}
-                disabled={saving}
-                className="flex items-center gap-2 px-4 h-9 bg-gradient-to-r from-primary to-indigo-500 text-white text-sm font-bold rounded-xl hover:shadow-lg hover:shadow-primary/30 transition-all disabled:opacity-60"
-              >
-                {saving ? <FiUpload className="animate-pulse" /> : <FiCheck />} Save Testimonials
-              </button>
-            )}
-          </div>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input label="Eyebrow" placeholder="CUSTOMER CHRONICLES" value={testimonials.eyebrow ?? ""} onValueChange={(v) => { setTestimonials((t) => ({ ...t, eyebrow: v })); setTestimonialsDirty(true); }} />
-          <Input label="Subtitle" placeholder="Real stories from customers…" value={testimonials.subtitle ?? ""} onValueChange={(v) => { setTestimonials((t) => ({ ...t, subtitle: v })); setTestimonialsDirty(true); }} />
-          <Input label="Title" placeholder="Loved by" value={testimonials.title ?? ""} onValueChange={(v) => { setTestimonials((t) => ({ ...t, title: v })); setTestimonialsDirty(true); }} />
-          <Input label="Accent (highlighted)" placeholder="thousands." value={testimonials.accent ?? ""} onValueChange={(v) => { setTestimonials((t) => ({ ...t, accent: v })); setTestimonialsDirty(true); }} />
-        </div>
-        {(testimonials.items ?? []).map((item, i) => (
-          <div key={i} className="rounded-xl border border-gray-100 dark:border-white/6 p-4 space-y-3">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-xs font-bold uppercase tracking-wide text-gray-400">Review {i + 1}</span>
-              <button
-                type="button"
-                onClick={() => { setTestimonials((t) => ({ ...t, items: (t.items ?? []).filter((_, bi) => bi !== i) })); setTestimonialsDirty(true); }}
-                className="text-xs text-red-500 font-semibold hover:underline"
-              >
-                Remove
-              </button>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="relative shrink-0">
-                {item.image ? (
-                  <>
-                    <img src={item.image} alt="" className="h-14 w-14 rounded-full object-cover border border-gray-200 dark:border-white/10" />
-                    <button
-                      type="button"
-                      onClick={() => { setTestimonials((t) => ({ ...t, items: (t.items ?? []).map((x, xi) => (xi === i ? { ...x, image: undefined } : x)) })); setTestimonialsDirty(true); }}
-                      className="absolute -top-1.5 -right-1.5 grid h-5 w-5 place-items-center rounded-full bg-red-500 text-white text-[10px] shadow-md"
-                      aria-label="Remove photo"
-                    >
-                      <FiX size={11} />
-                    </button>
-                  </>
-                ) : (
-                  <div className="grid h-14 w-14 place-items-center rounded-full bg-gradient-to-br from-primary to-cyan font-mono text-sm font-bold text-white">
-                    {item.init || item.name?.slice(0, 2).toUpperCase() || "?"}
-                  </div>
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1.5">Profile photo (optional)</p>
-                <label
-                  htmlFor={`testimonial-pic-${i}`}
-                  className="inline-flex cursor-pointer items-center gap-2 px-3 h-9 text-xs font-semibold text-primary border border-primary/30 rounded-xl hover:bg-primary/5 transition"
-                >
-                  <FiUpload size={13} /> {item.image ? "Change photo" : "Upload photo"}
-                </label>
-                <input
-                  id={`testimonial-pic-${i}`}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) uploadTestimonialImage(i, f); }}
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-              <Input label="Name" placeholder="Tasnim Mahbub" value={item.name ?? ""} onValueChange={(v) => { setTestimonials((t) => ({ ...t, items: (t.items ?? []).map((x, xi) => (xi === i ? { ...x, name: v } : x)) })); setTestimonialsDirty(true); }} />
-              <Input label="Initials" placeholder="TM" value={item.init ?? ""} onValueChange={(v) => { setTestimonials((t) => ({ ...t, items: (t.items ?? []).map((x, xi) => (xi === i ? { ...x, init: v } : x)) })); setTestimonialsDirty(true); }} />
-              <Input label="Role" placeholder="Verified Buyer • Dhaka" value={item.role ?? ""} onValueChange={(v) => { setTestimonials((t) => ({ ...t, items: (t.items ?? []).map((x, xi) => (xi === i ? { ...x, role: v } : x)) })); setTestimonialsDirty(true); }} />
-              <div className="min-w-0">
-                <label className="text-xs font-semibold text-gray-500 dark:text-slate-400 block mb-1.5">Rating (1–5)</label>
-                <input
-                  type="number"
-                  min={1}
-                  max={5}
-                  value={String(item.rating ?? 5)}
-                  onChange={(e) => { setTestimonials((t) => ({ ...t, items: (t.items ?? []).map((x, xi) => (xi === i ? { ...x, rating: Number(e.target.value) } : x)) })); setTestimonialsDirty(true); }}
-                  className="h-10 w-full rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 px-3 text-sm outline-none focus:border-primary/50"
-                />
-              </div>
-              <Textarea label="Quote" placeholder="The product felt premium…" value={item.quote ?? ""} onValueChange={(v) => { setTestimonials((t) => ({ ...t, items: (t.items ?? []).map((x, xi) => (xi === i ? { ...x, quote: v } : x)) })); setTestimonialsDirty(true); }} className="sm:col-span-4" />
-            </div>
-          </div>
-        ))}
-        {(testimonials.items ?? []).length < 12 && (
-          <button
-            type="button"
-            onClick={() => { setTestimonials((t) => ({ ...t, items: [...(t.items ?? []), { name: "", init: "", role: "", quote: "", rating: 5 }] })); setTestimonialsDirty(true); }}
-            className="inline-flex items-center gap-2 px-4 h-9 text-sm font-semibold text-primary border border-primary/30 rounded-xl hover:bg-primary/5 transition"
-          >
-            <FiPlus /> Add Review
-          </button>
-        )}
-      </div>
-
-      {/* NEWSLETTER */}
-      <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-5 sm:p-6 space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h3 className="font-display font-bold text-gray-900 dark:text-white">Newsletter Signup</h3>
-            <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
-              The email signup section above the footer. Subscriptions are stored on the server.
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300">
-              <Switch isSelected={newsletter.enabled !== false} onValueChange={(v) => { setNewsletter((n) => ({ ...n, enabled: v })); setNewsletterDirty(true); }} color="primary" />
-              Show section
-            </label>
-            {newsletterDirty && (
-              <button
-                type="button"
-                onClick={saveNewsletter}
-                disabled={saving}
-                className="flex items-center gap-2 px-4 h-9 bg-gradient-to-r from-primary to-indigo-500 text-white text-sm font-bold rounded-xl hover:shadow-lg hover:shadow-primary/30 transition-all disabled:opacity-60"
-              >
-                {saving ? <FiUpload className="animate-pulse" /> : <FiCheck />} Save Newsletter
-              </button>
-            )}
-          </div>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input label="Badge pill" placeholder="Exclusive drops" value={newsletter.badge ?? ""} onValueChange={(v) => { setNewsletter((n) => ({ ...n, badge: v })); setNewsletterDirty(true); }} />
-          <Input label="Title" placeholder="Private sale" value={newsletter.title ?? ""} onValueChange={(v) => { setNewsletter((n) => ({ ...n, title: v })); setNewsletterDirty(true); }} />
-          <Input label="Accent (highlighted)" placeholder="alerts & offers." value={newsletter.accent ?? ""} onValueChange={(v) => { setNewsletter((n) => ({ ...n, accent: v })); setNewsletterDirty(true); }} />
-          <Input label="Placeholder" placeholder="Enter your email…" value={newsletter.placeholder ?? ""} onValueChange={(v) => { setNewsletter((n) => ({ ...n, placeholder: v })); setNewsletterDirty(true); }} />
-          <Input label="Button text" placeholder="Subscribe" value={newsletter.button ?? ""} onValueChange={(v) => { setNewsletter((n) => ({ ...n, button: v })); setNewsletterDirty(true); }} />
-          <Input label="Note (below form)" placeholder="No spam. One-click unsubscribe anytime." value={newsletter.note ?? ""} onValueChange={(v) => { setNewsletter((n) => ({ ...n, note: v })); setNewsletterDirty(true); }} />
-          <Textarea label="Subtitle" placeholder="Early access to limited drops…" value={newsletter.subtitle ?? ""} onValueChange={(v) => { setNewsletter((n) => ({ ...n, subtitle: v })); setNewsletterDirty(true); }} className="sm:col-span-2" />
-        </div>
-      </div>
-
-      {/* FOOTER */}
-      <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-5 sm:p-6 space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h3 className="font-display font-bold text-gray-900 dark:text-white">Footer</h3>
-            <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
-              Copyright text and footer links. Turn it off to hide the footer entirely.
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300">
-              <Switch isSelected={footer.enabled !== false} onValueChange={(v) => { setFooter((f) => ({ ...f, enabled: v })); setFooterDirty(true); }} color="primary" />
-              Show footer
-            </label>
-            {footerDirty && (
-              <button
-                type="button"
-                onClick={saveFooter}
-                disabled={saving}
-                className="flex items-center gap-2 px-4 h-9 bg-gradient-to-r from-primary to-indigo-500 text-white text-sm font-bold rounded-xl hover:shadow-lg hover:shadow-primary/30 transition-all disabled:opacity-60"
-              >
-                {saving ? <FiUpload className="animate-pulse" /> : <FiCheck />} Save Footer
-              </button>
-            )}
-          </div>
-        </div>
-        <Input label="Copyright text" placeholder="© 2026 EPIC Store. Everyday premium essentials from Bangladesh." value={footer.copyright ?? ""} onValueChange={(v) => { setFooter((f) => ({ ...f, copyright: v })); setFooterDirty(true); }} />
-        {(footer.links ?? []).map((l, i) => (
-          <div key={i} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-3">
-            <Input label="Label" placeholder="Privacy Notice" value={l.label ?? ""} onValueChange={(v) => { setFooter((f) => ({ ...f, links: (f.links ?? []).map((x, xi) => (xi === i ? { ...x, label: v } : x)) })); setFooterDirty(true); }} />
-            <Input label="URL" placeholder="/ or #shop or https://…" value={l.url ?? ""} onValueChange={(v) => { setFooter((f) => ({ ...f, links: (f.links ?? []).map((x, xi) => (xi === i ? { ...x, url: v } : x)) })); setFooterDirty(true); }} />
-            <div className="flex items-end pb-1">
-              <button
-                type="button"
-                onClick={() => { setFooter((f) => ({ ...f, links: (f.links ?? []).filter((_, bi) => bi !== i) })); setFooterDirty(true); }}
-                className="text-xs text-red-500 font-semibold hover:underline"
-              >
-                Remove
-              </button>
-            </div>
-          </div>
-        ))}
-        <button
-          type="button"
-          onClick={() => { setFooter((f) => ({ ...f, links: [...(f.links ?? []), { label: "", url: "" }] })); setFooterDirty(true); }}
-          className="inline-flex items-center gap-2 px-4 h-9 text-sm font-semibold text-primary border border-primary/30 rounded-xl hover:bg-primary/5 transition"
-        >
-          <FiPlus /> Add Footer Link
-        </button>
-      </div>
-
-      <div>
-        <button
-          type="button"
-          onClick={add}
-          className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 h-10 text-sm font-bold text-white font-display hover:bg-primary-dark transition-colors"
-        >
-          <FiPlus /> Add Section
-        </button>
-        <p className="mt-2 text-xs text-gray-400">Each section shows products from the categories you choose below.</p>
-      </div>
-
-      {sections.length === 0 && (
-        <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-8 text-center text-sm text-gray-400">
-          No custom sections yet. Click “Add Section” — otherwise the storefront shows one carousel per category.
-        </div>
-      )}
-
-      {sections.map((s, idx) => (
-        <div key={s.id} className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-5 sm:p-6 space-y-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h3 className="font-display font-bold text-gray-900 dark:text-white">Section {idx + 1}</h3>
-            <button
-              type="button"
-              onClick={() => remove(s.id)}
-              className="inline-flex items-center gap-1.5 rounded-lg px-3 h-8 text-xs font-semibold text-red-500 hover:bg-red-50 transition-colors"
-            >
-              <FiTrash2 /> Remove
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input label="Section Title (optional)" placeholder="e.g. Summer Essentials" value={s.title ?? ""} onValueChange={(v) => update(s.id, { title: v })} />
-            <Select
-              label="Display Mode"
-              selectedKeys={[s.mode]}
-              onSelectionChange={(k) => update(s.id, { mode: (Array.from(k as Set<string>)[0] ?? "carousel") as HomeSectionDef["mode"] })}
-            >
-              <SelectItem key="carousel">Carousel</SelectItem>
-              <SelectItem key="grid">Grid</SelectItem>
-              <SelectItem key="responsive">Responsive (mobile grid, PC carousel)</SelectItem>
-            </Select>
-          </div>
-
-          <div>
-            <Select
-              label="Categories (one or more)"
-              placeholder="Search and select categories…"
-              description="Pick one category to show only those products — or pick several to combine them in this section."
-              selectionMode="multiple"
-              selectedKeys={s.categoryIds}
-              onSelectionChange={(keys) => update(s.id, { categoryIds: Array.from(keys as Set<string>) })}
-              items={cats}
-              isInvalid={!s.categoryIds.length}
-              errorMessage="Select at least one category"
-              className="w-full"
-            >
-              {(c) => (
-                <SelectItem key={c.id} textValue={c.name}>
-                  <div className="flex w-full items-center justify-between gap-3">
-                    <span>{c.name}</span>
-                    {typeof c._count?.products === "number" && (
-                      <span className="font-mono text-xs opacity-70">({c._count.products})</span>
-                    )}
-                  </div>
-                </SelectItem>
-              )}
-            </Select>
-          </div>
-
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-5 gap-y-4">
-            <Switch isSelected={s.auto} onValueChange={(v) => update(s.id, { auto: v })} color="primary" className="gap-2 min-w-0">
-              Auto-slide
-            </Switch>
-            <div className="min-w-0">
-              <Input type="number" min={1} max={60} label="Seconds" value={String(s.seconds)} onValueChange={(v) => update(s.id, { seconds: Math.max(1, Math.min(60, Number(v) || 1)) })} />
-            </div>
-            <Switch isSelected={s.pagination} onValueChange={(v) => update(s.id, { pagination: v })} color="primary" className="gap-2 min-w-0">
-              Pagination dots
-            </Switch>
-            <Switch isSelected={s.loop} onValueChange={(v) => update(s.id, { loop: v })} color="primary" className="gap-2 min-w-0">
-              Loop
-            </Switch>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-5 gap-y-4">
-            <Input type="number" step="0.5" min="0.5" label="Per view (Mobile)" value={String(s.perView.mobile)} onValueChange={(v) => update(s.id, { perView: { ...s.perView, mobile: Math.max(0.5, Number(v) || 1) } })} />
-            <Input type="number" step="0.5" min="0.5" label="Per view (Tablet)" value={String(s.perView.tablet)} onValueChange={(v) => update(s.id, { perView: { ...s.perView, tablet: Math.max(0.5, Number(v) || 1) } })} />
-            <Input type="number" step="0.5" min="0.5" label="Per view (Desktop)" value={String(s.perView.desktop)} onValueChange={(v) => update(s.id, { perView: { ...s.perView, desktop: Math.max(0.5, Number(v) || 1) } })} />
-          </div>
-
-          <Switch isSelected={s.showViewAll} onValueChange={(v) => update(s.id, { showViewAll: v })} color="primary">
-            Show “View All” link
-          </Switch>
-        </div>
-      ))}
-
-      <button
-        type="button"
-        onClick={submit}
-        className="px-5 h-10 bg-primary text-white text-sm font-bold font-display rounded-xl hover:bg-primary-dark transition-colors"
-      >
-        {saving ? "Saving…" : "Save Home Layout"}
-      </button>
     </div>
   );
 }
-
 /* ==================== PAYMENTS ==================== */
 function PaymentSettings({ save, saving, config }: { save: (payload: object) => Promise<void>; saving: boolean; config: Config }) {
   const [bkash, setBkash] = useState(Boolean(config.paymentConfig?.bkash?.enabled));
@@ -4664,7 +3781,7 @@ function PaymentSettings({ save, saving, config }: { save: (payload: object) => 
       </GatewayCard>
 
       <button type="submit" className="px-5 h-10 bg-primary text-white text-sm font-bold font-display rounded-xl hover:bg-primary-dark transition-colors">
-        {saving ? "Saving…" : "Save Payment Settings"}
+        {saving ? "Savingâ€¦" : "Save Payment Settings"}
       </button>
     </form>
   );
@@ -4677,7 +3794,7 @@ function BannerSettings({ save, saving, config, token }: { save: (payload: objec
   const [announceText, setAnnounceText] = useState(current.announceText ?? "");
   const [pillEnabled, setPillEnabled] = useState(current.trendingPill?.enabled !== false);
   const [pillTop, setPillTop] = useState(current.trendingPill?.topText ?? "Trending Item");
-  const [pillBottom, setPillBottom] = useState(current.trendingPill?.bottomText ?? "Rated 4.9 ★ by customers");
+  const [pillBottom, setPillBottom] = useState(current.trendingPill?.bottomText ?? "Rated 4.9 â˜… by customers");
   const [announceBadge, setAnnounceBadge] = useState(current.announceBadge ?? "Festive Drop 2026");
   const [announceLinkLabel, setAnnounceLinkLabel] = useState(current.announceLinkLabel ?? "Explore Drops");
   const [announceLink, setAnnounceLink] = useState(current.announceLink ?? "#categories");
@@ -4836,7 +3953,7 @@ function BannerSettings({ save, saving, config, token }: { save: (payload: objec
           </div>
           <Switch isSelected={enabled} onValueChange={setEnabled} color="primary" />
         </div>
-        <Input label="Top announcement text" placeholder="e.g. ঈদ ও উৎসব কালেকশন…" value={announceText} onValueChange={setAnnounceText} description="The message shown above the header." />
+        <Input label="Top announcement text" placeholder="e.g. à¦ˆà¦¦ à¦“ à¦‰à§Žà¦¸à¦¬ à¦•à¦¾à¦²à§‡à¦•à¦¶à¦¨â€¦" value={announceText} onValueChange={setAnnounceText} description="The message shown above the header." />
         {announceText && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2">
             <Input label="Badge pill text" placeholder="Festive Drop 2026" value={announceBadge} onValueChange={setAnnounceBadge} />
@@ -4865,7 +3982,7 @@ function BannerSettings({ save, saving, config, token }: { save: (payload: objec
           {pillEnabled && (
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input label="Top line" placeholder="e.g. Trending Item" value={pillTop} onValueChange={setPillTop} />
-              <Input label="Bottom line" placeholder="e.g. Rated 4.9 ★ by customers" value={pillBottom} onValueChange={setPillBottom} />
+              <Input label="Bottom line" placeholder="e.g. Rated 4.9 â˜… by customers" value={pillBottom} onValueChange={setPillBottom} />
             </div>
           )}
         </div>
@@ -4896,7 +4013,7 @@ function BannerSettings({ save, saving, config, token }: { save: (payload: objec
             <div className="space-y-2">
               <label className="flex items-center gap-2 px-4 h-10 bg-gray-900 dark:bg-white/10 text-white text-xs font-bold rounded-xl cursor-pointer hover:bg-gray-700 transition-colors">
                 <FiBox size={14} />
-                {slide.uploading ? "Uploading…" : "Upload Image"}
+                {slide.uploading ? "Uploadingâ€¦" : "Upload Image"}
                 <input type="file" accept="image/*" className="hidden" onChange={(e) => handleUpload(slide.id, e)} disabled={slide.uploading} />
               </label>
               {slide.image && (
@@ -4908,12 +4025,12 @@ function BannerSettings({ save, saving, config, token }: { save: (payload: objec
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input label="Badge" placeholder="e.g. নতুন কালেকশন" value={slide.badge} onValueChange={(v) => updateSlide(slide.id, { badge: v })} />
+            <Input label="Badge" placeholder="e.g. à¦¨à¦¤à§à¦¨ à¦•à¦¾à¦²à§‡à¦•à¦¶à¦¨" value={slide.badge} onValueChange={(v) => updateSlide(slide.id, { badge: v })} />
             <Input label="Title (first line)" placeholder="Objects for" value={slide.title} onValueChange={(v) => updateSlide(slide.id, { title: v })} />
             <Input className="sm:col-span-2" label="Title (accent line)" placeholder="a softer daily life." value={slide.accent} onValueChange={(v) => updateSlide(slide.id, { accent: v })} />
-            <Textarea className="sm:col-span-2" label="Subtitle" minRows={2} placeholder="Thoughtfully curated premium pieces…" value={slide.subtitle} onValueChange={(v) => updateSlide(slide.id, { subtitle: v })} />
+            <Textarea className="sm:col-span-2" label="Subtitle" minRows={2} placeholder="Thoughtfully curated premium piecesâ€¦" value={slide.subtitle} onValueChange={(v) => updateSlide(slide.id, { subtitle: v })} />
             <Input label="Primary button text" placeholder="Explore Collection" value={slide.buttonLabel} onValueChange={(v) => updateSlide(slide.id, { buttonLabel: v })} />
-            <Input label="Primary button link" placeholder="#shop or /products/slug or https://…" value={slide.buttonLink} onValueChange={(v) => updateSlide(slide.id, { buttonLink: v })} />
+            <Input label="Primary button link" placeholder="#shop or /products/slug or https://â€¦" value={slide.buttonLink} onValueChange={(v) => updateSlide(slide.id, { buttonLink: v })} />
             <Input label="Secondary button text" placeholder="Shop by Category" value={slide.secondaryLabel} onValueChange={(v) => updateSlide(slide.id, { secondaryLabel: v })} />
             <Input label="Secondary button link" placeholder="#categories" value={slide.secondaryLink} onValueChange={(v) => updateSlide(slide.id, { secondaryLink: v })} />
           </div>
@@ -4934,7 +4051,7 @@ function BannerSettings({ save, saving, config, token }: { save: (payload: objec
           onClick={submit}
           className="px-5 h-10 bg-primary text-white text-sm font-bold font-display rounded-xl hover:bg-primary-dark transition-colors"
         >
-          {saving ? "Saving…" : "Save Hero Banners"}
+          {saving ? "Savingâ€¦" : "Save Hero Banners"}
         </button>
         {!enabled && <span className="text-xs text-gray-400">Hero banner is currently hidden.</span>}
         <span className="text-xs text-gray-400">{slides.length} banner{slides.length !== 1 ? "s" : ""}</span>
@@ -5047,7 +4164,7 @@ function DeliverySettings({ save, saving, config, token }: { save: (payload: obj
       </div>
 
       <button type="submit" className="px-5 h-10 bg-primary text-white text-sm font-bold font-display rounded-xl hover:bg-primary-dark transition-colors">
-        {saving ? "Saving…" : "Save Delivery Settings"}
+        {saving ? "Savingâ€¦" : "Save Delivery Settings"}
       </button>
     </form>
   );
@@ -5087,7 +4204,7 @@ function StorageSettings({ save, saving, configured, storage }: {
       <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-6">
         <h3 className="font-display font-bold text-gray-900 dark:text-white mb-3">Image Storage</h3>
         <p className="text-xs text-gray-400 dark:text-slate-500 mb-5">
-          Configure public folder paths or Object Storage for product images. {configured && <span className="text-emerald font-bold">Active ✓</span>}
+          Configure public folder paths or Object Storage for product images. {configured && <span className="text-emerald font-bold">Active âœ“</span>}
         </p>
 
         <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-white/6 mb-5">
@@ -5115,7 +4232,7 @@ function StorageSettings({ save, saving, configured, storage }: {
         )}
 
         <button type="submit" className="mt-6 px-5 h-10 bg-primary text-white text-sm font-bold font-display rounded-xl hover:bg-primary-dark transition-colors">
-          {saving ? "Saving…" : "Save Storage Settings"}
+          {saving ? "Savingâ€¦" : "Save Storage Settings"}
         </button>
       </div>
     </form>
@@ -5194,7 +4311,7 @@ function CheckoutFormSettings({ save, saving, config }: { save: (payload: object
         ))}
 
         <button type="submit" className="mt-6 px-5 h-10 bg-primary text-white text-sm font-bold font-display rounded-xl hover:bg-primary-dark transition-colors">
-          {saving ? "Saving…" : "Save Checkout Form"}
+          {saving ? "Savingâ€¦" : "Save Checkout Form"}
         </button>
       </div>
     </form>
