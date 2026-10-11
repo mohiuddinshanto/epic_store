@@ -8,9 +8,54 @@ import { FiArrowDown, FiArrowUp, FiBox, FiCheck, FiChevronDown, FiCopy, FiEdit2,
 
 const apiUrl = "";
 
+type PromoBannerDef = {
+  enabled?: boolean;
+  badge?: string;
+  title?: string;
+  accent?: string;
+  subtitle?: string;
+  buttonLabel?: string;
+  buttonLink?: string;
+  image?: string;
+};
+
+type TrustBadgeDef = {
+  enabled?: boolean;
+  icon?: string;
+  title?: string;
+  subtitle?: string;
+};
+
 type HomePageConfigShape = {
+  sections: HomeSectionDef[];
+  layout?: "classic" | "catalog";
   sectionVisibility?: Partial<Record<"hero" | "categories" | "products" | "collections" | "trust" | "promos" | "announcement", boolean>>;
   categories?: CategoryDisplay & { eyebrow?: string; title?: string; accent?: string; countLabel?: string };
+  promoBanners?: PromoBannerDef[];
+  trustBadges?: TrustBadgeDef[];
+  testimonials?: {
+    enabled?: boolean;
+    eyebrow?: string;
+    title?: string;
+    accent?: string;
+    subtitle?: string;
+    items?: { init?: string; image?: string; name?: string; role?: string; quote?: string; rating?: number }[];
+  };
+  newsletter?: {
+    enabled?: boolean;
+    badge?: string;
+    title?: string;
+    accent?: string;
+    subtitle?: string;
+    placeholder?: string;
+    button?: string;
+    note?: string;
+  };
+  footer?: {
+    enabled?: boolean;
+    copyright?: string;
+    links?: { label?: string; url?: string }[];
+  };
 };
 
 type Config = {
@@ -50,6 +95,19 @@ type Config = {
   homePageConfig?: HomePageConfigShape;
   heroBannerConfig?: HeroBannerConfig | null;
   navigationConfig?: { menus: { id: string; label: string; location: string; items: MenuItem[] }[] };
+};
+
+type HomeSectionDef = {
+  id: string;
+  title?: string;
+  categoryIds: string[];
+  mode: "carousel" | "grid" | "responsive";
+  auto: boolean;
+  seconds: number;
+  perView: { mobile: number; tablet: number; desktop: number };
+  pagination: boolean;
+  loop: boolean;
+  showViewAll: boolean;
 };
 
 type HeroBannerConfig = {
@@ -461,7 +519,7 @@ export function AdminPanel() {
           {section === "coupons" && <AdminCoupons token={token} />}
           {section === "reviews" && <AdminReviews token={token} />}
           {section === "staff" && <AdminStaff token={token} />}
-          {section === "home" && <HomeLayoutSettings config={config} save={save} saving={saving} />}
+          {section === "home" && <HomeLayoutSettings config={config} save={save} saving={saving} token={token} />}
           {section === "banner" && <BannerSettings config={config} save={save} saving={saving} token={token} />}
           {section === "menu" && <MenuBuilder config={config} save={save} saving={saving} />}
           {section === "marketing" && <MarketingChatSettings config={config} save={save} saving={saving} />}
@@ -3668,48 +3726,715 @@ function FeatureSettings({ config, save, saving }: { config: Config; save: (payl
 }
 
 /* ==================== HOME LAYOUT ==================== */
-function HomeLayoutSettings({ config, save, saving }: { config: Config; save: (payload: object) => Promise<void>; saving: boolean }) {
-  const sections = [
-    ["hero", "Hero banner"],
-    ["categories", "Categories"],
-    ["products", "Popular products"],
-    ["collections", "Category collections"],
-    ["trust", "Trust badges"],
-    ["promos", "Promo banners"],
-    ["announcement", "Top announcement bar"],
-  ] as const;
+type SmallCategory = { id: string; name: string; _count?: { products?: number } };
 
-  function setSectionVisibility(key: (typeof sections)[number][0], enabled: boolean) {
-    const homePageConfig = {
-      ...(config.homePageConfig ?? {}),
-      layout: "catalog" as const,
-      sectionVisibility: { ...(config.homePageConfig?.sectionVisibility ?? {}), [key]: enabled },
-    };
+function HomeLayoutSettings({ config, save, saving, token }: { config: Config; save: (payload: object) => Promise<void>; saving: boolean; token: string }) {
+  const [cats, setCats] = useState<SmallCategory[]>([]);
+  const [sections, setSections] = useState<HomeSectionDef[]>(
+    config.homePageConfig?.sections?.length
+      ? config.homePageConfig.sections
+      : []
+  );
+  const [promos, setPromos] = useState<PromoBannerDef[]>([...Array(2)].map((_, i) => config.homePageConfig?.promoBanners?.[i] ?? {}));
+  const [promosDirty, setPromosDirty] = useState(false);
+  const [trust, setTrust] = useState<TrustBadgeDef[]>(config.homePageConfig?.trustBadges?.length ? config.homePageConfig.trustBadges : []);
+  const [trustDirty, setTrustDirty] = useState(false);
+  const [catShow, setCatShow] = useState<CategoryDisplay & { eyebrow?: string; title?: string; accent?: string; countLabel?: string }>(config.homePageConfig?.categories ?? {});
+  const [catShowDirty, setCatShowDirty] = useState(false);
+  const [testimonials, setTestimonials] = useState(config.homePageConfig?.testimonials ?? {});
+  const [testimonialsDirty, setTestimonialsDirty] = useState(false);
+  const [newsletter, setNewsletter] = useState(config.homePageConfig?.newsletter ?? {});
+  const [newsletterDirty, setNewsletterDirty] = useState(false);
+  const [footer, setFooter] = useState(config.homePageConfig?.footer ?? {});
+  const [footerDirty, setFooterDirty] = useState(false);
+  useEffect(() => {
+    api("/api/categories", "")
+      .then(async (r) => {
+        if (r.ok) setCats(await r.json());
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    setPromos([...Array(2)].map((_, i) => config.homePageConfig?.promoBanners?.[i] ?? {}));
+    setPromosDirty(false);
+  }, [config.homePageConfig?.promoBanners]);
+
+  useEffect(() => {
+    setTrust(config.homePageConfig?.trustBadges?.length ? [...config.homePageConfig.trustBadges] : []);
+    setTrustDirty(false);
+  }, [config.homePageConfig?.trustBadges]);
+
+  useEffect(() => {
+    setCatShow(config.homePageConfig?.categories ?? {});
+    setCatShowDirty(false);
+  }, [config.homePageConfig?.categories]);
+
+  useEffect(() => {
+    setTestimonials(config.homePageConfig?.testimonials ?? {});
+    setTestimonialsDirty(false);
+  }, [config.homePageConfig?.testimonials]);
+
+  useEffect(() => {
+    setNewsletter(config.homePageConfig?.newsletter ?? {});
+    setNewsletterDirty(false);
+  }, [config.homePageConfig?.newsletter]);
+
+  useEffect(() => {
+    setFooter(config.homePageConfig?.footer ?? {});
+    setFooterDirty(false);
+  }, [config.homePageConfig?.footer]);
+
+  function update(id: string, patch: Partial<HomeSectionDef>) {
+    setSections((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+  }
+
+  function setSectionVisibility(key: "hero" | "categories" | "products" | "collections" | "trust" | "promos" | "announcement", enabled: boolean) {
+    const homePageConfig = { ...(config.homePageConfig ?? {}), layout: "catalog" as const, sectionVisibility: { ...(config.homePageConfig?.sectionVisibility ?? {}), [key]: enabled } };
     if (key === "announcement") {
       return save({ homePageConfig, heroBannerConfig: { ...(config.heroBannerConfig ?? {}), announceEnabled: enabled } });
     }
     return save({ homePageConfig });
   }
 
+  function remove(id: string) {
+    setSections((prev) => prev.filter((s) => s.id !== id));
+  }
+
+  function add() {
+    setSections((prev) => [
+      ...prev,
+      {
+        id: `sec-${Date.now()}`,
+        title: "",
+        categoryIds: [],
+        mode: "carousel",
+        auto: true,
+        seconds: 3,
+        perView: { mobile: 1, tablet: 2, desktop: 4 },
+        pagination: false,
+        loop: false,
+        showViewAll: true,
+      },
+    ]);
+  }
+
+  function submit() {
+    for (const s of sections) {
+      if (!s.categoryIds.length) return toast.error("Each section needs at least one category");
+    }
+    save({ homePageConfig: { ...(config.homePageConfig ?? {}), layout: "catalog", sections, promoBanners: promos, trustBadges: trust } });
+  }
+
+  function savePromos() {
+    const clean = promos.map((p) => ({
+      ...p,
+      enabled: p.enabled !== false,
+      badge: p.badge?.trim() || undefined,
+      title: p.title?.trim() || undefined,
+      accent: p.accent?.trim() || undefined,
+      subtitle: p.subtitle?.trim() || undefined,
+      buttonLabel: p.buttonLabel?.trim() || undefined,
+      buttonLink: p.buttonLink?.trim() || undefined,
+      image: p.image?.trim() || undefined,
+    }));
+    save({ homePageConfig: { ...(config.homePageConfig ?? {}), promoBanners: clean } });
+  }
+
+  function saveTrust() {
+    const clean = trust
+      .filter((t) => (t.title?.trim() || t.subtitle?.trim()))
+      .map((t) => ({
+        enabled: t.enabled !== false,
+        icon: t.icon?.trim() || undefined,
+        title: t.title?.trim() || undefined,
+        subtitle: t.subtitle?.trim() || undefined,
+      }));
+    save({ homePageConfig: { ...(config.homePageConfig ?? {}), trustBadges: clean.length ? clean : undefined } });
+  }
+
+  function saveCatShow() {
+    const clean: typeof catShow = {
+      ...catShow,
+      mode: catShow.mode && catShow.mode !== "grid" ? catShow.mode : catShow.mode,
+      eyebrow: catShow.eyebrow?.trim() || undefined,
+      title: catShow.title?.trim() || undefined,
+      accent: catShow.accent?.trim() || undefined,
+      countLabel: catShow.countLabel?.trim() || undefined,
+    };
+    save({ homePageConfig: { ...(config.homePageConfig ?? {}), categories: clean } });
+  }
+
+  function saveTestimonials() {
+    const items = (testimonials.items ?? [])
+      .filter((t) => (t.name?.trim() || t.quote?.trim()))
+      .map((t) => ({
+        init: t.init?.trim() || undefined,
+        image: t.image?.trim() || undefined,
+        name: t.name?.trim() || undefined,
+        role: t.role?.trim() || undefined,
+        quote: t.quote?.trim() || undefined,
+        rating: Math.max(1, Math.min(5, Number(t.rating) || 5)),
+      }));
+    save({
+      homePageConfig: {
+        ...(config.homePageConfig ?? {}),
+        testimonials: {
+          enabled: testimonials.enabled !== false,
+          eyebrow: testimonials.eyebrow?.trim() || undefined,
+          title: testimonials.title?.trim() || undefined,
+          accent: testimonials.accent?.trim() || undefined,
+          subtitle: testimonials.subtitle?.trim() || undefined,
+          items: items.length ? items : undefined,
+        },
+      },
+    });
+  }
+
+  async function uploadTestimonialImage(index: number, file: File) {
+    const form = new FormData();
+    form.append("image", file);
+    try {
+      const response = await fetch(apiUrl + "/api/admin/upload", { method: "POST", headers: { Authorization: "Bearer " + token }, body: form });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+      setTestimonials((t) => ({ ...t, items: (t.items ?? []).map((x, xi) => (xi === index ? { ...x, image: data.url } : x)) }));
+      setTestimonialsDirty(true);
+      toast.success("Photo uploaded");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Photo upload failed");
+    }
+  }
+
+  function saveNewsletter() {
+    save({
+      homePageConfig: {
+        ...(config.homePageConfig ?? {}),
+        newsletter: {
+          enabled: newsletter.enabled !== false,
+          badge: newsletter.badge?.trim() || undefined,
+          title: newsletter.title?.trim() || undefined,
+          accent: newsletter.accent?.trim() || undefined,
+          subtitle: newsletter.subtitle?.trim() || undefined,
+          placeholder: newsletter.placeholder?.trim() || undefined,
+          button: newsletter.button?.trim() || undefined,
+          note: newsletter.note?.trim() || undefined,
+        },
+      },
+    });
+  }
+
+  function saveFooter() {
+    const links = (footer.links ?? [])
+      .filter((l) => l.label?.trim())
+      .map((l) => ({ label: l.label?.trim() || undefined, url: l.url?.trim() || undefined }));
+    save({
+      homePageConfig: {
+        ...(config.homePageConfig ?? {}),
+        footer: {
+          enabled: footer.enabled !== false,
+          copyright: footer.copyright?.trim() || undefined,
+          links: links.length ? links : undefined,
+        },
+      },
+    });
+  }
+
   return (
-    <div className="max-w-4xl rounded-2xl border border-gray-100 bg-white p-6 dark:border-white/6 dark:bg-white/4">
-      <h2 className="text-lg font-bold text-gray-900 dark:text-white">Show or hide home page sections</h2>
-      <p className="mb-4 mt-1 text-sm text-gray-500 dark:text-slate-400">Changes are saved automatically when you switch a section.</p>
-      <div className="space-y-3">
-        {sections.map(([key, label]) => (
-          <label key={key} className="flex items-center justify-between gap-4 rounded-xl border border-gray-100 px-4 py-3 text-sm text-gray-700 dark:border-white/10 dark:text-slate-200">
-            {label}
-            <Switch
-              isSelected={config.homePageConfig?.sectionVisibility?.[key] ?? (key === "announcement" ? config.heroBannerConfig?.announceEnabled ?? false : true)}
-              isDisabled={saving}
-              onValueChange={(enabled) => { void setSectionVisibility(key, enabled); }}
-            />
-          </label>
+    <div className="space-y-6 max-w-4xl">
+      <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-6">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+          <div>
+            <p className="text-sm font-medium text-gray-800 dark:text-slate-200 mb-1">Default home page style</p>
+            <p className="text-xs text-gray-400 dark:text-slate-500">
+              Customers will see this layout on the home page and the /shop page. You can switch any time.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => save({ homePageConfig: { ...(config.homePageConfig ?? {}), layout: "catalog" } })}
+            disabled={saving}
+            className="flex items-center gap-2 px-4 h-9 bg-primary text-white text-sm font-bold rounded-xl hover:bg-primary-dark transition-all disabled:opacity-60 shadow-sm"
+          >
+            {saving ? "Savingâ€¦" : "Save Layout"}
+          </button>
+        </div>
+        <div className="space-y-3">
+          <p className="text-sm font-semibold text-gray-800 dark:text-slate-200">Show or hide home page sections</p>
+          {([ ["hero", "Hero banner"], ["categories", "Categories"], ["products", "Popular products"], ["collections", "Category collections"], ["trust", "Trust badges"], ["promos", "Promo banners"], ["announcement", "Top announcement bar"] ] as const).map(([key, label]) => (
+            <label key={key} className="flex items-center justify-between gap-4 rounded-xl border border-gray-100 dark:border-white/10 px-4 py-3 text-sm text-gray-700 dark:text-slate-200">
+              {label}
+              <Switch
+                isSelected={config.homePageConfig?.sectionVisibility?.[key] ?? (key === "announcement" ? config.heroBannerConfig?.announceEnabled ?? false : true)}
+                isDisabled={saving}
+                onValueChange={(value) => setSectionVisibility(key, value)}
+              />
+            </label>
+          ))}
+        </div>
+      </div>
+      {/* PROMO BANNERS */}
+      <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-5 sm:p-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="font-display font-bold text-gray-900 dark:text-white">Promo Banners</h3>
+            <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
+              The two small offer banners on the Catalog layout home page.
+            </p>
+          </div>
+          {promosDirty && (
+            <button
+              type="button"
+              onClick={savePromos}
+              disabled={saving}
+              className="flex items-center gap-2 px-4 h-9 bg-gradient-to-r from-primary to-indigo-500 text-white text-sm font-bold rounded-xl hover:shadow-lg hover:shadow-primary/30 transition-all disabled:opacity-60"
+            >
+              {saving ? <FiUpload className="animate-pulse" /> : <FiCheck />} Save Promo Banners
+            </button>
+          )}
+        </div>
+        {promos.map((p, i) => (
+          <div key={i} className="rounded-xl border border-gray-100 dark:border-white/6 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-bold uppercase tracking-wide text-gray-400">Banner {i + 1}</span>
+                <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-300">
+                  <Switch isSelected={p.enabled !== false} onValueChange={(v) => { setPromos((prev) => prev.map((b, bi) => (bi === i ? { ...b, enabled: v } : b))); setPromosDirty(true); }} color="primary" />
+                  Show
+                </label>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Input label="Badge" placeholder="à¦¬à¦¿à¦¶à§‡à¦· à¦•à¦¾à¦²à§‡à¦•à¦¶à¦¨" value={p.badge ?? ""} onValueChange={(v) => { setPromos((prev) => prev.map((b, bi) => (bi === i ? { ...b, badge: v } : b))); setPromosDirty(true); }} />
+              <Input label="Accent (highlighted text)" placeholder="à¦à¦¤à¦¿à¦¹à§à¦¯à§‡à¦° à¦›à§‹à¦à¦¯à¦¼à¦¾" value={p.accent ?? ""} onValueChange={(v) => { setPromos((prev) => prev.map((b, bi) => (bi === i ? { ...b, accent: v } : b))); setPromosDirty(true); }} />
+              <Input label="Title" placeholder="à¦ˆà¦¦à§‡ à¦ªà¦°à§à¦¨" value={p.title ?? ""} onValueChange={(v) => { setPromos((prev) => prev.map((b, bi) => (bi === i ? { ...b, title: v } : b))); setPromosDirty(true); }} className="sm:col-span-2" />
+              <Input label="Subtitle" placeholder="à¦¬à¦¿à¦¶à§‡à¦· à¦¡à¦¿à¦œà¦¾à¦‡à¦¨à§‡à¦° à¦ªà¦£à§à¦¯ à¦à¦–à¦¨ à¦†à¦ªà¦¨à¦¾à¦° à¦œà¦¨à§à¦¯" value={p.subtitle ?? ""} onValueChange={(v) => { setPromos((prev) => prev.map((b, bi) => (bi === i ? { ...b, subtitle: v } : b))); setPromosDirty(true); }} className="sm:col-span-2" />
+              <Input label="Button label" placeholder="à¦•à¦¾à¦²à§‡à¦•à¦¶à¦¨ à¦¦à§‡à¦–à§à¦¨ â†’" value={p.buttonLabel ?? ""} onValueChange={(v) => { setPromos((prev) => prev.map((b, bi) => (bi === i ? { ...b, buttonLabel: v } : b))); setPromosDirty(true); }} />
+              <Input label="Button link" placeholder="#shop" value={p.buttonLink ?? ""} onValueChange={(v) => { setPromos((prev) => prev.map((b, bi) => (bi === i ? { ...b, buttonLink: v } : b))); setPromosDirty(true); }} />
+              <Input label="Image URL" placeholder="https://â€¦" value={p.image ?? ""} onValueChange={(v) => { setPromos((prev) => prev.map((b, bi) => (bi === i ? { ...b, image: v } : b))); setPromosDirty(true); }} className="sm:col-span-2" />
+              {p.image && (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img src={p.image} alt="" className="h-24 w-36 object-cover rounded-lg border border-gray-100" />
+              )}
+            </div>
+          </div>
         ))}
       </div>
+
+      {/* TRUST BADGES */}
+      <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-5 sm:p-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="font-display font-bold text-gray-900 dark:text-white">Trust Badges</h3>
+            <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
+              The 4 trust badge strip on the Catalog home. Click "Add Badge" to create new badges.
+            </p>
+          </div>
+          {trustDirty && (
+            <button
+              type="button"
+              onClick={saveTrust}
+              disabled={saving}
+              className="flex items-center gap-2 px-4 h-9 bg-gradient-to-r from-primary to-indigo-500 text-white text-sm font-bold rounded-xl hover:shadow-lg hover:shadow-primary/30 transition-all disabled:opacity-60"
+            >
+              {saving ? <FiUpload className="animate-pulse" /> : <FiCheck />} Save Trust Badges
+            </button>
+          )}
+        </div>
+        {trust.map((t, i) => (
+          <div key={i} className="rounded-xl border border-gray-100 dark:border-white/6 p-4 space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-bold uppercase tracking-wide text-gray-400">Badge {i + 1}</span>
+                <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-300">
+                  <Switch isSelected={t.enabled !== false} onValueChange={(v) => { setTrust((prev) => prev.map((b, bi) => (bi === i ? { ...b, enabled: v } : b))); setTrustDirty(true); }} color="primary" />
+                  Show
+                </label>
+              </div>
+              <button type="button" onClick={() => { setTrust((prev) => prev.filter((_, bi) => bi !== i)); setTrustDirty(true); }} className="text-xs text-red-500 font-semibold hover:underline">Remove</button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <Select
+                label="Icon"
+                selectedKeys={[t.icon || "shield"]}
+                onSelectionChange={(keys) => { setTrust((prev) => prev.map((b, bi) => (bi === i ? { ...b, icon: Array.from(keys as Set<string>)[0] } : b))); setTrustDirty(true); }}
+              >
+                <SelectItem key="shield">Shield</SelectItem>
+                <SelectItem key="truck">Truck</SelectItem>
+                <SelectItem key="refresh">Refresh</SelectItem>
+                <SelectItem key="check">Check</SelectItem>
+                <SelectItem key="clock">Clock</SelectItem>
+                <SelectItem key="star">Star</SelectItem>
+                <SelectItem key="headset">Headset</SelectItem>
+                <SelectItem key="chat">Chat</SelectItem>
+              </Select>
+              <Input label="Title" placeholder="à¦¨à¦¿à¦°à¦¾à¦ªà¦¦ à¦ªà§‡à¦®à§‡à¦¨à§à¦Ÿ" value={t.title ?? ""} onValueChange={(v) => { setTrust((prev) => prev.map((b, bi) => (bi === i ? { ...b, title: v } : b))); setTrustDirty(true); }} />
+              <Input label="Subtitle" placeholder="à¦•à§à¦¯à¦¾à¦¶ à¦…à¦¨ à¦¡à§‡à¦²à¦¿à¦­à¦¾à¦°à¦¿ / à¦¬à¦¿à¦•à¦¾à¦¶ / à¦¬à§à¦¯à¦¾à¦‚à¦•" value={t.subtitle ?? ""} onValueChange={(v) => { setTrust((prev) => prev.map((b, bi) => (bi === i ? { ...b, subtitle: v } : b))); setTrustDirty(true); }} />
+            </div>
+          </div>
+        ))}
+        {trust.length < 4 && (
+          <button
+            type="button"
+            onClick={() => { setTrust((prev) => [...prev, { enabled: true, icon: "shield", title: "", subtitle: "" }]); setTrustDirty(true); }}
+            className="inline-flex items-center gap-2 px-4 h-9 text-sm font-semibold text-primary border border-primary/30 rounded-xl hover:bg-primary/5 transition"
+          >
+            <FiPlus /> Add Badge
+          </button>
+        )}
+      </div>
+
+      {/* CATEGORY SHOWCASE */}
+      <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-5 sm:p-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="font-display font-bold text-gray-900 dark:text-white">Shop by Category Showcase</h3>
+            <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
+              The "SHOP BY CATEGORY" grid/carousel on the home page. Edits both heading and display mode.
+            </p>
+          </div>
+          {catShowDirty && (
+            <button
+              type="button"
+              onClick={saveCatShow}
+              disabled={saving}
+              className="flex items-center gap-2 px-4 h-9 bg-gradient-to-r from-primary to-indigo-500 text-white text-sm font-bold rounded-xl hover:shadow-lg hover:shadow-primary/30 transition-all disabled:opacity-60"
+            >
+              {saving ? <FiUpload className="animate-pulse" /> : <FiCheck />} Save Showcase
+            </button>
+          )}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Input label="Eyebrow" placeholder="SHOP BY CATEGORY" value={catShow.eyebrow ?? ""} onValueChange={(v) => { setCatShow((s) => ({ ...s, eyebrow: v })); setCatShowDirty(true); }} />
+          <Input label="Title" placeholder="Curated collections," value={catShow.title ?? ""} onValueChange={(v) => { setCatShow((s) => ({ ...s, title: v })); setCatShowDirty(true); }} />
+          <Input label="Accent (highlighted)" placeholder="organized for you." value={catShow.accent ?? ""} onValueChange={(v) => { setCatShow((s) => ({ ...s, accent: v })); setCatShowDirty(true); }} />
+          <Input label="Count label" placeholder="CATEGORIES" value={catShow.countLabel ?? ""} onValueChange={(v) => { setCatShow((s) => ({ ...s, countLabel: v })); setCatShowDirty(true); }} />
+          <Select
+            label="Display mode"
+            selectedKeys={[catShow.mode ?? "grid"]}
+            onSelectionChange={(keys) => { setCatShow((s) => ({ ...s, mode: (Array.from(keys as Set<string>)[0] as CategoryDisplay["mode"]) ?? "grid" })); setCatShowDirty(true); }}
+          >
+            <SelectItem key="grid">Grid</SelectItem>
+            <SelectItem key="carousel">Carousel (manual)</SelectItem>
+            <SelectItem key="loop">Carousel (auto-loop)</SelectItem>
+          </Select>
+          <Input
+            type="number"
+            label="Auto-slide seconds"
+            min={1}
+            max={60}
+            value={String(catShow.seconds ?? 3)}
+            onValueChange={(v) => { setCatShow((s) => ({ ...s, seconds: Math.max(1, Math.min(60, Number(v) || 3)) })); setCatShowDirty(true); }}
+          />
+        </div>
+      </div>
+
+      {/* TESTIMONIALS */}
+      <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-5 sm:p-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="font-display font-bold text-gray-900 dark:text-white">Customer Testimonials</h3>
+            <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
+              The "Customer Chronicles" reviews section. Turn it off, edit copy, or add your own reviews.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300">
+              <Switch isSelected={testimonials.enabled !== false} onValueChange={(v) => { setTestimonials((t) => ({ ...t, enabled: v })); setTestimonialsDirty(true); }} color="primary" />
+              Show section
+            </label>
+            {testimonialsDirty && (
+              <button
+                type="button"
+                onClick={saveTestimonials}
+                disabled={saving}
+                className="flex items-center gap-2 px-4 h-9 bg-gradient-to-r from-primary to-indigo-500 text-white text-sm font-bold rounded-xl hover:shadow-lg hover:shadow-primary/30 transition-all disabled:opacity-60"
+              >
+                {saving ? <FiUpload className="animate-pulse" /> : <FiCheck />} Save Testimonials
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Input label="Eyebrow" placeholder="CUSTOMER CHRONICLES" value={testimonials.eyebrow ?? ""} onValueChange={(v) => { setTestimonials((t) => ({ ...t, eyebrow: v })); setTestimonialsDirty(true); }} />
+          <Input label="Subtitle" placeholder="Real stories from customersâ€¦" value={testimonials.subtitle ?? ""} onValueChange={(v) => { setTestimonials((t) => ({ ...t, subtitle: v })); setTestimonialsDirty(true); }} />
+          <Input label="Title" placeholder="Loved by" value={testimonials.title ?? ""} onValueChange={(v) => { setTestimonials((t) => ({ ...t, title: v })); setTestimonialsDirty(true); }} />
+          <Input label="Accent (highlighted)" placeholder="thousands." value={testimonials.accent ?? ""} onValueChange={(v) => { setTestimonials((t) => ({ ...t, accent: v })); setTestimonialsDirty(true); }} />
+        </div>
+        {(testimonials.items ?? []).map((item, i) => (
+          <div key={i} className="rounded-xl border border-gray-100 dark:border-white/6 p-4 space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs font-bold uppercase tracking-wide text-gray-400">Review {i + 1}</span>
+              <button
+                type="button"
+                onClick={() => { setTestimonials((t) => ({ ...t, items: (t.items ?? []).filter((_, bi) => bi !== i) })); setTestimonialsDirty(true); }}
+                className="text-xs text-red-500 font-semibold hover:underline"
+              >
+                Remove
+              </button>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="relative shrink-0">
+                {item.image ? (
+                  <>
+                    <img src={item.image} alt="" className="h-14 w-14 rounded-full object-cover border border-gray-200 dark:border-white/10" />
+                    <button
+                      type="button"
+                      onClick={() => { setTestimonials((t) => ({ ...t, items: (t.items ?? []).map((x, xi) => (xi === i ? { ...x, image: undefined } : x)) })); setTestimonialsDirty(true); }}
+                      className="absolute -top-1.5 -right-1.5 grid h-5 w-5 place-items-center rounded-full bg-red-500 text-white text-[10px] shadow-md"
+                      aria-label="Remove photo"
+                    >
+                      <FiX size={11} />
+                    </button>
+                  </>
+                ) : (
+                  <div className="grid h-14 w-14 place-items-center rounded-full bg-gradient-to-br from-primary to-cyan font-mono text-sm font-bold text-white">
+                    {item.init || item.name?.slice(0, 2).toUpperCase() || "?"}
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1.5">Profile photo (optional)</p>
+                <label
+                  htmlFor={`testimonial-pic-${i}`}
+                  className="inline-flex cursor-pointer items-center gap-2 px-3 h-9 text-xs font-semibold text-primary border border-primary/30 rounded-xl hover:bg-primary/5 transition"
+                >
+                  <FiUpload size={13} /> {item.image ? "Change photo" : "Upload photo"}
+                </label>
+                <input
+                  id={`testimonial-pic-${i}`}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) uploadTestimonialImage(i, f); }}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+              <Input label="Name" placeholder="Tasnim Mahbub" value={item.name ?? ""} onValueChange={(v) => { setTestimonials((t) => ({ ...t, items: (t.items ?? []).map((x, xi) => (xi === i ? { ...x, name: v } : x)) })); setTestimonialsDirty(true); }} />
+              <Input label="Initials" placeholder="TM" value={item.init ?? ""} onValueChange={(v) => { setTestimonials((t) => ({ ...t, items: (t.items ?? []).map((x, xi) => (xi === i ? { ...x, init: v } : x)) })); setTestimonialsDirty(true); }} />
+              <Input label="Role" placeholder="Verified Buyer â€¢ Dhaka" value={item.role ?? ""} onValueChange={(v) => { setTestimonials((t) => ({ ...t, items: (t.items ?? []).map((x, xi) => (xi === i ? { ...x, role: v } : x)) })); setTestimonialsDirty(true); }} />
+              <div className="min-w-0">
+                <label className="text-xs font-semibold text-gray-500 dark:text-slate-400 block mb-1.5">Rating (1â€“5)</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={5}
+                  value={String(item.rating ?? 5)}
+                  onChange={(e) => { setTestimonials((t) => ({ ...t, items: (t.items ?? []).map((x, xi) => (xi === i ? { ...x, rating: Number(e.target.value) } : x)) })); setTestimonialsDirty(true); }}
+                  className="h-10 w-full rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 px-3 text-sm outline-none focus:border-primary/50"
+                />
+              </div>
+              <Textarea label="Quote" placeholder="The product felt premiumâ€¦" value={item.quote ?? ""} onValueChange={(v) => { setTestimonials((t) => ({ ...t, items: (t.items ?? []).map((x, xi) => (xi === i ? { ...x, quote: v } : x)) })); setTestimonialsDirty(true); }} className="sm:col-span-4" />
+            </div>
+          </div>
+        ))}
+        {(testimonials.items ?? []).length < 12 && (
+          <button
+            type="button"
+            onClick={() => { setTestimonials((t) => ({ ...t, items: [...(t.items ?? []), { name: "", init: "", role: "", quote: "", rating: 5 }] })); setTestimonialsDirty(true); }}
+            className="inline-flex items-center gap-2 px-4 h-9 text-sm font-semibold text-primary border border-primary/30 rounded-xl hover:bg-primary/5 transition"
+          >
+            <FiPlus /> Add Review
+          </button>
+        )}
+      </div>
+
+      {/* NEWSLETTER */}
+      <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-5 sm:p-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="font-display font-bold text-gray-900 dark:text-white">Newsletter Signup</h3>
+            <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
+              The email signup section above the footer. Subscriptions are stored on the server.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300">
+              <Switch isSelected={newsletter.enabled !== false} onValueChange={(v) => { setNewsletter((n) => ({ ...n, enabled: v })); setNewsletterDirty(true); }} color="primary" />
+              Show section
+            </label>
+            {newsletterDirty && (
+              <button
+                type="button"
+                onClick={saveNewsletter}
+                disabled={saving}
+                className="flex items-center gap-2 px-4 h-9 bg-gradient-to-r from-primary to-indigo-500 text-white text-sm font-bold rounded-xl hover:shadow-lg hover:shadow-primary/30 transition-all disabled:opacity-60"
+              >
+                {saving ? <FiUpload className="animate-pulse" /> : <FiCheck />} Save Newsletter
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Input label="Badge pill" placeholder="Exclusive drops" value={newsletter.badge ?? ""} onValueChange={(v) => { setNewsletter((n) => ({ ...n, badge: v })); setNewsletterDirty(true); }} />
+          <Input label="Title" placeholder="Private sale" value={newsletter.title ?? ""} onValueChange={(v) => { setNewsletter((n) => ({ ...n, title: v })); setNewsletterDirty(true); }} />
+          <Input label="Accent (highlighted)" placeholder="alerts & offers." value={newsletter.accent ?? ""} onValueChange={(v) => { setNewsletter((n) => ({ ...n, accent: v })); setNewsletterDirty(true); }} />
+          <Input label="Placeholder" placeholder="Enter your emailâ€¦" value={newsletter.placeholder ?? ""} onValueChange={(v) => { setNewsletter((n) => ({ ...n, placeholder: v })); setNewsletterDirty(true); }} />
+          <Input label="Button text" placeholder="Subscribe" value={newsletter.button ?? ""} onValueChange={(v) => { setNewsletter((n) => ({ ...n, button: v })); setNewsletterDirty(true); }} />
+          <Input label="Note (below form)" placeholder="No spam. One-click unsubscribe anytime." value={newsletter.note ?? ""} onValueChange={(v) => { setNewsletter((n) => ({ ...n, note: v })); setNewsletterDirty(true); }} />
+          <Textarea label="Subtitle" placeholder="Early access to limited dropsâ€¦" value={newsletter.subtitle ?? ""} onValueChange={(v) => { setNewsletter((n) => ({ ...n, subtitle: v })); setNewsletterDirty(true); }} className="sm:col-span-2" />
+        </div>
+      </div>
+
+      {/* FOOTER */}
+      <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-5 sm:p-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="font-display font-bold text-gray-900 dark:text-white">Footer</h3>
+            <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
+              Copyright text and footer links. Turn it off to hide the footer entirely.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300">
+              <Switch isSelected={footer.enabled !== false} onValueChange={(v) => { setFooter((f) => ({ ...f, enabled: v })); setFooterDirty(true); }} color="primary" />
+              Show footer
+            </label>
+            {footerDirty && (
+              <button
+                type="button"
+                onClick={saveFooter}
+                disabled={saving}
+                className="flex items-center gap-2 px-4 h-9 bg-gradient-to-r from-primary to-indigo-500 text-white text-sm font-bold rounded-xl hover:shadow-lg hover:shadow-primary/30 transition-all disabled:opacity-60"
+              >
+                {saving ? <FiUpload className="animate-pulse" /> : <FiCheck />} Save Footer
+              </button>
+            )}
+          </div>
+        </div>
+        <Input label="Copyright text" placeholder="Â© 2026 EPIC Store. Everyday premium essentials from Bangladesh." value={footer.copyright ?? ""} onValueChange={(v) => { setFooter((f) => ({ ...f, copyright: v })); setFooterDirty(true); }} />
+        {(footer.links ?? []).map((l, i) => (
+          <div key={i} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-3">
+            <Input label="Label" placeholder="Privacy Notice" value={l.label ?? ""} onValueChange={(v) => { setFooter((f) => ({ ...f, links: (f.links ?? []).map((x, xi) => (xi === i ? { ...x, label: v } : x)) })); setFooterDirty(true); }} />
+            <Input label="URL" placeholder="/ or #shop or https://â€¦" value={l.url ?? ""} onValueChange={(v) => { setFooter((f) => ({ ...f, links: (f.links ?? []).map((x, xi) => (xi === i ? { ...x, url: v } : x)) })); setFooterDirty(true); }} />
+            <div className="flex items-end pb-1">
+              <button
+                type="button"
+                onClick={() => { setFooter((f) => ({ ...f, links: (f.links ?? []).filter((_, bi) => bi !== i) })); setFooterDirty(true); }}
+                className="text-xs text-red-500 font-semibold hover:underline"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        ))}
+        <button
+          type="button"
+          onClick={() => { setFooter((f) => ({ ...f, links: [...(f.links ?? []), { label: "", url: "" }] })); setFooterDirty(true); }}
+          className="inline-flex items-center gap-2 px-4 h-9 text-sm font-semibold text-primary border border-primary/30 rounded-xl hover:bg-primary/5 transition"
+        >
+          <FiPlus /> Add Footer Link
+        </button>
+      </div>
+
+      <div>
+        <button
+          type="button"
+          onClick={add}
+          className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 h-10 text-sm font-bold text-white font-display hover:bg-primary-dark transition-colors"
+        >
+          <FiPlus /> Add Section
+        </button>
+        <p className="mt-2 text-xs text-gray-400">Each section shows products from the categories you choose below.</p>
+      </div>
+
+      {sections.length === 0 && (
+        <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-8 text-center text-sm text-gray-400">
+          No custom sections yet. Click â€œAdd Sectionâ€ â€” otherwise the storefront shows one carousel per category.
+        </div>
+      )}
+
+      {sections.map((s, idx) => (
+        <div key={s.id} className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-5 sm:p-6 space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h3 className="font-display font-bold text-gray-900 dark:text-white">Section {idx + 1}</h3>
+            <button
+              type="button"
+              onClick={() => remove(s.id)}
+              className="inline-flex items-center gap-1.5 rounded-lg px-3 h-8 text-xs font-semibold text-red-500 hover:bg-red-50 transition-colors"
+            >
+              <FiTrash2 /> Remove
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input label="Section Title (optional)" placeholder="e.g. Summer Essentials" value={s.title ?? ""} onValueChange={(v) => update(s.id, { title: v })} />
+            <Select
+              label="Display Mode"
+              selectedKeys={[s.mode]}
+              onSelectionChange={(k) => update(s.id, { mode: (Array.from(k as Set<string>)[0] ?? "carousel") as HomeSectionDef["mode"] })}
+            >
+              <SelectItem key="carousel">Carousel</SelectItem>
+              <SelectItem key="grid">Grid</SelectItem>
+              <SelectItem key="responsive">Responsive (mobile grid, PC carousel)</SelectItem>
+            </Select>
+          </div>
+
+          <div>
+            <Select
+              label="Categories (one or more)"
+              placeholder="Search and select categoriesâ€¦"
+              description="Pick one category to show only those products â€” or pick several to combine them in this section."
+              selectionMode="multiple"
+              selectedKeys={s.categoryIds}
+              onSelectionChange={(keys) => update(s.id, { categoryIds: Array.from(keys as Set<string>) })}
+              items={cats}
+              isInvalid={!s.categoryIds.length}
+              errorMessage="Select at least one category"
+              className="w-full"
+            >
+              {(c) => (
+                <SelectItem key={c.id} textValue={c.name}>
+                  <div className="flex w-full items-center justify-between gap-3">
+                    <span>{c.name}</span>
+                    {typeof c._count?.products === "number" && (
+                      <span className="font-mono text-xs opacity-70">({c._count.products})</span>
+                    )}
+                  </div>
+                </SelectItem>
+              )}
+            </Select>
+          </div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-5 gap-y-4">
+            <Switch isSelected={s.auto} onValueChange={(v) => update(s.id, { auto: v })} color="primary" className="gap-2 min-w-0">
+              Auto-slide
+            </Switch>
+            <div className="min-w-0">
+              <Input type="number" min={1} max={60} label="Seconds" value={String(s.seconds)} onValueChange={(v) => update(s.id, { seconds: Math.max(1, Math.min(60, Number(v) || 1)) })} />
+            </div>
+            <Switch isSelected={s.pagination} onValueChange={(v) => update(s.id, { pagination: v })} color="primary" className="gap-2 min-w-0">
+              Pagination dots
+            </Switch>
+            <Switch isSelected={s.loop} onValueChange={(v) => update(s.id, { loop: v })} color="primary" className="gap-2 min-w-0">
+              Loop
+            </Switch>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-5 gap-y-4">
+            <Input type="number" step="0.5" min="0.5" label="Per view (Mobile)" value={String(s.perView.mobile)} onValueChange={(v) => update(s.id, { perView: { ...s.perView, mobile: Math.max(0.5, Number(v) || 1) } })} />
+            <Input type="number" step="0.5" min="0.5" label="Per view (Tablet)" value={String(s.perView.tablet)} onValueChange={(v) => update(s.id, { perView: { ...s.perView, tablet: Math.max(0.5, Number(v) || 1) } })} />
+            <Input type="number" step="0.5" min="0.5" label="Per view (Desktop)" value={String(s.perView.desktop)} onValueChange={(v) => update(s.id, { perView: { ...s.perView, desktop: Math.max(0.5, Number(v) || 1) } })} />
+          </div>
+
+          <Switch isSelected={s.showViewAll} onValueChange={(v) => update(s.id, { showViewAll: v })} color="primary">
+            Show â€œView Allâ€ link
+          </Switch>
+        </div>
+      ))}
+
+      <button
+        type="button"
+        onClick={submit}
+        className="px-5 h-10 bg-primary text-white text-sm font-bold font-display rounded-xl hover:bg-primary-dark transition-colors"
+      >
+        {saving ? "Savingâ€¦" : "Save Home Layout"}
+      </button>
     </div>
   );
 }
+
 /* ==================== PAYMENTS ==================== */
 function PaymentSettings({ save, saving, config }: { save: (payload: object) => Promise<void>; saving: boolean; config: Config }) {
   const [bkash, setBkash] = useState(Boolean(config.paymentConfig?.bkash?.enabled));
