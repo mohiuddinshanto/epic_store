@@ -128,7 +128,7 @@ function ShopProductCard({
     ? selectedVariation.salePrice && selectedVariation.salePrice < selectedVariation.price
       ? selectedVariation.salePrice
       : selectedVariation.price
-    : salePrice ?? price;
+    : hasSale ? salePrice! : price;
 
   const displayOriginal = selectedVariation
     ? selectedVariation.salePrice && selectedVariation.salePrice < selectedVariation.price
@@ -576,7 +576,7 @@ export function ShopView({ initialLayout = "classic" }: { initialLayout?: "class
   function addToCart(p: Product, variation?: Variation) {
     const price = variation
       ? Number(variation.salePrice && variation.salePrice < variation.price ? variation.salePrice : variation.price)
-      : Number(p.salePrice ?? p.price);
+      : Number(p.salePrice && Number(p.salePrice) < Number(p.price) ? p.salePrice : p.price);
     const sku = variation?.sku ?? p.slug;
     const variationId = variation?.id;
     const old = JSON.parse(localStorage.getItem("epic-cart") ?? "[]");
@@ -589,7 +589,7 @@ export function ShopView({ initialLayout = "classic" }: { initialLayout?: "class
       name: displayName,
       images: variation?.image ? [variation.image, ...p.images] : p.images,
       price,
-      categoryId: p.category.slug,
+      categoryId: p.categoryId,
       qty: hit ? hit.qty + 1 : 1,
       variationId,
       sku,
@@ -614,13 +614,13 @@ export function ShopView({ initialLayout = "classic" }: { initialLayout?: "class
       return;
     }
     const isWishlisted = wishlist.includes(id);
-    fetch(`${apiUrl}/api/wishlist`, {
-      method: isWishlisted ? "DELETE" : "POST",
-      headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
-      body: JSON.stringify({ productId: id }),
-    }).then(() =>
-      setWishlist((prev) => (isWishlisted ? prev.filter((i) => i !== id) : [...prev, id]))
-    );
+    fetch(`${apiUrl}/api/wishlist/${id}`, {
+      method: "POST",
+      headers: { Authorization: "Bearer " + token },
+    }).then((response) => {
+      if (!response.ok) throw new Error("Could not update wishlist");
+      setWishlist((prev) => (isWishlisted ? prev.filter((i) => i !== id) : [...prev, id]));
+    }).catch(() => toast.error("Could not update wishlist"));
   }
 
   // Filter products based on active filter options

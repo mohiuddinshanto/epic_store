@@ -594,7 +594,7 @@ export function Storefront({
     }
     const price = variation
       ? Number(variation.salePrice && variation.salePrice < variation.price ? variation.salePrice : variation.price)
-      : Number(p.salePrice ?? p.price);
+      : Number(p.salePrice && Number(p.salePrice) < Number(p.price) ? p.salePrice : p.price);
     const cartId = variation ? `${p.id}__${variation.id}` : p.id;
     const displayName = variation ? `${p.name} (${variation.name})` : p.name;
     const sku = variation?.sku ?? undefined;
@@ -610,7 +610,7 @@ export function Storefront({
               name: displayName,
               images: variation?.image ? [variation.image, ...p.images.filter((i) => i !== variation.image)] : p.images,
               price,
-              categoryId: p.category.slug,
+              categoryId: p.categoryId,
               qty: 1,
               variationId,
               sku,
@@ -627,7 +627,7 @@ export function Storefront({
     }
     const price = variation
       ? Number(variation.salePrice && variation.salePrice < variation.price ? variation.salePrice : variation.price)
-      : Number(p.salePrice ?? p.price);
+      : Number(p.salePrice && Number(p.salePrice) < Number(p.price) ? p.salePrice : p.price);
     const cartId = variation ? `${p.id}__${variation.id}` : p.id;
     const displayName = variation ? `${p.name} (${variation.name})` : p.name;
     const sku = variation?.sku ?? undefined;
@@ -647,7 +647,7 @@ export function Storefront({
                 name: displayName,
                 images: variation?.image ? [variation.image, ...p.images.filter((i) => i !== variation.image)] : p.images,
                 price,
-                categoryId: p.category.slug,
+                categoryId: p.categoryId,
                 qty: 1,
                 variationId,
                 sku,
@@ -666,7 +666,7 @@ export function Storefront({
               name: displayName,
               images: variation?.image ? [variation.image, ...p.images.filter((i) => i !== variation.image)] : p.images,
               price,
-              categoryId: p.category.slug,
+              categoryId: p.categoryId,
               qty: 1,
               variationId,
               sku,
@@ -1663,7 +1663,7 @@ export function MiniProductCard({
       <div className="space-y-1.5 p-4">
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
           <span className="text-lg font-bold text-primary">
-            {money(p.salePrice ?? p.price)}
+            {money(hasSale ? p.salePrice! : p.price)}
           </span>
           {hasSale && (
             <span className="text-sm text-slate-400 line-through">{money(p.price)}</span>

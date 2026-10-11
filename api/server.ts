@@ -279,6 +279,7 @@ app.get("/api/products/:slug", async (req, res) => {
       imagesDetails: { orderBy: { sortOrder: "asc" } },
       attributes: { include: { values: true }, orderBy: { createdAt: "asc" } },
       variations: {
+        where: { status: "active" },
         include: { attributes: { include: { attribute: { select: { id: true, name: true } }, value: true } } },
         orderBy: { createdAt: "asc" },
       },
@@ -405,78 +406,166 @@ app.post("/api/onboarding", async (req, res) => {
 app.post("/api/orders", checkIpCooldown, async (req, res) => {
   const schema = z.object({
     paymentMethod: z.string().min(2),
-    subtotal: z.number().nonnegative(),
-    shippingCharge: z.number().nonnegative().default(0),
-    discountAmount: z.number().nonnegative().optional(),
     couponId: z.string().optional(),
-    totalAmount: z.number().nonnegative(),
     shippingDetails: z.record(z.string(), z.unknown()),
     orderItems: z
       .array(
         z.object({
-          productId: z.string(),
-          name: z.string(),
+          productId: z.string().min(1),
           qty: z.number().int().positive(),
-          price: z.number().nonnegative(),
-          categoryId: z.string(),
           variationId: z.string().optional(),
-          sku: z.string().optional(),
         })
       )
-      .min(1),
+      .min(1)
+      .max(50),
   });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Invalid order payload", issues: parsed.error.flatten() });
 
-  const customerId = req.header("authorization")
-    ? (await prisma.session.findUnique({ where: { token: req.header("authorization")!.replace(/^Bearer\s+/i, "") } }))?.userId
-    : undefined;
-
-  const order = await prisma.$transaction(async (tx) => {
-    // Decrement stock for each order item (product-level + variation-level)
-    for (const item of parsed.data.orderItems) {
-      if (item.variationId) {
-        const variation = await tx.productVariation.findUnique({ where: { id: item.variationId }, select: { productId: true, stock: true, manageStock: true } });
-        if (variation && variation.manageStock !== false) {
-          await tx.productVariation.update({
-            where: { id: item.variationId },
-            data: { stock: Math.max(0, variation.stock - item.qty) },
-          });
-        }
-      }
-      const product = await tx.product.findUnique({ where: { id: item.productId }, select: { stock: true, productType: true } });
-      if (product && product.productType !== "VARIABLE") {
-        await tx.product.update({ where: { id: item.productId }, data: { stock: Math.max(0, product.stock - item.qty) } });
-      }
-    }
-
-    return tx.order.create({
-      data: {
-        ...parsed.data,
-        shippingDetails: parsed.data.shippingDetails as Prisma.InputJsonValue,
-        orderItems: parsed.data.orderItems as Prisma.InputJsonValue,
-        ipAddress: req.ip ?? "127.0.0.1",
-        customerId,
-      },
-    });
-  });
-
-  if (parsed.data.couponId) {
-    await prisma.coupon.update({ where: { id: parsed.data.couponId }, data: { usedCount: { increment: 1 } } }).catch(() => {});
+  class OrderRequestError extends Error {
+    constructor(public status: number, message: string) { super(message); }
   }
 
-  const customerEmail = String((parsed.data.shippingDetails as Record<string, unknown>)?.email ?? "").trim();
+  const token = req.header("authorization")?.replace(/^Bearer\s+/i, "");
+  let customerId: string | undefined;
+  if (token) {
+    const session = await prisma.session.findUnique({ where: { token }, select: { userId: true, expiresAt: true } });
+    if (!session || session.expiresAt <= new Date()) return res.status(401).json({ error: "Session expired. Sign in again or continue as a guest." });
+    customerId = session.userId;
+  }
+
+  const storeConfig = await prisma.storeConfig.findUnique({ where: { id: "store-config-singleton" }, select: { featureFlags: true, paymentConfig: true, checkoutForm: true } });
+  const flags = { ...defaultFeatureFlags, ...((storeConfig?.featureFlags as Record<string, boolean> | null) ?? {}) };
+  const encryptedPayments = storeConfig?.paymentConfig as { encrypted?: string } | null;
+  const payments = encryptedPayments?.encrypted ? (decrypt<PaymentSettings>(encryptedPayments.encrypted) ?? {}) : {};
+  const methods = [
+    ...(flags.cod ? ["COD"] : []),
+    ...(payments.bkash?.enabled ? ["bKash"] : []),
+    ...(payments.nagad?.enabled ? ["Nagad"] : []),
+    ...(payments.sslcommerz?.enabled ? ["SSLCommerz"] : []),
+  ];
+  if (!methods.includes(parsed.data.paymentMethod)) return res.status(400).json({ error: "Selected payment method is unavailable." });
+
+  const shippingDetails = parsed.data.shippingDetails as Record<string, unknown>;
+  const savedForm = (storeConfig?.checkoutForm as Record<string, Record<string, unknown>> | null) ?? {};
+  for (const [key, defaults] of Object.entries(defaultCheckoutForm)) {
+    const field = { ...defaults, ...(savedForm[key] ?? {}) };
+    if (field.enabled && field.required && (typeof shippingDetails[key] !== "string" || !String(shippingDetails[key]).trim())) {
+      return res.status(400).json({ error: `${field.label} is required.` });
+    }
+  }
+
+  const ipAddress = (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() || req.ip || "127.0.0.1";
+  const requestedItems = new Map<string, { productId: string; variationId?: string; qty: number }>();
+  for (const item of parsed.data.orderItems) {
+    const key = `${item.productId}:${item.variationId ?? ""}`;
+    const qty = (requestedItems.get(key)?.qty ?? 0) + item.qty;
+    if (qty > 99) return res.status(400).json({ error: "A maximum of 99 units per item can be ordered." });
+    requestedItems.set(key, { productId: item.productId, variationId: item.variationId, qty });
+  }
+
+  const cents = (value: number | string | { toString(): string }) => Math.round(Number(value) * 100);
+  const asMoney = (value: number) => Number((value / 100).toFixed(2));
+
+  let order;
+  try {
+    order = await prisma.$transaction(async (tx) => {
+      const normalizedItems: { productId: string; variationId?: string; name: string; qty: number; price: number; categoryId: string; sku?: string }[] = [];
+      let subtotalCents = 0;
+
+      for (const item of requestedItems.values()) {
+        const product = await tx.product.findUnique({ where: { id: item.productId } });
+        if (!product || !product.isActive) throw new OrderRequestError(404, "One or more products are unavailable.");
+
+        let unitPrice: number;
+        let name = product.name;
+        let sku = product.sku ?? undefined;
+        if (product.productType === "VARIABLE") {
+          if (!item.variationId) throw new OrderRequestError(400, `Choose an option for ${product.name}.`);
+          const variation = await tx.productVariation.findFirst({ where: { id: item.variationId, productId: product.id, status: "active" } });
+          if (!variation) throw new OrderRequestError(400, `The selected option for ${product.name} is unavailable.`);
+          unitPrice = variation.salePrice !== null && Number(variation.salePrice) < Number(variation.price) ? cents(variation.salePrice) : cents(variation.price);
+          name = `${product.name} (${variation.name})`;
+          sku = variation.sku ?? sku;
+          if (variation.manageStock) {
+            const updated = await tx.productVariation.updateMany({ where: { id: variation.id, productId: product.id, status: "active", stock: { gte: item.qty } }, data: { stock: { decrement: item.qty } } });
+            if (updated.count !== 1) throw new OrderRequestError(409, `${name} is out of stock.`);
+          }
+        } else {
+          if (item.variationId) throw new OrderRequestError(400, `The selected option for ${product.name} is invalid.`);
+          unitPrice = product.salePrice !== null && Number(product.salePrice) < Number(product.price) ? cents(product.salePrice) : cents(product.price);
+          const updated = await tx.product.updateMany({ where: { id: product.id, isActive: true, stock: { gte: item.qty } }, data: { stock: { decrement: item.qty } } });
+          if (updated.count !== 1) throw new OrderRequestError(409, `${product.name} is out of stock.`);
+        }
+
+        subtotalCents += unitPrice * item.qty;
+        normalizedItems.push({ productId: product.id, variationId: item.variationId, name, qty: item.qty, price: asMoney(unitPrice), categoryId: product.categoryId, sku });
+      }
+
+      const shippingCents = subtotalCents > 0 ? 8000 : 0;
+      let discountCents = 0;
+      let couponId: string | undefined;
+      if (parsed.data.couponId) {
+        if (!flags.coupons) throw new OrderRequestError(400, "Coupons are currently unavailable.");
+        const coupon = await tx.coupon.findUnique({ where: { id: parsed.data.couponId } });
+        const now = new Date();
+        if (!coupon || !coupon.isActive || (coupon.startsAt && coupon.startsAt > now) || (coupon.expiresAt && coupon.expiresAt < now) || (coupon.usageLimit !== null && coupon.usedCount >= coupon.usageLimit)) {
+          throw new OrderRequestError(400, "Coupon is invalid or expired.");
+        }
+        if (coupon.minSpend && subtotalCents < cents(coupon.minSpend)) throw new OrderRequestError(400, "Order subtotal does not meet this coupon's minimum spend.");
+        const allowedCategories = coupon.applicableCategoryIds as string[] | null;
+        if (allowedCategories?.length && !normalizedItems.some((item) => allowedCategories.includes(item.categoryId))) {
+          throw new OrderRequestError(400, "Coupon does not apply to items in your cart.");
+        }
+        const priorUses = await tx.order.count({ where: { couponId: coupon.id, ...(customerId ? { customerId } : { ipAddress }) } });
+        if (coupon.perUserLimit !== null && priorUses >= coupon.perUserLimit) throw new OrderRequestError(400, "Coupon usage limit reached.");
+        const rawDiscount = coupon.type === "PERCENTAGE" ? Math.round((subtotalCents * Number(coupon.value)) / 100) : cents(coupon.value);
+        discountCents = Math.min(rawDiscount, coupon.maxDiscount ? cents(coupon.maxDiscount) : rawDiscount, subtotalCents);
+        const couponUpdate = await tx.coupon.updateMany({
+          where: { id: coupon.id, usedCount: { equals: coupon.usedCount, ...(coupon.usageLimit !== null ? { lt: coupon.usageLimit } : {}) } },
+          data: { usedCount: { increment: 1 } },
+        });
+        if (couponUpdate.count !== 1) throw new OrderRequestError(400, "Coupon usage limit reached.");
+        couponId = coupon.id;
+      }
+
+      return tx.order.create({
+        data: {
+          paymentMethod: parsed.data.paymentMethod,
+          subtotal: asMoney(subtotalCents),
+          shippingCharge: asMoney(shippingCents),
+          discountAmount: asMoney(discountCents),
+          totalAmount: asMoney(Math.max(0, subtotalCents - discountCents + shippingCents)),
+          couponId,
+          shippingDetails: shippingDetails as Prisma.InputJsonValue,
+          orderItems: normalizedItems as Prisma.InputJsonValue,
+          ipAddress,
+          customerId,
+        },
+      });
+    });
+  } catch (error) {
+    if (error instanceof OrderRequestError) return res.status(error.status).json({ error: error.message });
+    throw error;
+  }
+
+  const normalizedItems = order.orderItems as { name: string; qty: number; price: number }[];
+  const subtotalAmount = Number(order.subtotal);
+  const shippingAmount = Number(order.shippingCharge);
+  const discountAmount = Number(order.discountAmount ?? 0);
+  const totalAmount = Number(order.totalAmount);
+  const customerEmail = String(shippingDetails.email ?? "").trim();
   const shipDetails = (parsed.data.shippingDetails as Record<string, unknown>) ?? {};
   sendNewOrderToOwner({
     orderId: order.id,
     customerName: String(shipDetails.name ?? shipDetails.fullname ?? ""),
     customerPhone: String(shipDetails.phone ?? "-"),
     customerEmail,
-    items: parsed.data.orderItems.map((i) => ({ name: i.name, qty: i.qty, price: i.price })),
-    subtotal: parsed.data.subtotal,
-    shippingCharge: parsed.data.shippingCharge,
-    discountAmount: parsed.data.discountAmount ?? 0,
-    totalAmount: parsed.data.totalAmount,
+    items: normalizedItems.map((i) => ({ name: i.name, qty: i.qty, price: i.price })),
+    subtotal: subtotalAmount,
+    shippingCharge: shippingAmount,
+    discountAmount,
+    totalAmount,
     paymentMethod: parsed.data.paymentMethod,
   }).catch((err) => console.error("owner notification mail failed:", err.message));
   if (customerEmail) {
@@ -484,11 +573,11 @@ app.post("/api/orders", checkIpCooldown, async (req, res) => {
       orderId: order.id,
       customerEmail,
       customerName: String(shipDetails.name ?? shipDetails.fullname ?? ""),
-      items: parsed.data.orderItems.map((i) => ({ name: i.name, qty: i.qty, price: i.price })),
-      subtotal: parsed.data.subtotal,
-      shippingCharge: parsed.data.shippingCharge,
-      discountAmount: parsed.data.discountAmount ?? 0,
-      totalAmount: parsed.data.totalAmount,
+      items: normalizedItems.map((i) => ({ name: i.name, qty: i.qty, price: i.price })),
+      subtotal: subtotalAmount,
+      shippingCharge: shippingAmount,
+      discountAmount,
+      totalAmount,
       paymentMethod: parsed.data.paymentMethod,
     }).catch((err) => console.error("order confirmation mail failed:", err.message));
   }

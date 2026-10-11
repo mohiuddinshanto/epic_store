@@ -186,7 +186,9 @@ export function ProductView({ slug }: { slug: string }) {
     );
   }
 
-  const finalPrice = isVariable && selectedVariation ? Number(selectedVariation.salePrice ?? selectedVariation.price) : Number(product.salePrice ?? product.price);
+  const finalPrice = isVariable && selectedVariation
+    ? Number(selectedVariation.salePrice && Number(selectedVariation.salePrice) < Number(selectedVariation.price) ? selectedVariation.salePrice : selectedVariation.price)
+    : Number(product.salePrice && Number(product.salePrice) < Number(product.price) ? product.salePrice : product.price);
   const hasSale = isVariable && selectedVariation ? Boolean(selectedVariation.salePrice && Number(selectedVariation.salePrice) < Number(selectedVariation.price)) : Boolean(product.salePrice && Number(product.salePrice) < Number(product.price));
 
   const variationInStock =

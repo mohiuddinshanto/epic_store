@@ -58,7 +58,7 @@ function CatalogCard({
     : null;
   const displayPrice = selectedVariation
     ? (selectedVariation.salePrice && selectedVariation.salePrice < selectedVariation.price) ? selectedVariation.salePrice : selectedVariation.price
-    : (salePrice ?? price);
+    : (hasSale ? salePrice! : price);
   const displayOriginal = selectedVariation
     ? (selectedVariation.salePrice && selectedVariation.salePrice < selectedVariation.price) ? selectedVariation.price : null
     : (hasSale ? price : null);
@@ -159,7 +159,7 @@ function ClassicCard({
       </Link>
       <div className="space-y-1.5 p-3 sm:p-4">
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-          <span className="text-lg font-bold text-primary">{money(p.salePrice ?? p.price)}</span>
+          <span className="text-lg font-bold text-primary">{money(hasSale ? p.salePrice! : p.price)}</span>
           {hasSale && <span className="text-sm text-slate-400 line-through">{money(p.price)}</span>}
         </div>
         <h3 className="line-clamp-2 text-sm font-semibold text-slate-900 group-hover:text-primary">{p.name}</h3>
@@ -215,11 +215,11 @@ export function CategoryView({ slug }: { slug: string }) {
   function addToCart(p: Product, variation?: Variation) {
     const price = variation
       ? Number(variation.salePrice && variation.salePrice < variation.price ? variation.salePrice : variation.price)
-      : Number(p.salePrice ?? p.price);
+      : Number(p.salePrice && Number(p.salePrice) < Number(p.price) ? p.salePrice : p.price);
     const sku = variation?.sku ?? p.slug;
     const variationId = variation?.id;
     const old = JSON.parse(localStorage.getItem("epic-cart") ?? "[]");
-    const key = variationId ?? p.id;
+    const key = variationId ? `${p.id}__${variationId}` : p.id;
     const hit = old.find((i: CartItem) => i.id === key);
     const item: CartItem = { id: key, slug: p.slug, name: p.name, images: p.images, price, categoryId: p.categoryId, qty: hit ? hit.qty + 1 : 1, variationId, sku };
     localStorage.setItem("epic-cart", JSON.stringify(hit ? old.map((i: CartItem) => i.id === key ? item : i) : [...old, item]));
@@ -241,11 +241,13 @@ export function CategoryView({ slug }: { slug: string }) {
     const token = localStorage.getItem("epic-customer-token");
     if (!token) { toast.error("লগইন করুন"); return; }
     const isWishlisted = wishlist.includes(id);
-    fetch(`${apiUrl}/api/wishlist`, {
-      method: isWishlisted ? "DELETE" : "POST",
-      headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
-      body: JSON.stringify({ productId: id }),
-    }).then(() => setWishlist((prev) => isWishlisted ? prev.filter((i) => i !== id) : [...prev, id]));
+    fetch(`${apiUrl}/api/wishlist/${id}`, {
+      method: "POST",
+      headers: { Authorization: "Bearer " + token },
+    }).then((response) => {
+      if (!response.ok) throw new Error("Could not update wishlist");
+      setWishlist((prev) => isWishlisted ? prev.filter((i) => i !== id) : [...prev, id]);
+    }).catch(() => toast.error("Could not update wishlist"));
   }
 
   if (loading) {

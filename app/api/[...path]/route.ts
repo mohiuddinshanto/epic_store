@@ -58,7 +58,8 @@ async function forward(request: Request): Promise<Response> {
   responseHeaders.set("Pragma", "no-cache");
   responseHeaders.set("Expires", "0");
 
-  return new Response(new Uint8Array(bodyBuffer), {
+  const responseBody = [204, 205, 304].includes(upstream.status) ? null : new Uint8Array(bodyBuffer);
+  return new Response(responseBody, {
     status: upstream.status,
     statusText: upstream.statusText || undefined,
     headers: responseHeaders,

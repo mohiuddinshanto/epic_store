@@ -58,7 +58,7 @@ const money = (value: number) => "৳ " + value.toLocaleString("en-BD");
 export default function CheckoutPage() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [methods, setMethods] = useState<Method[]>([]);
-  const [selectedMethod, setSelectedMethod] = useState<string>("COD");
+  const [selectedMethod, setSelectedMethod] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [couponCode, setCouponCode] = useState("");
   const [discountAmount, setDiscountAmount] = useState(0);
@@ -84,7 +84,8 @@ export default function CheckoutPage() {
           setMethods(fetchedMethods);
           setSelectedMethod(fetchedMethods[0].id);
         } else {
-          setMethods([{ id: "COD", label: "Cash on delivery" }]);
+          setMethods([]);
+          setSelectedMethod("");
         }
         const savedForm = data.form ?? {};
         const mergedForm = Object.fromEntries(
@@ -96,7 +97,8 @@ export default function CheckoutPage() {
         if (Object.keys(mergedForm).length) setForm(mergedForm);
       })
       .catch(() => {
-        setMethods([{ id: "COD", label: "Cash on delivery" }]);
+        setMethods([]);
+        setSelectedMethod("");
       });
   }, []);
 
@@ -161,7 +163,7 @@ export default function CheckoutPage() {
               .map(([key]) => [key, fd.get(key)]),
           ),
           orderItems: cart.map((item) => ({
-            productId: item.id,
+            productId: item.variationId ? item.id.split("__")[0] : item.id,
             name: item.name,
             qty: item.qty,
             price: item.price,
@@ -241,6 +243,7 @@ export default function CheckoutPage() {
                   </div>
                 ))}
               </div>
+              {!methods.length && <p className="mt-3 text-sm text-rose-600">No payment methods are currently available. Please contact the store.</p>}
             </div>
 
             <Button
@@ -249,7 +252,7 @@ export default function CheckoutPage() {
               size="lg"
               fullWidth
               isLoading={saving}
-              isDisabled={!cart.length}
+              isDisabled={!cart.length || !methods.length || !selectedMethod}
               className="font-bold shadow-lg mt-4"
             >
               Place Order — {money(totalAmount)}
