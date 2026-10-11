@@ -4030,7 +4030,11 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
           {([ ["hero", "Hero banner"], ["categories", "Categories"], ["products", "Popular products"], ["collections", "Category collections"], ["trust", "Trust badges"], ["promos", "Promo banners"], ["announcement", "Top announcement bar"] ] as const).map(([key, label]) => (
             <label key={key} className="flex items-center justify-between gap-4 rounded-xl border border-gray-100 dark:border-white/10 px-4 py-3 text-sm text-gray-700 dark:text-slate-200">
               {label}
-              <Switch isSelected={(config.homePageConfig?.sectionVisibility?.[key] ?? (key === "announcement" ? config.heroBannerConfig?.announceEnabled : undefined)) !== false} isDisabled={saving} onValueChange={(value) => setSectionVisibility(key, value)} />
+              <Switch
+                isSelected={config.homePageConfig?.sectionVisibility?.[key] ?? (key === "announcement" ? config.heroBannerConfig?.announceEnabled ?? false : true)}
+                isDisabled={saving}
+                onValueChange={(value) => setSectionVisibility(key, value)}
+              />
             </label>
           ))}
         </div>

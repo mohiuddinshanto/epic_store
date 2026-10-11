@@ -566,7 +566,7 @@ export function Storefront({
         : [fallbackSlide];
     return {
       enabled: bannerConfig?.enabled !== false,
-      announceEnabled: bannerConfig?.announceEnabled !== false,
+      announceEnabled: bannerConfig?.announceEnabled === true,
       announceText: bannerConfig?.announceText ?? DEFAULT_HERO.announceText,
       announceBadge: bannerConfig?.announceBadge ?? "Festive Drop 2026",
       announceLinkLabel: bannerConfig?.announceLinkLabel ?? "Explore Drops",
