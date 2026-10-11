@@ -42,7 +42,7 @@ type FlashDealDef = {
 type HomePageConfigShape = {
   sections: HomeSectionDef[];
   layout?: "classic" | "catalog";
-  sectionVisibility?: Partial<Record<"hero" | "categories" | "products" | "collections" | "trust" | "promos", boolean>>;
+  sectionVisibility?: Partial<Record<"hero" | "categories" | "products" | "collections" | "trust" | "promos" | "announcement", boolean>>;
   categories?: CategoryDisplay & { eyebrow?: string; title?: string; accent?: string; countLabel?: string };
   flashDeal?: FlashDealDef;
   promoBanners?: PromoBannerDef[];
@@ -3831,8 +3831,12 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
     setSections((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
   }
 
-  function setSectionVisibility(key: "hero" | "categories" | "products" | "collections" | "trust" | "promos", enabled: boolean) {
-    return save({ homePageConfig: { ...(config.homePageConfig ?? {}), layout: "catalog", sectionVisibility: { ...(config.homePageConfig?.sectionVisibility ?? {}), [key]: enabled } } });
+  function setSectionVisibility(key: "hero" | "categories" | "products" | "collections" | "trust" | "promos" | "announcement", enabled: boolean) {
+    const homePageConfig = { ...(config.homePageConfig ?? {}), layout: "catalog" as const, sectionVisibility: { ...(config.homePageConfig?.sectionVisibility ?? {}), [key]: enabled } };
+    if (key === "announcement") {
+      return save({ homePageConfig, heroBannerConfig: { ...(config.heroBannerConfig ?? {}), announceEnabled: enabled } });
+    }
+    return save({ homePageConfig });
   }
 
   function remove(id: string) {
@@ -4023,10 +4027,10 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
         </div>
         <div className="space-y-3">
           <p className="text-sm font-semibold text-gray-800 dark:text-slate-200">Show or hide home page sections</p>
-          {([ ["hero", "Hero banner"], ["categories", "Categories"], ["products", "Popular products"], ["collections", "Category collections"], ["trust", "Trust badges"], ["promos", "Promo banners"] ] as const).map(([key, label]) => (
+          {([ ["hero", "Hero banner"], ["categories", "Categories"], ["products", "Popular products"], ["collections", "Category collections"], ["trust", "Trust badges"], ["promos", "Promo banners"], ["announcement", "Top announcement bar"] ] as const).map(([key, label]) => (
             <label key={key} className="flex items-center justify-between gap-4 rounded-xl border border-gray-100 dark:border-white/10 px-4 py-3 text-sm text-gray-700 dark:text-slate-200">
               {label}
-              <Switch isSelected={config.homePageConfig?.sectionVisibility?.[key] !== false} isDisabled={saving} onValueChange={(value) => setSectionVisibility(key, value)} />
+              <Switch isSelected={(config.homePageConfig?.sectionVisibility?.[key] ?? (key === "announcement" ? config.heroBannerConfig?.announceEnabled : undefined)) !== false} isDisabled={saving} onValueChange={(value) => setSectionVisibility(key, value)} />
             </label>
           ))}
         </div>
@@ -4666,7 +4670,6 @@ function PaymentSettings({ save, saving, config }: { save: (payload: object) => 
 function BannerSettings({ save, saving, config, token }: { save: (payload: object) => Promise<void>; saving: boolean; config: Config; token: string }) {
   const current = config.heroBannerConfig ?? {};
   const [enabled, setEnabled] = useState(current.enabled !== false);
-  const [announceEnabled, setAnnounceEnabled] = useState(current.announceEnabled !== false);
   const [announceText, setAnnounceText] = useState(current.announceText ?? "");
   const [pillEnabled, setPillEnabled] = useState(current.trendingPill?.enabled !== false);
   const [pillTop, setPillTop] = useState(current.trendingPill?.topText ?? "Trending Item");
@@ -4795,7 +4798,6 @@ function BannerSettings({ save, saving, config, token }: { save: (payload: objec
     save({
       heroBannerConfig: {
         enabled,
-        announceEnabled,
         announceText: announceText || null,
         announceBadge: announceBadge || null,
         announceLinkLabel: announceLinkLabel || null,
@@ -4830,23 +4832,8 @@ function BannerSettings({ save, saving, config, token }: { save: (payload: objec
           </div>
           <Switch isSelected={enabled} onValueChange={setEnabled} color="primary" />
         </div>
-        <div className="flex items-center justify-between gap-4 rounded-xl border border-gray-100 dark:border-white/10 px-4 py-3 mb-4">
-          <div>
-            <p className="text-sm font-medium text-gray-800 dark:text-slate-200">Top announcement bar</p>
-            <p className="text-xs text-gray-400 dark:text-slate-500">Show or hide the festive message above the header.</p>
-          </div>
-          <Switch
-            isSelected={announceEnabled}
-            isDisabled={saving}
-            onValueChange={(value) => {
-              setAnnounceEnabled(value);
-              void save({ heroBannerConfig: { announceEnabled: value } });
-            }}
-            color="primary"
-          />
-        </div>
         <Input label="Top announcement text" placeholder="e.g. ঈদ ও উৎসব কালেকশন…" value={announceText} onValueChange={setAnnounceText} description="The message shown above the header." />
-        {announceEnabled && announceText && (
+        {announceText && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2">
             <Input label="Badge pill text" placeholder="Festive Drop 2026" value={announceBadge} onValueChange={setAnnounceBadge} />
             <Input label="Link text" placeholder="Explore Drops" value={announceLinkLabel} onValueChange={setAnnounceLinkLabel} />

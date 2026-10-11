@@ -1286,6 +1286,7 @@ app.patch("/api/admin/config", requireAuth, requireRole("ADMIN"), async (req, re
               collections: z.boolean().optional(),
               trust: z.boolean().optional(),
               promos: z.boolean().optional(),
+              announcement: z.boolean().optional(),
             })
             .optional(),
           flashDeal: z

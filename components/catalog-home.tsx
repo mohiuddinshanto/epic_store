@@ -326,7 +326,7 @@ export function CatalogHome({
   sections?: HomeSectionDef[];
   promoBanners?: PromoBannerDef[];
   trustBadges?: TrustBadgeDef[];
-  sectionVisibility?: Partial<Record<"hero" | "categories" | "products" | "collections" | "trust" | "promos", boolean>>;
+  sectionVisibility?: Partial<Record<"hero" | "categories" | "products" | "collections" | "trust" | "promos" | "announcement", boolean>>;
 }) {
   const [activeTab, setActiveTab] = useState<string>("all");
 

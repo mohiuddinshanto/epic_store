@@ -154,7 +154,7 @@ type TrustBadgeConfig = {
 export type HomePageConfig = {
   sections?: HomeSection[];
   layout?: "catalog";
-  sectionVisibility?: Partial<Record<"hero" | "categories" | "products" | "collections" | "trust" | "promos", boolean>>;
+  sectionVisibility?: Partial<Record<"hero" | "categories" | "products" | "collections" | "trust" | "promos" | "announcement", boolean>>;
   categories?: CategoryDisplayConfig & { eyebrow?: string; title?: string; accent?: string; countLabel?: string };
   flashDeal?: FlashDealConfig;
   promoBanners?: PromoBannerConfig[];
@@ -714,7 +714,7 @@ export function Storefront({
   return (
     <main>
       {/* Top Announcement Bar */}
-      {hero.announceEnabled && hero.announceText && (
+      {homeConfig?.sectionVisibility?.announcement !== false && hero.announceEnabled && hero.announceText && (
         <aside className="flex flex-wrap items-center justify-center gap-3 border-b border-slate-200/70 bg-slate-50 px-4 py-2 text-center">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-500/25 bg-indigo-500/10 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider text-primary">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
