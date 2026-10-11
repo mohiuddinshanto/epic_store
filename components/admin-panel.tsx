@@ -135,6 +135,7 @@ type HeroBannerConfig = {
   buttonLink?: string | null;
   secondaryLabel?: string | null;
   secondaryLink?: string | null;
+  announceEnabled?: boolean;
   announceText?: string | null;
   announceBadge?: string | null;
   announceLinkLabel?: string | null;
@@ -4665,6 +4666,7 @@ function PaymentSettings({ save, saving, config }: { save: (payload: object) => 
 function BannerSettings({ save, saving, config, token }: { save: (payload: object) => Promise<void>; saving: boolean; config: Config; token: string }) {
   const current = config.heroBannerConfig ?? {};
   const [enabled, setEnabled] = useState(current.enabled !== false);
+  const [announceEnabled, setAnnounceEnabled] = useState(current.announceEnabled !== false);
   const [announceText, setAnnounceText] = useState(current.announceText ?? "");
   const [pillEnabled, setPillEnabled] = useState(current.trendingPill?.enabled !== false);
   const [pillTop, setPillTop] = useState(current.trendingPill?.topText ?? "Trending Item");
@@ -4793,6 +4795,7 @@ function BannerSettings({ save, saving, config, token }: { save: (payload: objec
     save({
       heroBannerConfig: {
         enabled,
+        announceEnabled,
         announceText: announceText || null,
         announceBadge: announceBadge || null,
         announceLinkLabel: announceLinkLabel || null,
@@ -4827,8 +4830,23 @@ function BannerSettings({ save, saving, config, token }: { save: (payload: objec
           </div>
           <Switch isSelected={enabled} onValueChange={setEnabled} color="primary" />
         </div>
-        <Input label="Top announcement text" placeholder="e.g. ঈদ ও উৎসব কালেকশন…" value={announceText} onValueChange={setAnnounceText} description="Shown above the header. Leave empty to hide." />
-        {announceText && (
+        <div className="flex items-center justify-between gap-4 rounded-xl border border-gray-100 dark:border-white/10 px-4 py-3 mb-4">
+          <div>
+            <p className="text-sm font-medium text-gray-800 dark:text-slate-200">Top announcement bar</p>
+            <p className="text-xs text-gray-400 dark:text-slate-500">Show or hide the festive message above the header.</p>
+          </div>
+          <Switch
+            isSelected={announceEnabled}
+            isDisabled={saving}
+            onValueChange={(value) => {
+              setAnnounceEnabled(value);
+              void save({ heroBannerConfig: { announceEnabled: value } });
+            }}
+            color="primary"
+          />
+        </div>
+        <Input label="Top announcement text" placeholder="e.g. ঈদ ও উৎসব কালেকশন…" value={announceText} onValueChange={setAnnounceText} description="The message shown above the header." />
+        {announceEnabled && announceText && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2">
             <Input label="Badge pill text" placeholder="Festive Drop 2026" value={announceBadge} onValueChange={setAnnounceBadge} />
             <Input label="Link text" placeholder="Explore Drops" value={announceLinkLabel} onValueChange={setAnnounceLinkLabel} />

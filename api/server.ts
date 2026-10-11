@@ -1412,6 +1412,7 @@ app.patch("/api/admin/config", requireAuth, requireRole("ADMIN"), async (req, re
       heroBannerConfig: z
         .object({
           enabled: z.boolean().optional(),
+          announceEnabled: z.boolean().optional(),
           announceText: z.string().nullable().optional(),
           announceBadge: z.string().max(60).nullable().optional(),
           announceLinkLabel: z.string().max(40).nullable().optional(),

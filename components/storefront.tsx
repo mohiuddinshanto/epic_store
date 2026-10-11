@@ -186,6 +186,7 @@ export type HomePageConfig = {
 
 type HeroBannerConfig = {
   enabled?: boolean;
+  announceEnabled?: boolean;
   image?: string | null;
   badge?: string | null;
   title?: string | null;
@@ -565,6 +566,7 @@ export function Storefront({
         : [fallbackSlide];
     return {
       enabled: bannerConfig?.enabled !== false,
+      announceEnabled: bannerConfig?.announceEnabled !== false,
       announceText: bannerConfig?.announceText ?? DEFAULT_HERO.announceText,
       announceBadge: bannerConfig?.announceBadge ?? "Festive Drop 2026",
       announceLinkLabel: bannerConfig?.announceLinkLabel ?? "Explore Drops",
@@ -712,7 +714,7 @@ export function Storefront({
   return (
     <main>
       {/* Top Announcement Bar */}
-      {hero.announceText && (
+      {hero.announceEnabled && hero.announceText && (
         <aside className="flex flex-wrap items-center justify-center gap-3 border-b border-slate-200/70 bg-slate-50 px-4 py-2 text-center">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-500/25 bg-indigo-500/10 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider text-primary">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
