@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { mkdirSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
-import { extname, join } from "node:path";
+import { extname, join, resolve } from "node:path";
 import { prisma } from "./prisma.js";
 import { decrypt } from "./crypto.js";
 
@@ -11,6 +11,11 @@ export type StorageConfig =
 const has = (value: unknown, key: string): boolean => Boolean(value && typeof value === "object" && key in (value as Record<string, unknown>));
 
 const uploadsRoot = process.env.UPLOADS_DIR ?? join(process.cwd(), "public", "uploads");
+
+export async function getLocalProductsDirectory(): Promise<string> {
+  const config = await loadStorageConfig();
+  return config?.provider === "local" ? resolve(config.folderPath) : join(uploadsRoot, "products");
+}
 
 export function isLocalConfig(value: unknown): value is Extract<StorageConfig, { provider: "local" }> {
   return has(value, "provider") && (value as { provider: string }).provider === "local" && typeof (value as Extract<StorageConfig, { provider: "local" }>).folderPath === "string" && typeof (value as Extract<StorageConfig, { provider: "local" }>).publicBaseUrl === "string";
@@ -35,14 +40,15 @@ export async function uploadImage(file: { buffer: Buffer; mimetype: string; orig
   const ext = (extname(file.originalname) || ".img").toLowerCase();
 
   if (storageConfig.provider === "local") {
-    const productsDir = join(uploadsRoot, "products");
+    const productsDir = resolve(storageConfig.folderPath);
     mkdirSync(productsDir, { recursive: true });
     const hash = createHash("sha256").update(file.buffer).digest("hex");
     const existing = readdirSync(productsDir).find((name) => name.startsWith(hash));
-    if (existing) return `/uploads/products/${existing}`;
+    const baseUrl = storageConfig.publicBaseUrl.replace(/\/+$/, "");
+    if (existing) return `${baseUrl}/${existing}`;
     const filename = `${hash}${ext}`;
     writeFileSync(join(productsDir, filename), file.buffer);
-    return `/uploads/products/${filename}`;
+    return `${baseUrl}/${filename}`;
   }
 
   const { PutObjectCommand, S3Client } = await import("@aws-sdk/client-s3");
@@ -62,7 +68,7 @@ export async function deleteImage(url: string): Promise<void> {
   const match = /^\/uploads\/products\/([^/]+)$/.exec(pathname);
   if (!match) return;
   if (storageConfig.provider === "local") {
-    const file = join(uploadsRoot, match[1]);
+    const file = join(resolve(storageConfig.folderPath), match[1]);
     try {
       unlinkSync(file);
     } catch {

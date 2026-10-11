@@ -10,7 +10,7 @@ import { prisma } from "./lib/prisma.js";
 import { checkIpCooldown, restrictStaffOrderView } from "./middleware/security.js";
 import { makeSessionToken, requireAuth, requireRole } from "./middleware/auth.js";
 import { decrypt, encrypt } from "./lib/crypto.js";
-import { uploadImage, deleteImage } from "./lib/storage.js";
+import { uploadImage, deleteImage, getLocalProductsDirectory } from "./lib/storage.js";
 import { baseSkuForParts, generateVariationsForProduct, makeUniqueSku, replaceProductVariations } from "./lib/product-variations.js";
 import { sendNewOrderToOwner, sendNewsletterWelcome, sendOrderConfirmation, sendOrderStatusEmail, sendTestMail } from "./lib/mailer.js";
 
@@ -40,7 +40,19 @@ app.use((req, res, next) => {
   }
   next();
 });
-app.use("/uploads", express.static("public/uploads"));
+const legacyUploadsDirectory = process.env.UPLOADS_DIR ?? "public/uploads";
+app.use("/uploads/products", async (req, res, next) => {
+  try {
+    const directory = await getLocalProductsDirectory();
+    express.static(directory, { maxAge: "30d", fallthrough: true, index: false })(req, res, (error) => {
+      if (error) return next(error);
+      express.static(`${legacyUploadsDirectory}/products`, { maxAge: "30d", fallthrough: true, index: false })(req, res, next);
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+app.use("/uploads", express.static(legacyUploadsDirectory, { maxAge: "30d", fallthrough: true, index: false }));
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },

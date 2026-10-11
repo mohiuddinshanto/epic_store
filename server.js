@@ -39,10 +39,6 @@ async function main() {
 
   const api = loadApiApp();
 
-  app.use(
-    "/uploads",
-    express.static(process.env.UPLOADS_DIR, { maxAge: "30d", fallthrough: true, index: false }),
-  );
   app.use(api);
   app.use((req, res) => handle(req, res));
 
