@@ -231,7 +231,7 @@ type Coupon = { id: string; code: string; type: string; value: string; minSpend?
 type Review = { id: string; rating: number; comment?: string; isApproved: boolean; product: { name: string }; user: { name: string; email: string } };
 type StaffUser = { id: string; name: string; email: string; staffType: string; allowedCategories?: string };
 
-const money = (value: number | string) => "à§³ " + Number(value).toLocaleString("en-BD");
+const money = (value: number | string) => "৳ " + Number(value).toLocaleString("en-BD");
 const tokenKey = "epic-admin-token";
 
 const api = (path: string, token: string, init?: RequestInit) =>
@@ -267,22 +267,22 @@ const STATUS_LABEL: Record<string, string> = {
 type Section = "overview" | "products" | "categories" | "orders" | "coupons" | "reviews" | "staff" | "home" | "banner" | "menu" | "marketing" | "features" | "payments" | "delivery" | "checkout" | "storage";
 
 const NAV: { key: Section; label: string; icon: string }[] = [
-  { key: "overview", label: "Overview", icon: "â—ˆ" },
-  { key: "products", label: "Products", icon: "â–¦" },
-  { key: "categories", label: "Categories", icon: "â–¤" },
-  { key: "orders", label: "Orders", icon: "âŠž" },
-  { key: "coupons", label: "Coupons", icon: "â„…" },
-  { key: "reviews", label: "Reviews", icon: "â˜…" },
-  { key: "staff", label: "Staff Team", icon: "â—‰" },
-  { key: "home", label: "Home Layout", icon: "âŒ‚" },
-  { key: "banner", label: "Hero Banner", icon: "â–°" },
-  { key: "menu", label: "Menu Builder", icon: "â˜°" },
-  { key: "marketing", label: "Pixels & Chat", icon: "â¬¡" },
-  { key: "features", label: "Store Features", icon: "âŠ•" },
-  { key: "payments", label: "Payments", icon: "Â¢" },
-  { key: "delivery", label: "Delivery", icon: "â—«" },
-  { key: "checkout", label: "Checkout Form", icon: "â–¤" },
-  { key: "storage", label: "Storage", icon: "â–£" },
+  { key: "overview", label: "Overview", icon: "◈" },
+  { key: "products", label: "Products", icon: "▦" },
+  { key: "categories", label: "Categories", icon: "▤" },
+  { key: "orders", label: "Orders", icon: "⊞" },
+  { key: "coupons", label: "Coupons", icon: "℅" },
+  { key: "reviews", label: "Reviews", icon: "★" },
+  { key: "staff", label: "Staff Team", icon: "◉" },
+  { key: "home", label: "Home Layout", icon: "⌂" },
+  { key: "banner", label: "Hero Banner", icon: "▰" },
+  { key: "menu", label: "Menu Builder", icon: "☰" },
+  { key: "marketing", label: "Pixels & Chat", icon: "⬡" },
+  { key: "features", label: "Store Features", icon: "⊕" },
+  { key: "payments", label: "Payments", icon: "¢" },
+  { key: "delivery", label: "Delivery", icon: "◫" },
+  { key: "checkout", label: "Checkout Form", icon: "▤" },
+  { key: "storage", label: "Storage", icon: "▣" },
 ];
 
 const title = (section: Section) => NAV.find((n) => n.key === section)?.label ?? "";
@@ -384,7 +384,7 @@ export function AdminPanel() {
 
           <form onSubmit={login} className="flex flex-col gap-4">
             <Input isRequired name="email" type="email" label="Admin email" placeholder="admin@store.com" />
-            <Input isRequired name="password" type={showPassword ? "text" : "password"} label="Password" placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+            <Input isRequired name="password" type={showPassword ? "text" : "password"} label="Password" placeholder="••••••••"
               endContent={
                 <button type="button" aria-label="Toggle password visibility" onClick={() => setShowPassword((v) => !v)} className="cursor-pointer text-gray-400 hover:text-primary transition-colors">
                   {showPassword ? <FiEyeOff size={16} /> : <FiEye size={16} />}
@@ -466,7 +466,7 @@ export function AdminPanel() {
             onClick={() => setCollapsed(!collapsed)}
             className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl text-gray-400 dark:text-slate-500 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors text-sm border border-gray-200 dark:border-white/8"
           >
-            <span className={`transition-transform duration-300 ${collapsed ? "rotate-180" : ""}`}>â—</span>
+            <span className={`transition-transform duration-300 ${collapsed ? "rotate-180" : ""}`}>◁</span>
             <span className={`text-xs ${collapsed ? "lg:hidden" : ""}`}>Collapse</span>
           </button>
         </div>
@@ -535,10 +535,10 @@ export function AdminPanel() {
       <div className="lg:hidden fixed bottom-0 inset-x-0 z-40 border-t border-gray-200 dark:border-white/6 bg-white/95 dark:bg-[#0d0d1a]/95 backdrop-blur px-1 py-1.5">
         <div className="grid grid-cols-5 gap-1">
           {[
-            { key: "overview", label: "Home", icon: "â—ˆ" },
-            { key: "orders", label: "Orders", icon: "âŠž" },
-            { key: "products", label: "Products", icon: "â–¦" },
-            { key: "home", label: "Layout", icon: "âŒ‚" },
+            { key: "overview", label: "Home", icon: "◈" },
+            { key: "orders", label: "Orders", icon: "⊞" },
+            { key: "products", label: "Products", icon: "▦" },
+            { key: "home", label: "Layout", icon: "⌂" },
           ].map((item) => (
             <button
               key={item.key}
@@ -558,7 +558,7 @@ export function AdminPanel() {
             onClick={() => setMobileSidebar(true)}
             className="flex flex-col items-center gap-0.5 py-1.5 rounded-xl text-[10px] font-semibold text-gray-400 dark:text-slate-500 hover:text-gray-700 dark:hover:text-slate-300"
           >
-            <span className="text-base leading-none">â˜°</span>
+            <span className="text-base leading-none">☰</span>
             Menu
           </button>
         </div>
@@ -591,19 +591,19 @@ function AdminOverview({ token }: { token: string }) {
     try {
       const res = await api(`/api/admin/orders/${id}`, token, { method: "PATCH", body: JSON.stringify({ status, paymentStatus }) });
       if (res.ok) {
-        toast.success("à¦…à¦°à§à¦¡à¦¾à¦° à¦¸à§à¦Ÿà§à¦¯à¦¾à¦Ÿà¦¾à¦¸ à¦†à¦ªà¦¡à§‡à¦Ÿ à¦¹à¦¯à¦¼à§‡à¦›à§‡");
+        toast.success("অর্ডার স্ট্যাটাস আপডেট হয়েছে");
         load();
       }
     } catch {
-      toast.error("à¦†à¦ªà¦¡à§‡à¦Ÿ à¦•à¦°à¦¾ à¦¯à¦¾à¦¯à¦¼à¦¨à¦¿");
+      toast.error("আপডেট করা যায়নি");
     }
   }
 
   const KPI = [
-    { label: "Active Products", value: data ? String(data.products) : "â€”", icon: "â–¦", color: "from-primary to-indigo-400" },
-    { label: "Total Orders", value: data ? String(data.orders) : "â€”", icon: "âŠž", color: "from-cyan to-teal-400" },
-    { label: "Customers", value: data ? String(data.customers) : "â€”", icon: "â—‰", color: "from-violet-500 to-purple-400" },
-    { label: "Paid Revenue", value: data ? money(data.paidRevenue) : "â€”", icon: "Â¢", color: "from-amber to-orange-400" },
+    { label: "Active Products", value: data ? String(data.products) : "—", icon: "▦", color: "from-primary to-indigo-400" },
+    { label: "Total Orders", value: data ? String(data.orders) : "—", icon: "⊞", color: "from-cyan to-teal-400" },
+    { label: "Customers", value: data ? String(data.customers) : "—", icon: "◉", color: "from-violet-500 to-purple-400" },
+    { label: "Paid Revenue", value: data ? money(data.paidRevenue) : "—", icon: "¢", color: "from-amber to-orange-400" },
   ];
 
   return (
@@ -891,11 +891,11 @@ function MenuBuilder({ config, save, saving }: { config: Config; save: (payload:
           <span className="rounded bg-primary/10 px-2 py-1 text-[0.7rem] font-semibold text-primary">Category</span>
         )}
         <div className="flex items-center gap-0.5">
-          <button type="button" title="Indent (sub)" onClick={() => indent(n.id, 1)} className="icon-square-btn w-7 h-7 rounded-md bg-gray-100 dark:bg-white/5 text-gray-500 hover:bg-primary/10 hover:text-primary text-xs font-bold">â†’</button>
-          <button type="button" title="Outdent" onClick={() => indent(n.id, -1)} className="icon-square-btn w-7 h-7 rounded-md bg-gray-100 dark:bg-white/5 text-gray-500 hover:bg-primary/10 hover:text-primary text-xs font-bold">â†</button>
-          <button type="button" title="Move up" onClick={() => move(n.id, -1)} className="icon-square-btn w-7 h-7 rounded-md bg-gray-100 dark:bg-white/5 text-gray-500 hover:bg-primary/10 hover:text-primary text-xs font-bold">â†‘</button>
-          <button type="button" title="Move down" onClick={() => move(n.id, 1)} className="icon-square-btn w-7 h-7 rounded-md bg-gray-100 dark:bg-white/5 text-gray-500 hover:bg-primary/10 hover:text-primary text-xs font-bold">â†“</button>
-          <button type="button" title="Delete" onClick={() => removeItem(n.id)} className="icon-square-btn w-7 h-7 rounded-md bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white text-xs font-bold">Ã—</button>
+          <button type="button" title="Indent (sub)" onClick={() => indent(n.id, 1)} className="icon-square-btn w-7 h-7 rounded-md bg-gray-100 dark:bg-white/5 text-gray-500 hover:bg-primary/10 hover:text-primary text-xs font-bold">→</button>
+          <button type="button" title="Outdent" onClick={() => indent(n.id, -1)} className="icon-square-btn w-7 h-7 rounded-md bg-gray-100 dark:bg-white/5 text-gray-500 hover:bg-primary/10 hover:text-primary text-xs font-bold">←</button>
+          <button type="button" title="Move up" onClick={() => move(n.id, -1)} className="icon-square-btn w-7 h-7 rounded-md bg-gray-100 dark:bg-white/5 text-gray-500 hover:bg-primary/10 hover:text-primary text-xs font-bold">↑</button>
+          <button type="button" title="Move down" onClick={() => move(n.id, 1)} className="icon-square-btn w-7 h-7 rounded-md bg-gray-100 dark:bg-white/5 text-gray-500 hover:bg-primary/10 hover:text-primary text-xs font-bold">↓</button>
+          <button type="button" title="Delete" onClick={() => removeItem(n.id)} className="icon-square-btn w-7 h-7 rounded-md bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white text-xs font-bold">×</button>
         </div>
       </div>
       {n.children.length > 0 && <ul className="mt-1 space-y-1">{n.children.map((c) => renderItem(c, depth + 1))}</ul>}
@@ -921,7 +921,7 @@ function MenuBuilder({ config, save, saving }: { config: Config; save: (payload:
         <Input label="Menu title" value={title} onValueChange={setTitle} className="max-w-xs" />
         <Select
           label="Add a category"
-          placeholder="Pick categoryâ€¦"
+          placeholder="Pick category…"
           className="max-w-xs"
           selectedKeys={pendingCat ? [pendingCat] : []}
           onSelectionChange={(keys) => setPendingCat(Array.from(keys)[0] as string || "")}
@@ -951,7 +951,7 @@ function MenuBuilder({ config, save, saving }: { config: Config; save: (payload:
         <>
           {!hasSavedMenu && (
             <p className="text-xs text-gray-400 dark:text-slate-500">
-              à¦à¦—à§à¦²à§‹ à¦¬à¦°à§à¦¤à¦®à¦¾à¦¨à§‡ à¦¹à§‹à¦® à¦ªà§‡à¦œà§‡à¦° à¦¹à§‡à¦¡à¦¾à¦°à§‡ à¦¦à§‡à¦–à¦¾à¦¨à§‹ à¦¹à¦šà§à¦›à§‡ (à¦…à¦Ÿà§‹)à¥¤ à¦à¦¡à¦¿à¦Ÿ à¦•à¦°à§‡ à¦¨à¦¿à¦šà§‡à¦° Save Menu-à¦ à¦•à§à¦²à¦¿à¦• à¦•à¦°à§à¦¨à¥¤
+              এগুলো বর্তমানে হোম পেজের হেডারে দেখানো হচ্ছে (অটো)। এডিট করে নিচের Save Menu-এ ক্লিক করুন।
             </p>
           )}
           <ul className="space-y-1">{items.map((n) => renderItem(n, 0))}</ul>
@@ -962,7 +962,7 @@ function MenuBuilder({ config, save, saving }: { config: Config; save: (payload:
         <Button color="primary" onPress={saveMenu} isLoading={saving} className="font-bold">
           Save Menu
         </Button>
-        <span className="text-xs text-gray-400">Use â†’ to nest an item under the one above it.</span>
+        <span className="text-xs text-gray-400">Use → to nest an item under the one above it.</span>
       </div>
     </div>
   );
@@ -1196,7 +1196,7 @@ function AdminProducts({ token }: { token: string }) {
   function generateVariationsFromAttributes() {
     const validAttrs = attributes.filter((a) => a.name.trim() && a.values.some((v) => v.value.trim()));
     if (validAttrs.length < 1) {
-      toast.error("Add attributes with values first (e.g. Color â†’ Black, White)");
+      toast.error("Add attributes with values first (e.g. Color → Black, White)");
       return;
     }
     setGenerating(true);
@@ -1407,7 +1407,7 @@ function AdminProducts({ token }: { token: string }) {
       const response = await api(url, token, { method, body: JSON.stringify(body) });
       const data = await response.json();
       if (!response.ok) {
-        const detail = Array.isArray(data.details) ? ` â€” ${data.details.join(", ")}` : "";
+        const detail = Array.isArray(data.details) ? ` — ${data.details.join(", ")}` : "";
         throw new Error(data.error + detail);
       }
       toast.success(editingProduct ? "Product updated!" : "Product created!");
@@ -1451,7 +1451,7 @@ function AdminProducts({ token }: { token: string }) {
                   : "text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300"
               }`}
             >
-              {t === "list" ? "Product List" : (editingProduct ? "â† Back to List" : "+ Add Product")}
+              {t === "list" ? "Product List" : (editingProduct ? "← Back to List" : "+ Add Product")}
             </button>
           ))}
         </div>
@@ -1477,7 +1477,7 @@ function AdminProducts({ token }: { token: string }) {
               <option value="">All categories ({products.length})</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.parentId ? `â†³ ${c.name}` : c.name} ({products.filter((p) => p.categoryId === c.id).length})
+                  {c.parentId ? `↳ ${c.name}` : c.name} ({products.filter((p) => p.categoryId === c.id).length})
                 </option>
               ))}
             </select>
@@ -1500,7 +1500,7 @@ function AdminProducts({ token }: { token: string }) {
               <Input label="Slug (Leave empty to auto-generate)" name="slug" placeholder="classic-cotton-shirt" defaultValue={editingProduct?.slug ?? ""} />
               <Select label="Category" name="categoryId" isRequired placeholder="Select a category" defaultSelectedKeys={editingProduct?.categoryId ? [editingProduct.categoryId] : []}>
                 {categoryOptions(categories).map((category) => (
-                  <SelectItem key={category.id}>{category.parentId ? `â†³  ${category.name}` : category.name}</SelectItem>
+                  <SelectItem key={category.id}>{category.parentId ? `↳  ${category.name}` : category.name}</SelectItem>
                 ))}
               </Select>
               <Input label="Regular Price (BDT)" name="price" type="text" inputMode="decimal" isRequired placeholder="1500" defaultValue={editingProduct ? String(editingProduct.price) : ""} />
@@ -1508,19 +1508,19 @@ function AdminProducts({ token }: { token: string }) {
               <Input label="Initial Stock Qty" name="stock" type="number" defaultValue={String(editingProduct?.stock ?? 10)} />
             </div>
 
-            <Textarea label="Short Description" name="description" isRequired minRows={3} placeholder="One or two crisp sentences for cards, search and quick glanceâ€¦" defaultValue={editingProduct?.description ?? ""} />
-            <Textarea label="Long Description (Full Details)" name="longDescription" minRows={5} placeholder="Extended description for the product page â€” materials, care, shipping, what's in the boxâ€¦" defaultValue={editingProduct?.longDescription ?? ""} />
+            <Textarea label="Short Description" name="description" isRequired minRows={3} placeholder="One or two crisp sentences for cards, search and quick glance…" defaultValue={editingProduct?.description ?? ""} />
+            <Textarea label="Long Description (Full Details)" name="longDescription" minRows={5} placeholder="Extended description for the product page — materials, care, shipping, what's in the box…" defaultValue={editingProduct?.longDescription ?? ""} />
 
             <div>
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-semibold text-gray-700 dark:text-slate-200">Product Images &amp; Gallery</span>
-                <span className="text-[10px] text-gray-400 dark:text-slate-500">â˜… = Featured (shown on cards &amp; default)</span>
+                <span className="text-[10px] text-gray-400 dark:text-slate-500">★ = Featured (shown on cards &amp; default)</span>
               </div>
 
               <label className="border-2 border-dashed border-gray-200 dark:border-white/10 rounded-2xl p-6 text-center hover:border-primary/50 transition-colors cursor-pointer flex flex-col items-center gap-2">
-                <span className="text-2xl">ðŸ“¤</span>
+                <span className="text-2xl">📤</span>
                 <span className="text-sm text-gray-500 dark:text-slate-400">
-                  {uploading ? "Uploadingâ€¦" : "Drop images here or click to upload (multiple allowed)"}
+                  {uploading ? "Uploading…" : "Drop images here or click to upload (multiple allowed)"}
                 </span>
                 <input type="file" accept="image/*" multiple onChange={pickImages} hidden />
               </label>
@@ -1602,7 +1602,7 @@ function AdminProducts({ token }: { token: string }) {
                 <input
                   value={sku}
                   onChange={(e) => setSku(e.target.value)}
-                  placeholder="Product SKU (e.g. SHIRT-01) â€” basis for generated variation SKUs"
+                  placeholder="Product SKU (e.g. SHIRT-01) — basis for generated variation SKUs"
                   className="text-xs bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-3 h-9 outline-none text-gray-700 dark:text-slate-200 placeholder-gray-400"
                 />
               </div>
@@ -1612,7 +1612,7 @@ function AdminProducts({ token }: { token: string }) {
                   {/* Attributes */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-semibold text-gray-500 dark:text-slate-400">Product Attributes <span className="text-[10px] text-gray-400 dark:text-slate-500 font-normal">(Color, Size, Materialâ€¦)</span></span>
+                      <span className="text-xs font-semibold text-gray-500 dark:text-slate-400">Product Attributes <span className="text-[10px] text-gray-400 dark:text-slate-500 font-normal">(Color, Size, Material…)</span></span>
                       <button
                         type="button"
                         onClick={addAttribute}
@@ -1624,7 +1624,7 @@ function AdminProducts({ token }: { token: string }) {
 
                     {attributes.length === 0 ? (
                       <p className="text-xs text-gray-400 dark:text-slate-500 border border-dashed border-gray-200 dark:border-white/10 rounded-xl p-3 text-center">
-                        Add attributes like Color and Size, fill in their values, then press â€œGenerate Variationsâ€.
+                        Add attributes like Color and Size, fill in their values, then press “Generate Variations”.
                       </p>
                     ) : (
                       <div className="space-y-3">
@@ -1668,7 +1668,7 @@ function AdminProducts({ token }: { token: string }) {
                                   >
                                     <option value="">No image</option>
                                     {gallery.map((g, gi) => (
-                                      <option key={gi} value={g.url}>{`Image ${gi + 1}${g.altText ? ` â€” ${g.altText}` : ""}`}</option>
+                                      <option key={gi} value={g.url}>{`Image ${gi + 1}${g.altText ? ` — ${g.altText}` : ""}`}</option>
                                     ))}
                                   </select>
                                   <button type="button" onClick={() => removeAttributeValue(aIndex, valIndex)} className="icon-square-btn w-6 h-6 rounded-md flex items-center justify-center text-gray-300 dark:text-slate-600 hover:text-rose-500" title="Remove value">
@@ -1694,11 +1694,11 @@ function AdminProducts({ token }: { token: string }) {
                       disabled={generating}
                       className="px-4 h-9 rounded-xl bg-gradient-to-r from-primary to-indigo-500 text-white text-xs font-semibold flex items-center gap-1.5 hover:shadow-lg hover:shadow-primary/30 transition-all disabled:opacity-50"
                     >
-                      <FiShuffle size={13} className={generating ? "animate-spin" : ""} /> {generating ? "Generatingâ€¦" : "Generate Variations"}
+                      <FiShuffle size={13} className={generating ? "animate-spin" : ""} /> {generating ? "Generating…" : "Generate Variations"}
                     </button>
                     {variations.length > 0 && (
                       <span className="text-xs text-gray-400 dark:text-slate-500">
-                        {variations.length} variation{variations.length > 1 ? "s" : ""} â€” edits below are saved with the product
+                        {variations.length} variation{variations.length > 1 ? "s" : ""} — edits below are saved with the product
                       </span>
                     )}
                   </div>
@@ -1807,10 +1807,10 @@ function AdminProducts({ token }: { token: string }) {
                                       ))}
                                   </div>
                                   <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                                    <span className="text-[10px] text-gray-400 dark:text-slate-500">{v.sku || "â€” SKU â€”"}</span>
-                                    <span className="text-[10px] font-semibold text-gray-600 dark:text-slate-300">à§³ {Number(v.price ?? 0).toLocaleString("en-BD")}</span>
+                                    <span className="text-[10px] text-gray-400 dark:text-slate-500">{v.sku || "— SKU —"}</span>
+                                    <span className="text-[10px] font-semibold text-gray-600 dark:text-slate-300">৳ {Number(v.price ?? 0).toLocaleString("en-BD")}</span>
                                     {v.salePrice ? (
-                                      <span className="text-[10px] text-rose-500 line-through">à§³ {Number(v.salePrice).toLocaleString("en-BD")}</span>
+                                      <span className="text-[10px] text-rose-500 line-through">৳ {Number(v.salePrice).toLocaleString("en-BD")}</span>
                                     ) : null}
                                     <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-semibold ${Number(v.stock) > 0 ? "bg-emerald-100/70 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-rose-100/70 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400"}`}>
                                       {Number(v.stock) > 0 ? `${v.stock} in stock` : v.manageStock ? "Out of stock" : "Stock not managed"}
@@ -1829,7 +1829,7 @@ function AdminProducts({ token }: { token: string }) {
                                       className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md transition-colors ${v.isDefault || defaultVariationId === v.id ? "bg-indigo-100/70 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400" : "bg-gray-100 dark:bg-white/10 text-gray-400 dark:text-slate-500 hover:text-indigo-500"}`}
                                       title="Set as default (pre-selected on product page)"
                                     >
-                                      {v.isDefault || defaultVariationId === v.id ? "â˜… Default" : "â˜† Default"}
+                                      {v.isDefault || defaultVariationId === v.id ? "★ Default" : "☆ Default"}
                                     </button>
                                   </div>
                                 </div>
@@ -1840,7 +1840,7 @@ function AdminProducts({ token }: { token: string }) {
                                   <button
                                     type="button"
                                     onClick={() => {
-                                      if (!window.confirm(`Delete variation â€œ${v.name || "(unnamed)"}â€?`)) return;
+                                      if (!window.confirm(`Delete variation “${v.name || "(unnamed)"}”?`)) return;
                                       removeVariation(v.id);
                                       toast.success("Variation deleted");
                                     }}
@@ -1883,7 +1883,7 @@ function AdminProducts({ token }: { token: string }) {
                                       />
                                     </div>
                                     <div>
-                                      <label className="text-[10px] text-gray-400 dark:text-slate-500 mb-1 block">Sale price (BDT â€” blank = none)</label>
+                                      <label className="text-[10px] text-gray-400 dark:text-slate-500 mb-1 block">Sale price (BDT — blank = none)</label>
                                       <input
                                         value={v.salePrice ?? ""}
                                         onChange={(e) => updateVariation(v.id, { salePrice: e.target.value ? e.target.value : null })}
@@ -1945,7 +1945,7 @@ function AdminProducts({ token }: { token: string }) {
                                       >
                                         <option value="">Product image</option>
                                         {gallery.map((g, gi) => (
-                                          <option key={gi} value={g.url}>{`Image ${gi + 1}${g.altText ? ` â€” ${g.altText}` : ""}`}</option>
+                                          <option key={gi} value={g.url}>{`Image ${gi + 1}${g.altText ? ` — ${g.altText}` : ""}`}</option>
                                         ))}
                                       </select>
                                     </div>
@@ -1962,9 +1962,9 @@ function AdminProducts({ token }: { token: string }) {
                                         }}
                                         className="w-full text-xs bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-2.5 py-1.5 outline-none text-gray-700 dark:text-slate-200"
                                       >
-                                        <option value="">Add gallery imageâ€¦</option>
+                                        <option value="">Add gallery image…</option>
                                         {gallery.map((g, gi) => (
-                                          <option key={gi} value={g.url}>{`Image ${gi + 1}${g.altText ? ` â€” ${g.altText}` : ""}`}</option>
+                                          <option key={gi} value={g.url}>{`Image ${gi + 1}${g.altText ? ` — ${g.altText}` : ""}`}</option>
                                         ))}
                                       </select>
                                       {v.gallery && v.gallery.length > 0 && (
@@ -2003,7 +2003,7 @@ function AdminProducts({ token }: { token: string }) {
                   {variations.length === 0 && (
                     <p className="text-xs text-gray-400 dark:text-slate-500 border border-dashed border-gray-200 dark:border-white/10 rounded-xl p-3 text-center">
                       <FiBox size={14} className="inline mb-0.5 mr-1" />
-                      No variations yet â€” add attributes above and tap â€œGenerate Variationsâ€.
+                      No variations yet — add attributes above and tap “Generate Variations”.
                     </p>
                   )}
                 </div>
@@ -2052,7 +2052,7 @@ function AdminProducts({ token }: { token: string }) {
                         </div>
                       </div>
                     </td>
-                    <td className="py-3 px-4 text-xs text-gray-600 dark:text-slate-400">{p.category?.name ?? "â€”"}</td>
+                    <td className="py-3 px-4 text-xs text-gray-600 dark:text-slate-400">{p.category?.name ?? "—"}</td>
                     <td className="py-3 px-4 font-bold text-xs text-gray-900 dark:text-white">{money(p.salePrice ?? p.price)}</td>
                     <td className="py-3 px-4">
                       <span className={`font-mono text-xs font-bold ${p.stock === 0 ? "text-rose-500" : p.stock < 20 ? "text-amber" : "text-emerald"}`}>{p.stock}</span>
@@ -2234,7 +2234,7 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
       body: JSON.stringify({ moveToCategoryId: moveToCategoryId ?? "" }),
     });
     if (res.ok) {
-      toast.success(moveToCategoryId ? "Category deleted Â· products moved" : "Category deleted");
+      toast.success(moveToCategoryId ? "Category deleted · products moved" : "Category deleted");
       load();
     } else {
       const data = await res.json().catch(() => ({}));
@@ -2318,9 +2318,9 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
               setDisplayDirty(true);
             }}
           >
-            <SelectItem key="grid">Grid â€” static cards</SelectItem>
-            <SelectItem key="carousel">Carousel â€” swipeable</SelectItem>
-            <SelectItem key="loop">Loop â€” auto-sliding carousel</SelectItem>
+            <SelectItem key="grid">Grid — static cards</SelectItem>
+            <SelectItem key="carousel">Carousel — swipeable</SelectItem>
+            <SelectItem key="loop">Loop — auto-sliding carousel</SelectItem>
           </Select>
           {(display.mode === "carousel" || display.mode === "loop") && (
             <Input
@@ -2341,7 +2341,7 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Input
               type="number"
-              label="Per view â€” mobile"
+              label="Per view — mobile"
               min={1}
               max={4}
               value={String(display.perView?.mobile ?? 1)}
@@ -2352,7 +2352,7 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
             />
             <Input
               type="number"
-              label="Per view â€” tablet"
+              label="Per view — tablet"
               min={1}
               max={5}
               value={String(display.perView?.tablet ?? 2)}
@@ -2363,7 +2363,7 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
             />
             <Input
               type="number"
-              label="Per view â€” desktop"
+              label="Per view — desktop"
               min={1}
               max={6}
               value={String(display.perView?.desktop ?? 4)}
@@ -2415,11 +2415,11 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
       {creating && (
         <form onSubmit={createCategory} className="p-5 bg-gray-50 dark:bg-white/4 rounded-xl border border-gray-200 dark:border-white/8 space-y-4">
           <Input label="Category Name" name="name" isRequired placeholder="e.g. T-Shirts, Men's Wear, Shoes..." />
-          <Input label="Slug (Optional â€“ auto-generated if empty)" name="slug" placeholder="e.g. t-shirts" />
+          <Input label="Slug (Optional – auto-generated if empty)" name="slug" placeholder="e.g. t-shirts" />
           <Select label="Parent Category (Optional)" aria-label="Parent category" selectedKeys={parentId ? [parentId] : []} onChange={(e) => setParentId(e.target.value)}>
             <>
               <SelectItem key="none" textValue="none">
-                â€” Top-level category (no parent) â€”
+                — Top-level category (no parent) —
               </SelectItem>
               {(categories.filter((c) => !c.parentId) ?? []).map((c) => (
                 <SelectItem key={c.id}>{c.name}</SelectItem>
@@ -2499,7 +2499,7 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
                       <>
                         <p className="font-display font-bold text-sm text-gray-900 dark:text-white">{cat.name}</p>
                         <p className="text-xs text-gray-400 dark:text-slate-500">
-                          /{cat.slug} Â· {subs.length} sub-categories Â· {cat._count?.products ?? 0} products
+                          /{cat.slug} · {subs.length} sub-categories · {cat._count?.products ?? 0} products
                         </p>
                       </>
                     )}
@@ -2534,9 +2534,9 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
                   <div className="px-5 pb-4 space-y-2">
                     {subs.map((sub) => (
                       <div key={sub.id} className="flex items-center gap-3 px-3 py-2.5 bg-gray-50 dark:bg-white/4 rounded-xl">
-                        <span className="text-xs text-primary font-bold">â†³</span>
+                        <span className="text-xs text-primary font-bold">↳</span>
                         <p className="flex-1 text-sm font-medium text-gray-700 dark:text-slate-300">{sub.name}</p>
-                        <p className="text-xs text-gray-400 dark:text-slate-500">/{sub.slug} Â· {sub._count?.products ?? 0}</p>
+                        <p className="text-xs text-gray-400 dark:text-slate-500">/{sub.slug} · {sub._count?.products ?? 0}</p>
                         <a
                           href={`/categories/${sub.slug}`}
                           target="_blank"
@@ -2570,9 +2570,9 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
           >
             <h4 className="font-display font-bold text-gray-900 dark:text-white text-base">Delete & Move Products</h4>
             <p className="mt-2 text-sm text-gray-500 dark:text-slate-400">
-              Category <strong className="text-gray-900 dark:text-white">â€œ{deleteTarget.name}â€</strong>-à¦{" "}
-              <strong className="text-gray-900 dark:text-white">{deleteTarget.productCount}à¦Ÿà¦¿ à¦ªà§à¦°à§‹à¦¡à¦¾à¦•à§à¦Ÿ</strong> à¦†à¦›à§‡à¥¤ à¦ªà§à¦°à§‹à¦¡à¦¾à¦•à§à¦Ÿà¦—à§à¦²à§‹ à¦•à§‹à¦¨ à¦•à§à¦¯à¦¾à¦Ÿà¦¾à¦—à¦°à¦¿à¦¤à§‡
-              à¦¸à¦°à¦¿à¦¯à¦¼à§‡ à¦¤à¦¾à¦°à¦ªà¦° à¦•à§à¦¯à¦¾à¦Ÿà¦¾à¦—à¦°à¦¿à¦Ÿà¦¾ à¦®à§à¦›à¦¬à§‡à¦¨ â€” à¦¸à§‡à¦Ÿà¦¾ à¦¬à§‡à¦›à§‡ à¦¨à¦¿à¦¨à¥¤
+              Category <strong className="text-gray-900 dark:text-white">“{deleteTarget.name}”</strong>-এ{" "}
+              <strong className="text-gray-900 dark:text-white">{deleteTarget.productCount}টি প্রোডাক্ট</strong> আছে। প্রোডাক্টগুলো কোন ক্যাটাগরিতে
+              সরিয়ে তারপর ক্যাটাগরিটা মুছবেন — সেটা বেছে নিন।
             </p>
             <div className="mt-4">
               <Select
@@ -2641,9 +2641,9 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
   async function updateStatus(id: string, status: string, paymentStatus: string) {
     const res = await api(`/api/admin/orders/${id}`, token, { method: "PATCH", body: JSON.stringify({ status, paymentStatus }) });
     if (res.ok) {
-      toast.success("à¦…à¦°à§à¦¡à¦¾à¦° à¦¸à§à¦Ÿà§à¦¯à¦¾à¦Ÿà¦¾à¦¸ à¦†à¦ªà¦¡à§‡à¦Ÿ à¦¹à¦¯à¦¼à§‡à¦›à§‡");
+      toast.success("অর্ডার স্ট্যাটাস আপডেট হয়েছে");
       load();
-    } else toast.error("à¦†à¦ªà¦¡à§‡à¦Ÿ à¦•à¦°à¦¾ à¦¯à¦¾à¦¯à¦¼à¦¨à¦¿");
+    } else toast.error("আপডেট করা যায়নি");
   }
 
   const courierPrefix: Record<string, string> = { steadfast: "ST", pathao: "PT", redx: "RX" };
@@ -2667,17 +2667,17 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
       const res = await api(`/api/admin/orders/${o.id}/send-steadfast`, token, { method: "POST" });
       const data = (await res.json().catch(() => ({}))) as { error?: string; consignment?: { tracking_code?: string } };
       if (res.ok) {
-        toast.success(`#${o.id.slice(0, 6)} â†’ Steadfast ${data.consignment?.tracking_code ?? ""}`);
+        toast.success(`#${o.id.slice(0, 6)} → Steadfast ${data.consignment?.tracking_code ?? ""}`);
         load();
-      } else toast.error(data.error || "Steadfast à¦ à¦ªà¦¾à¦ à¦¾à¦¨à§‹ à¦¯à¦¾à¦¯à¦¼à¦¨à¦¿");
+      } else toast.error(data.error || "Steadfast এ পাঠানো যায়নি");
       return;
     }
     const tracking = o.courierTrackingId || `${courierPrefix[c.key] ?? "PC"}-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
     const res = await api(`/api/admin/orders/${o.id}`, token, { method: "PATCH", body: JSON.stringify({ status: "IN_COURIER", courierName: c.label, courierTrackingId: tracking }) });
     if (res.ok) {
-      toast.success(`#${o.id.slice(0, 6)} â†’ ${c.label}`);
+      toast.success(`#${o.id.slice(0, 6)} → ${c.label}`);
       load();
-    } else toast.error("Sent à¦•à¦°à¦¾ à¦¯à¦¾à¦¯à¦¼à¦¨à¦¿");
+    } else toast.error("Sent করা যায়নি");
   }
 
   const columns = ["PENDING", "CONFIRMED", "IN_COURIER", "SHIPPED", "DELIVERED", "CANCELLED"];
@@ -2746,7 +2746,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
       if (res.ok) {
         toast.success(`Status: ${sfStatusLabel[data.delivery_status ?? ""] ?? data.delivery_status}`);
         load();
-      } else toast.error(data.error || "Sync à¦•à¦°à¦¾ à¦¯à¦¾à¦¯à¦¼à¦¨à¦¿");
+      } else toast.error(data.error || "Sync করা যায়নি");
     } finally {
       setSyncing(null);
     }
@@ -2760,7 +2760,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
       if (res.ok) {
         toast.success(`${data.synced ?? 0} parcels synced`);
         load();
-      } else toast.error(data.error || "Sync à¦•à¦°à¦¾ à¦¯à¦¾à¦¯à¦¼à¦¨à¦¿");
+      } else toast.error(data.error || "Sync করা যায়নি");
     } finally {
       setSyncingAll(false);
     }
@@ -2772,7 +2772,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
       const res = await api("/api/admin/steadfast/balance", token);
       const data = (await res.json().catch(() => ({}))) as { error?: string; balance?: number };
       if (res.ok && typeof data.balance === "number") setSfBalance(data.balance);
-      else toast.error(data.error || "Balance load à¦•à¦°à¦¾ à¦¯à¦¾à¦¯à¦¼à¦¨à¦¿");
+      else toast.error(data.error || "Balance load করা যায়নি");
     } finally {
       setLoadingBal(false);
     }
@@ -2782,7 +2782,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
     const sd = o.shippingDetails ?? {};
     const items = o.orderItems ?? [];
     const win = window.open("", "_blank", "width=480,height=640");
-    if (!win) return toast.error("Browser popup à¦¬à§à¦²à¦• à¦•à¦°à¦›à§‡");
+    if (!win) return toast.error("Browser popup ব্লক করছে");
     const row = (l: string, r: string) => `<tr><td style="padding:3px 0;color:#444">${l}</td><td style="padding:3px 0;text-align:right;font-weight:700">${r}</td></tr>`;
     const itemRows = items.map((it) => `<tr><td style="padding:2px 0;font-size:12px">${it.name}</td><td style="padding:2px 0;font-size:12px;text-align:right">${it.qty} x ${money(it.price)}</td></tr>`).join("");
     const isSf = o.courierName?.toLowerCase() === "steadfast";
@@ -2806,9 +2806,9 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
       <table><tr><td style="padding:3px 0"></td><td style="padding:3px 0"></td></tr>${row("Subtotal", money(o.subtotal ?? o.totalAmount))}${Number(o.shippingCharge) ? row("Shipping", money(o.shippingCharge ?? 0)) : ""}${row("Total", money(o.totalAmount))}</table>
       <div class="dashed"></div>
       <div style="text-align:center;font-size:11px">Address: ${sd.address ?? ""}, ${sd.district ?? ""}</div>
-      ${o.courierName ? `<div class="dashed"></div><div style="text-align:center"><b>${o.courierName}</b></div>${invoiceRef.startsWith("SF-") ? `<div class="c" style="font-size:11px;margin-top:3px">Consignment ID: <span class="big">${sfRef}</span></div>` : ""}<div class="c" style="margin-top:2px"><span style="font-size:11px">Delivery Status: </span> <span class="big">${o.shippingDetails?.sfStatus ? (sfStatusLabel[o.shippingDetails.sfStatus] ?? o.shippingDetails.sfStatus) : "â€”"}</span></div>` : ""}
+      ${o.courierName ? `<div class="dashed"></div><div style="text-align:center"><b>${o.courierName}</b></div>${invoiceRef.startsWith("SF-") ? `<div class="c" style="font-size:11px;margin-top:3px">Consignment ID: <span class="big">${sfRef}</span></div>` : ""}<div class="c" style="margin-top:2px"><span style="font-size:11px">Delivery Status: </span> <span class="big">${o.shippingDetails?.sfStatus ? (sfStatusLabel[o.shippingDetails.sfStatus] ?? o.shippingDetails.sfStatus) : "—"}</span></div>` : ""}
       <div class="dashed"></div>
-      <div style="text-align:center">à¦§à¦¨à§à¦¯à¦¬à¦¾à¦¦!</div>
+      <div style="text-align:center">ধন্যবাদ!</div>
     </body></html>`);
     win.document.close();
     win.focus();
@@ -2827,7 +2827,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
                 view === v ? "bg-white dark:bg-[#1a1a2e] text-gray-900 dark:text-white shadow-sm" : "text-gray-400 dark:text-slate-500"
               }`}
             >
-              {v === "kanban" ? "âŠž Kanban" : "â‰¡ Table"}
+              {v === "kanban" ? "⊞ Kanban" : "≡ Table"}
             </button>
           ))}
           <span className="px-3 py-1.5 text-xs font-semibold text-gray-400 dark:text-slate-500 self-center">{orders.length} orders</span>
@@ -2841,12 +2841,12 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
               <div
                 onClick={() => sfBalance === null && !loadingBal && fetchSfBalance()}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white dark:bg-white/4 border border-gray-100 dark:border-white/6 text-gray-600 dark:text-slate-300 cursor-pointer"
-                title="SteadFast à¦à¦•à¦¾à¦‰à¦¨à§à¦Ÿ à¦¬à§à¦¯à¦¾à¦²à§‡à¦¨à§à¦¸ (à¦•à§à¦²à¦¿à¦• à¦•à¦°à§‡ load à¦•à¦°à§à¦¨)"
+                title="SteadFast একাউন্ট ব্যালেন্স (ক্লিক করে load করুন)"
               >
                 <FiBox size={12} className="text-primary" />
                 <span>SF Balance</span>
                 <span className="font-mono font-bold text-gray-900 dark:text-white">
-                  {loadingBal ? <FiRefreshCw size={12} className="animate-spin" /> : sfBalance !== null ? (sfBalVisible ? money(sfBalance) : "à§³ â€¢â€¢â€¢") : "â€”"}
+                  {loadingBal ? <FiRefreshCw size={12} className="animate-spin" /> : sfBalance !== null ? (sfBalVisible ? money(sfBalance) : "৳ •••") : "—"}
                 </span>
                 <button
                   onClick={(e) => {
@@ -2854,7 +2854,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
                     setSfBalVisible((v) => !v);
                   }}
                   className="ml-0.5 flex items-center justify-center w-4 h-4 rounded hover:bg-gray-100 dark:hover:bg-white/10"
-                  title={sfBalVisible ? "à¦¬à§à¦¯à¦¾à¦²à§‡à¦¨à§à¦¸ à¦²à§à¦•à¦¾à¦¨" : "à¦¬à§à¦¯à¦¾à¦²à§‡à¦¨à§à¦¸ à¦¦à§‡à¦–à§à¦¨"}
+                  title={sfBalVisible ? "ব্যালেন্স লুকান" : "ব্যালেন্স দেখুন"}
                 >
                   {sfBalVisible ? <FiEyeOff size={12} /> : <FiEye size={12} />}
                 </button>
@@ -2871,7 +2871,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
       >
         <span className="flex-1 text-left">Dashboard info & courier parcels</span>
         <span>{showInfo ? "Hide" : "Show"}</span>
-        <span className={`transition-transform ${showInfo ? "" : "rotate-180"}`}>â–¾</span>
+        <span className={`transition-transform ${showInfo ? "" : "rotate-180"}`}>▾</span>
       </button>
       {showInfo && (
         <>
@@ -2912,7 +2912,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
               <div className="min-w-0">
                 <h3 className="font-display font-bold text-gray-900 dark:text-white text-sm">Courier Parcels</h3>
                 <p className="text-xs text-gray-400 dark:text-slate-500 truncate">
-                  {allParcels.length} parcels sent Â· {money(courierTotalAmount)} total value
+                  {allParcels.length} parcels sent · {money(courierTotalAmount)} total value
                 </p>
               </div>
             </div>
@@ -2977,7 +2977,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
                           <tr key={o.id}>
                             <td className="py-2.5 px-4 text-xs text-primary font-bold whitespace-nowrap">#{o.id.slice(0, 8)}</td>
                             <td className="py-2.5 px-4 text-xs text-gray-700 dark:text-slate-300">{o.shippingDetails?.name ?? "Guest"}</td>
-                            <td className="py-2.5 px-4 text-xs text-gray-500">{o.courierTrackingId || "â€”"}</td>
+                            <td className="py-2.5 px-4 text-xs text-gray-500">{o.courierTrackingId || "—"}</td>
                             <td className="py-2.5 px-4 text-xs text-gray-500">
                               {o.courierName?.toLowerCase() === "steadfast" ? (
                                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold inline-flex items-center gap-1 ${sfStatusStyle[o.shippingDetails?.sfStatus ?? ""] ?? "bg-gray-100 dark:bg-white/8 text-gray-500"}`}>
@@ -2987,7 +2987,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
                                   </button>
                                 </span>
                               ) : (
-                                <span className="text-xs text-gray-400">â€”</span>
+                                <span className="text-xs text-gray-400">—</span>
                               )}
                             </td>
                             <td className="py-2.5 px-4 font-bold text-xs text-gray-800 dark:text-slate-200">{money(o.totalAmount)}</td>
@@ -3225,7 +3225,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
                 </span>
                 {detail.courierName && (
                   <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-indigo-500/10 text-indigo-500">
-                    {detail.courierName}{detail.courierTrackingId ? ` Â· ${detail.courierTrackingId}` : ""}
+                    {detail.courierName}{detail.courierTrackingId ? ` · ${detail.courierTrackingId}` : ""}
                   </span>
                 )}
               </div>
@@ -3234,12 +3234,12 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
                 <p className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-slate-500 mb-3">Customer Details</p>
                 <div className="grid grid-cols-1 gap-2 text-xs">
                   <p className="flex items-center gap-2 text-gray-800 dark:text-slate-200 font-semibold"><FiUser className="text-primary" /> {detail.shippingDetails?.name ?? "Guest"}</p>
-                  <p className="flex items-center gap-2 text-gray-700 dark:text-slate-300"><FiPhone className="text-primary" /> {detail.shippingDetails?.phone ?? "â€”"}</p>
-                  <p className="flex items-center gap-2 text-gray-700 dark:text-slate-300"><FiMail className="text-primary" /> {detail.shippingDetails?.email || "â€”"}</p>
+                  <p className="flex items-center gap-2 text-gray-700 dark:text-slate-300"><FiPhone className="text-primary" /> {detail.shippingDetails?.phone ?? "—"}</p>
+                  <p className="flex items-center gap-2 text-gray-700 dark:text-slate-300"><FiMail className="text-primary" /> {detail.shippingDetails?.email || "—"}</p>
                   <p className="flex items-start gap-2 text-gray-700 dark:text-slate-300">
                     <FiTruck className="text-primary mt-0.5 shrink-0" />
                     <span>
-                      {[detail.shippingDetails?.address, detail.shippingDetails?.district, detail.shippingDetails?.division].filter(Boolean).join(", ") || "â€”"}
+                      {[detail.shippingDetails?.address, detail.shippingDetails?.district, detail.shippingDetails?.division].filter(Boolean).join(", ") || "—"}
                     </span>
                   </p>
                 </div>
@@ -3251,7 +3251,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
                   {(detail.orderItems ?? []).map((item, i) => (
                     <div key={i} className="flex items-center justify-between gap-3 text-xs">
                       <span className="text-gray-800 dark:text-slate-200">
-                        {item.name} <span className="text-gray-400">Ã— {item.qty}</span>
+                        {item.name} <span className="text-gray-400">× {item.qty}</span>
                         {item.sku && <span className="ml-2 font-mono text-[10px] text-gray-400">{item.sku}</span>}
                       </span>
                       <strong className="whitespace-nowrap text-gray-900 dark:text-white">{money(Number(item.price) * Number(item.qty))}</strong>
@@ -3412,7 +3412,7 @@ function AdminCoupons({ token }: { token: string }) {
             <div>
               <strong className="font-mono font-bold text-sm text-gray-900 dark:text-white">{c.code}</strong>
               <div className="text-xs text-gray-400 dark:text-slate-500">
-                {c.type === "PERCENTAGE" ? `${c.value}% OFF` : `à§³ ${c.value} OFF`} Â· Used: {c.usedCount} times
+                {c.type === "PERCENTAGE" ? `${c.value}% OFF` : `৳ ${c.value} OFF`} · Used: {c.usedCount} times
               </div>
             </div>
             <button
@@ -3478,7 +3478,7 @@ function AdminReviews({ token }: { token: string }) {
             {r.comment && <p className="mt-2 text-sm text-gray-600 dark:text-slate-400">"{r.comment}"</p>}
             <div className="flex items-center gap-2 mt-3">
               <Button size="sm" color={r.isApproved ? "success" : "default"} variant={r.isApproved ? "solid" : "flat"} onPress={() => toggleApprove(r.id, r.isApproved)}>
-                {r.isApproved ? "Approved âœ“" : "Pending Moderation"}
+                {r.isApproved ? "Approved ✓" : "Pending Moderation"}
               </Button>
               <Button size="sm" color="danger" variant="flat" onPress={() => deleteReview(r.id)}>
                 Delete
@@ -3569,7 +3569,7 @@ function AdminStaff({ token }: { token: string }) {
               </div>
               <div>
                 <strong className="text-sm text-gray-900 dark:text-white">{s.name}</strong>
-                <div className="text-xs text-gray-400 dark:text-slate-500">{s.email} Â· {s.staffType}</div>
+                <div className="text-xs text-gray-400 dark:text-slate-500">{s.email} · {s.staffType}</div>
               </div>
             </div>
             <button
@@ -3629,14 +3629,14 @@ function MarketingChatSettings({ config, save, saving }: { config: Config; save:
             </label>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input label="WhatsApp Number" name="waNumber" defaultValue={chat.whatsapp?.number} placeholder="8801712345678" description="à¦¯à§‡à¦•à§‹à¦¨à§‹ à¦«à¦°à¦®à§à¦¯à¦¾à¦Ÿà§‡ à¦¦à¦¿à¦¨ (017..., +880..., 880...) â€” à¦¨à¦¿à¦œà§‡à¦‡ à¦¸à¦ à¦¿à¦• à¦¹à¦¬à§‡" />
+            <Input label="WhatsApp Number" name="waNumber" defaultValue={chat.whatsapp?.number} placeholder="8801712345678" description="যেকোনো ফরম্যাটে দিন (017..., +880..., 880...) — নিজেই সঠিক হবে" />
             <Input label="WhatsApp Message Template" name="waTemplate" defaultValue={chat.whatsapp?.template} placeholder="Hello, I want to order..." />
             <Input label="Facebook Messenger Page URL" name="messengerUrl" defaultValue={chat.messenger?.url} placeholder="https://m.me/yourpage" />
             <Input label="Support Phone Number" name="phone" defaultValue={chat.phone} placeholder="01712345678" />
           </div>
         </div>
         <button type="submit" className="mt-6 px-5 h-10 bg-primary text-white text-sm font-bold font-display rounded-xl hover:bg-primary-dark transition-colors">
-          {saving ? "Savingâ€¦" : "Save Marketing & Chat Settings"}
+          {saving ? "Saving…" : "Save Marketing & Chat Settings"}
         </button>
       </form>
     </div>
@@ -3956,7 +3956,7 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
             disabled={saving}
             className="flex items-center gap-2 px-4 h-9 bg-primary text-white text-sm font-bold rounded-xl hover:bg-primary-dark transition-all disabled:opacity-60 shadow-sm"
           >
-            {saving ? "Savingâ€¦" : "Save Layout"}
+            {saving ? "Saving…" : "Save Layout"}
           </button>
         </div>
         <div className="space-y-3">
@@ -4005,13 +4005,13 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Input label="Badge" placeholder="à¦¬à¦¿à¦¶à§‡à¦· à¦•à¦¾à¦²à§‡à¦•à¦¶à¦¨" value={p.badge ?? ""} onValueChange={(v) => { setPromos((prev) => prev.map((b, bi) => (bi === i ? { ...b, badge: v } : b))); setPromosDirty(true); }} />
-              <Input label="Accent (highlighted text)" placeholder="à¦à¦¤à¦¿à¦¹à§à¦¯à§‡à¦° à¦›à§‹à¦à¦¯à¦¼à¦¾" value={p.accent ?? ""} onValueChange={(v) => { setPromos((prev) => prev.map((b, bi) => (bi === i ? { ...b, accent: v } : b))); setPromosDirty(true); }} />
-              <Input label="Title" placeholder="à¦ˆà¦¦à§‡ à¦ªà¦°à§à¦¨" value={p.title ?? ""} onValueChange={(v) => { setPromos((prev) => prev.map((b, bi) => (bi === i ? { ...b, title: v } : b))); setPromosDirty(true); }} className="sm:col-span-2" />
-              <Input label="Subtitle" placeholder="à¦¬à¦¿à¦¶à§‡à¦· à¦¡à¦¿à¦œà¦¾à¦‡à¦¨à§‡à¦° à¦ªà¦£à§à¦¯ à¦à¦–à¦¨ à¦†à¦ªà¦¨à¦¾à¦° à¦œà¦¨à§à¦¯" value={p.subtitle ?? ""} onValueChange={(v) => { setPromos((prev) => prev.map((b, bi) => (bi === i ? { ...b, subtitle: v } : b))); setPromosDirty(true); }} className="sm:col-span-2" />
-              <Input label="Button label" placeholder="à¦•à¦¾à¦²à§‡à¦•à¦¶à¦¨ à¦¦à§‡à¦–à§à¦¨ â†’" value={p.buttonLabel ?? ""} onValueChange={(v) => { setPromos((prev) => prev.map((b, bi) => (bi === i ? { ...b, buttonLabel: v } : b))); setPromosDirty(true); }} />
+              <Input label="Badge" placeholder="বিশেষ কালেকশন" value={p.badge ?? ""} onValueChange={(v) => { setPromos((prev) => prev.map((b, bi) => (bi === i ? { ...b, badge: v } : b))); setPromosDirty(true); }} />
+              <Input label="Accent (highlighted text)" placeholder="ঐতিহ্যের ছোঁয়া" value={p.accent ?? ""} onValueChange={(v) => { setPromos((prev) => prev.map((b, bi) => (bi === i ? { ...b, accent: v } : b))); setPromosDirty(true); }} />
+              <Input label="Title" placeholder="ঈদে পরুন" value={p.title ?? ""} onValueChange={(v) => { setPromos((prev) => prev.map((b, bi) => (bi === i ? { ...b, title: v } : b))); setPromosDirty(true); }} className="sm:col-span-2" />
+              <Input label="Subtitle" placeholder="বিশেষ ডিজাইনের পণ্য এখন আপনার জন্য" value={p.subtitle ?? ""} onValueChange={(v) => { setPromos((prev) => prev.map((b, bi) => (bi === i ? { ...b, subtitle: v } : b))); setPromosDirty(true); }} className="sm:col-span-2" />
+              <Input label="Button label" placeholder="কালেকশন দেখুন →" value={p.buttonLabel ?? ""} onValueChange={(v) => { setPromos((prev) => prev.map((b, bi) => (bi === i ? { ...b, buttonLabel: v } : b))); setPromosDirty(true); }} />
               <Input label="Button link" placeholder="#shop" value={p.buttonLink ?? ""} onValueChange={(v) => { setPromos((prev) => prev.map((b, bi) => (bi === i ? { ...b, buttonLink: v } : b))); setPromosDirty(true); }} />
-              <Input label="Image URL" placeholder="https://â€¦" value={p.image ?? ""} onValueChange={(v) => { setPromos((prev) => prev.map((b, bi) => (bi === i ? { ...b, image: v } : b))); setPromosDirty(true); }} className="sm:col-span-2" />
+              <Input label="Image URL" placeholder="https://…" value={p.image ?? ""} onValueChange={(v) => { setPromos((prev) => prev.map((b, bi) => (bi === i ? { ...b, image: v } : b))); setPromosDirty(true); }} className="sm:col-span-2" />
               {p.image && (
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img src={p.image} alt="" className="h-24 w-36 object-cover rounded-lg border border-gray-100" />
@@ -4068,8 +4068,8 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
                 <SelectItem key="headset">Headset</SelectItem>
                 <SelectItem key="chat">Chat</SelectItem>
               </Select>
-              <Input label="Title" placeholder="à¦¨à¦¿à¦°à¦¾à¦ªà¦¦ à¦ªà§‡à¦®à§‡à¦¨à§à¦Ÿ" value={t.title ?? ""} onValueChange={(v) => { setTrust((prev) => prev.map((b, bi) => (bi === i ? { ...b, title: v } : b))); setTrustDirty(true); }} />
-              <Input label="Subtitle" placeholder="à¦•à§à¦¯à¦¾à¦¶ à¦…à¦¨ à¦¡à§‡à¦²à¦¿à¦­à¦¾à¦°à¦¿ / à¦¬à¦¿à¦•à¦¾à¦¶ / à¦¬à§à¦¯à¦¾à¦‚à¦•" value={t.subtitle ?? ""} onValueChange={(v) => { setTrust((prev) => prev.map((b, bi) => (bi === i ? { ...b, subtitle: v } : b))); setTrustDirty(true); }} />
+              <Input label="Title" placeholder="নিরাপদ পেমেন্ট" value={t.title ?? ""} onValueChange={(v) => { setTrust((prev) => prev.map((b, bi) => (bi === i ? { ...b, title: v } : b))); setTrustDirty(true); }} />
+              <Input label="Subtitle" placeholder="ক্যাশ অন ডেলিভারি / বিকাশ / ব্যাংক" value={t.subtitle ?? ""} onValueChange={(v) => { setTrust((prev) => prev.map((b, bi) => (bi === i ? { ...b, subtitle: v } : b))); setTrustDirty(true); }} />
             </div>
           </div>
         ))}
@@ -4157,7 +4157,7 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input label="Eyebrow" placeholder="CUSTOMER CHRONICLES" value={testimonials.eyebrow ?? ""} onValueChange={(v) => { setTestimonials((t) => ({ ...t, eyebrow: v })); setTestimonialsDirty(true); }} />
-          <Input label="Subtitle" placeholder="Real stories from customersâ€¦" value={testimonials.subtitle ?? ""} onValueChange={(v) => { setTestimonials((t) => ({ ...t, subtitle: v })); setTestimonialsDirty(true); }} />
+          <Input label="Subtitle" placeholder="Real stories from customers…" value={testimonials.subtitle ?? ""} onValueChange={(v) => { setTestimonials((t) => ({ ...t, subtitle: v })); setTestimonialsDirty(true); }} />
           <Input label="Title" placeholder="Loved by" value={testimonials.title ?? ""} onValueChange={(v) => { setTestimonials((t) => ({ ...t, title: v })); setTestimonialsDirty(true); }} />
           <Input label="Accent (highlighted)" placeholder="thousands." value={testimonials.accent ?? ""} onValueChange={(v) => { setTestimonials((t) => ({ ...t, accent: v })); setTestimonialsDirty(true); }} />
         </div>
@@ -4213,9 +4213,9 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
               <Input label="Name" placeholder="Tasnim Mahbub" value={item.name ?? ""} onValueChange={(v) => { setTestimonials((t) => ({ ...t, items: (t.items ?? []).map((x, xi) => (xi === i ? { ...x, name: v } : x)) })); setTestimonialsDirty(true); }} />
               <Input label="Initials" placeholder="TM" value={item.init ?? ""} onValueChange={(v) => { setTestimonials((t) => ({ ...t, items: (t.items ?? []).map((x, xi) => (xi === i ? { ...x, init: v } : x)) })); setTestimonialsDirty(true); }} />
-              <Input label="Role" placeholder="Verified Buyer â€¢ Dhaka" value={item.role ?? ""} onValueChange={(v) => { setTestimonials((t) => ({ ...t, items: (t.items ?? []).map((x, xi) => (xi === i ? { ...x, role: v } : x)) })); setTestimonialsDirty(true); }} />
+              <Input label="Role" placeholder="Verified Buyer • Dhaka" value={item.role ?? ""} onValueChange={(v) => { setTestimonials((t) => ({ ...t, items: (t.items ?? []).map((x, xi) => (xi === i ? { ...x, role: v } : x)) })); setTestimonialsDirty(true); }} />
               <div className="min-w-0">
-                <label className="text-xs font-semibold text-gray-500 dark:text-slate-400 block mb-1.5">Rating (1â€“5)</label>
+                <label className="text-xs font-semibold text-gray-500 dark:text-slate-400 block mb-1.5">Rating (1–5)</label>
                 <input
                   type="number"
                   min={1}
@@ -4225,7 +4225,7 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
                   className="h-10 w-full rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 px-3 text-sm outline-none focus:border-primary/50"
                 />
               </div>
-              <Textarea label="Quote" placeholder="The product felt premiumâ€¦" value={item.quote ?? ""} onValueChange={(v) => { setTestimonials((t) => ({ ...t, items: (t.items ?? []).map((x, xi) => (xi === i ? { ...x, quote: v } : x)) })); setTestimonialsDirty(true); }} className="sm:col-span-4" />
+              <Textarea label="Quote" placeholder="The product felt premium…" value={item.quote ?? ""} onValueChange={(v) => { setTestimonials((t) => ({ ...t, items: (t.items ?? []).map((x, xi) => (xi === i ? { ...x, quote: v } : x)) })); setTestimonialsDirty(true); }} className="sm:col-span-4" />
             </div>
           </div>
         ))}
@@ -4270,10 +4270,10 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
           <Input label="Badge pill" placeholder="Exclusive drops" value={newsletter.badge ?? ""} onValueChange={(v) => { setNewsletter((n) => ({ ...n, badge: v })); setNewsletterDirty(true); }} />
           <Input label="Title" placeholder="Private sale" value={newsletter.title ?? ""} onValueChange={(v) => { setNewsletter((n) => ({ ...n, title: v })); setNewsletterDirty(true); }} />
           <Input label="Accent (highlighted)" placeholder="alerts & offers." value={newsletter.accent ?? ""} onValueChange={(v) => { setNewsletter((n) => ({ ...n, accent: v })); setNewsletterDirty(true); }} />
-          <Input label="Placeholder" placeholder="Enter your emailâ€¦" value={newsletter.placeholder ?? ""} onValueChange={(v) => { setNewsletter((n) => ({ ...n, placeholder: v })); setNewsletterDirty(true); }} />
+          <Input label="Placeholder" placeholder="Enter your email…" value={newsletter.placeholder ?? ""} onValueChange={(v) => { setNewsletter((n) => ({ ...n, placeholder: v })); setNewsletterDirty(true); }} />
           <Input label="Button text" placeholder="Subscribe" value={newsletter.button ?? ""} onValueChange={(v) => { setNewsletter((n) => ({ ...n, button: v })); setNewsletterDirty(true); }} />
           <Input label="Note (below form)" placeholder="No spam. One-click unsubscribe anytime." value={newsletter.note ?? ""} onValueChange={(v) => { setNewsletter((n) => ({ ...n, note: v })); setNewsletterDirty(true); }} />
-          <Textarea label="Subtitle" placeholder="Early access to limited dropsâ€¦" value={newsletter.subtitle ?? ""} onValueChange={(v) => { setNewsletter((n) => ({ ...n, subtitle: v })); setNewsletterDirty(true); }} className="sm:col-span-2" />
+          <Textarea label="Subtitle" placeholder="Early access to limited drops…" value={newsletter.subtitle ?? ""} onValueChange={(v) => { setNewsletter((n) => ({ ...n, subtitle: v })); setNewsletterDirty(true); }} className="sm:col-span-2" />
         </div>
       </div>
 
@@ -4303,11 +4303,11 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
             )}
           </div>
         </div>
-        <Input label="Copyright text" placeholder="Â© 2026 EPIC Store. Everyday premium essentials from Bangladesh." value={footer.copyright ?? ""} onValueChange={(v) => { setFooter((f) => ({ ...f, copyright: v })); setFooterDirty(true); }} />
+        <Input label="Copyright text" placeholder="© 2026 EPIC Store. Everyday premium essentials from Bangladesh." value={footer.copyright ?? ""} onValueChange={(v) => { setFooter((f) => ({ ...f, copyright: v })); setFooterDirty(true); }} />
         {(footer.links ?? []).map((l, i) => (
           <div key={i} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-3">
             <Input label="Label" placeholder="Privacy Notice" value={l.label ?? ""} onValueChange={(v) => { setFooter((f) => ({ ...f, links: (f.links ?? []).map((x, xi) => (xi === i ? { ...x, label: v } : x)) })); setFooterDirty(true); }} />
-            <Input label="URL" placeholder="/ or #shop or https://â€¦" value={l.url ?? ""} onValueChange={(v) => { setFooter((f) => ({ ...f, links: (f.links ?? []).map((x, xi) => (xi === i ? { ...x, url: v } : x)) })); setFooterDirty(true); }} />
+            <Input label="URL" placeholder="/ or #shop or https://…" value={l.url ?? ""} onValueChange={(v) => { setFooter((f) => ({ ...f, links: (f.links ?? []).map((x, xi) => (xi === i ? { ...x, url: v } : x)) })); setFooterDirty(true); }} />
             <div className="flex items-end pb-1">
               <button
                 type="button"
@@ -4341,7 +4341,7 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
 
       {sections.length === 0 && (
         <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-8 text-center text-sm text-gray-400">
-          No custom sections yet. Click â€œAdd Sectionâ€ â€” otherwise the storefront shows one carousel per category.
+          No custom sections yet. Click “Add Section” — otherwise the storefront shows one carousel per category.
         </div>
       )}
 
@@ -4374,8 +4374,8 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
           <div>
             <Select
               label="Categories (one or more)"
-              placeholder="Search and select categoriesâ€¦"
-              description="Pick one category to show only those products â€” or pick several to combine them in this section."
+              placeholder="Search and select categories…"
+              description="Pick one category to show only those products — or pick several to combine them in this section."
               selectionMode="multiple"
               selectedKeys={s.categoryIds}
               onSelectionChange={(keys) => update(s.id, { categoryIds: Array.from(keys as Set<string>) })}
@@ -4419,7 +4419,7 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
           </div>
 
           <Switch isSelected={s.showViewAll} onValueChange={(v) => update(s.id, { showViewAll: v })} color="primary">
-            Show â€œView Allâ€ link
+            Show “View All” link
           </Switch>
         </div>
       ))}
@@ -4429,7 +4429,7 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
         onClick={submit}
         className="px-5 h-10 bg-primary text-white text-sm font-bold font-display rounded-xl hover:bg-primary-dark transition-colors"
       >
-        {saving ? "Savingâ€¦" : "Save Home Layout"}
+        {saving ? "Saving…" : "Save Home Layout"}
       </button>
     </div>
   );
@@ -4506,7 +4506,7 @@ function PaymentSettings({ save, saving, config }: { save: (payload: object) => 
       </GatewayCard>
 
       <button type="submit" className="px-5 h-10 bg-primary text-white text-sm font-bold font-display rounded-xl hover:bg-primary-dark transition-colors">
-        {saving ? "Savingâ€¦" : "Save Payment Settings"}
+        {saving ? "Saving…" : "Save Payment Settings"}
       </button>
     </form>
   );
@@ -4519,7 +4519,7 @@ function BannerSettings({ save, saving, config, token }: { save: (payload: objec
   const [announceText, setAnnounceText] = useState(current.announceText ?? "");
   const [pillEnabled, setPillEnabled] = useState(current.trendingPill?.enabled !== false);
   const [pillTop, setPillTop] = useState(current.trendingPill?.topText ?? "Trending Item");
-  const [pillBottom, setPillBottom] = useState(current.trendingPill?.bottomText ?? "Rated 4.9 â˜… by customers");
+  const [pillBottom, setPillBottom] = useState(current.trendingPill?.bottomText ?? "Rated 4.9 ★ by customers");
   const [announceBadge, setAnnounceBadge] = useState(current.announceBadge ?? "Festive Drop 2026");
   const [announceLinkLabel, setAnnounceLinkLabel] = useState(current.announceLinkLabel ?? "Explore Drops");
   const [announceLink, setAnnounceLink] = useState(current.announceLink ?? "#categories");
@@ -4678,7 +4678,7 @@ function BannerSettings({ save, saving, config, token }: { save: (payload: objec
           </div>
           <Switch isSelected={enabled} onValueChange={setEnabled} color="primary" />
         </div>
-        <Input label="Top announcement text" placeholder="e.g. à¦ˆà¦¦ à¦“ à¦‰à§Žà¦¸à¦¬ à¦•à¦¾à¦²à§‡à¦•à¦¶à¦¨â€¦" value={announceText} onValueChange={setAnnounceText} description="The message shown above the header." />
+        <Input label="Top announcement text" placeholder="e.g. ঈদ ও উৎসব কালেকশন…" value={announceText} onValueChange={setAnnounceText} description="The message shown above the header." />
         {announceText && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2">
             <Input label="Badge pill text" placeholder="Festive Drop 2026" value={announceBadge} onValueChange={setAnnounceBadge} />
@@ -4707,7 +4707,7 @@ function BannerSettings({ save, saving, config, token }: { save: (payload: objec
           {pillEnabled && (
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input label="Top line" placeholder="e.g. Trending Item" value={pillTop} onValueChange={setPillTop} />
-              <Input label="Bottom line" placeholder="e.g. Rated 4.9 â˜… by customers" value={pillBottom} onValueChange={setPillBottom} />
+              <Input label="Bottom line" placeholder="e.g. Rated 4.9 ★ by customers" value={pillBottom} onValueChange={setPillBottom} />
             </div>
           )}
         </div>
@@ -4738,7 +4738,7 @@ function BannerSettings({ save, saving, config, token }: { save: (payload: objec
             <div className="space-y-2">
               <label className="flex items-center gap-2 px-4 h-10 bg-gray-900 dark:bg-white/10 text-white text-xs font-bold rounded-xl cursor-pointer hover:bg-gray-700 transition-colors">
                 <FiBox size={14} />
-                {slide.uploading ? "Uploadingâ€¦" : "Upload Image"}
+                {slide.uploading ? "Uploading…" : "Upload Image"}
                 <input type="file" accept="image/*" className="hidden" onChange={(e) => handleUpload(slide.id, e)} disabled={slide.uploading} />
               </label>
               {slide.image && (
@@ -4750,12 +4750,12 @@ function BannerSettings({ save, saving, config, token }: { save: (payload: objec
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input label="Badge" placeholder="e.g. à¦¨à¦¤à§à¦¨ à¦•à¦¾à¦²à§‡à¦•à¦¶à¦¨" value={slide.badge} onValueChange={(v) => updateSlide(slide.id, { badge: v })} />
+            <Input label="Badge" placeholder="e.g. নতুন কালেকশন" value={slide.badge} onValueChange={(v) => updateSlide(slide.id, { badge: v })} />
             <Input label="Title (first line)" placeholder="Objects for" value={slide.title} onValueChange={(v) => updateSlide(slide.id, { title: v })} />
             <Input className="sm:col-span-2" label="Title (accent line)" placeholder="a softer daily life." value={slide.accent} onValueChange={(v) => updateSlide(slide.id, { accent: v })} />
-            <Textarea className="sm:col-span-2" label="Subtitle" minRows={2} placeholder="Thoughtfully curated premium piecesâ€¦" value={slide.subtitle} onValueChange={(v) => updateSlide(slide.id, { subtitle: v })} />
+            <Textarea className="sm:col-span-2" label="Subtitle" minRows={2} placeholder="Thoughtfully curated premium pieces…" value={slide.subtitle} onValueChange={(v) => updateSlide(slide.id, { subtitle: v })} />
             <Input label="Primary button text" placeholder="Explore Collection" value={slide.buttonLabel} onValueChange={(v) => updateSlide(slide.id, { buttonLabel: v })} />
-            <Input label="Primary button link" placeholder="#shop or /products/slug or https://â€¦" value={slide.buttonLink} onValueChange={(v) => updateSlide(slide.id, { buttonLink: v })} />
+            <Input label="Primary button link" placeholder="#shop or /products/slug or https://…" value={slide.buttonLink} onValueChange={(v) => updateSlide(slide.id, { buttonLink: v })} />
             <Input label="Secondary button text" placeholder="Shop by Category" value={slide.secondaryLabel} onValueChange={(v) => updateSlide(slide.id, { secondaryLabel: v })} />
             <Input label="Secondary button link" placeholder="#categories" value={slide.secondaryLink} onValueChange={(v) => updateSlide(slide.id, { secondaryLink: v })} />
           </div>
@@ -4776,7 +4776,7 @@ function BannerSettings({ save, saving, config, token }: { save: (payload: objec
           onClick={submit}
           className="px-5 h-10 bg-primary text-white text-sm font-bold font-display rounded-xl hover:bg-primary-dark transition-colors"
         >
-          {saving ? "Savingâ€¦" : "Save Hero Banners"}
+          {saving ? "Saving…" : "Save Hero Banners"}
         </button>
         {!enabled && <span className="text-xs text-gray-400">Hero banner is currently hidden.</span>}
         <span className="text-xs text-gray-400">{slides.length} banner{slides.length !== 1 ? "s" : ""}</span>
@@ -4889,7 +4889,7 @@ function DeliverySettings({ save, saving, config, token }: { save: (payload: obj
       </div>
 
       <button type="submit" className="px-5 h-10 bg-primary text-white text-sm font-bold font-display rounded-xl hover:bg-primary-dark transition-colors">
-        {saving ? "Savingâ€¦" : "Save Delivery Settings"}
+        {saving ? "Saving…" : "Save Delivery Settings"}
       </button>
     </form>
   );
@@ -4929,7 +4929,7 @@ function StorageSettings({ save, saving, configured, storage }: {
       <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-6">
         <h3 className="font-display font-bold text-gray-900 dark:text-white mb-3">Image Storage</h3>
         <p className="text-xs text-gray-400 dark:text-slate-500 mb-5">
-          Configure public folder paths or Object Storage for product images. {configured && <span className="text-emerald font-bold">Active âœ“</span>}
+          Configure public folder paths or Object Storage for product images. {configured && <span className="text-emerald font-bold">Active ✓</span>}
         </p>
 
         <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-white/6 mb-5">
@@ -4957,7 +4957,7 @@ function StorageSettings({ save, saving, configured, storage }: {
         )}
 
         <button type="submit" className="mt-6 px-5 h-10 bg-primary text-white text-sm font-bold font-display rounded-xl hover:bg-primary-dark transition-colors">
-          {saving ? "Savingâ€¦" : "Save Storage Settings"}
+          {saving ? "Saving…" : "Save Storage Settings"}
         </button>
       </div>
     </form>
@@ -5036,7 +5036,7 @@ function CheckoutFormSettings({ save, saving, config }: { save: (payload: object
         ))}
 
         <button type="submit" className="mt-6 px-5 h-10 bg-primary text-white text-sm font-bold font-display rounded-xl hover:bg-primary-dark transition-colors">
-          {saving ? "Savingâ€¦" : "Save Checkout Form"}
+          {saving ? "Saving…" : "Save Checkout Form"}
         </button>
       </div>
     </form>
