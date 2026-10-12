@@ -4,6 +4,7 @@ import {
   proxyRequest,
   startApiServer,
 } from "../../../lib/api-bridge";
+import { compressBuffer, isCompressibleType, pickEncoding } from "../../../api/lib/compress";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -53,10 +54,33 @@ async function forward(request: Request): Promise<Response> {
     }
   }
 
-  // Force anti-cache headers so Hostinger CDN / LiteSpeed / browser never caches dynamic API responses
-  responseHeaders.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0");
-  responseHeaders.set("Pragma", "no-cache");
-  responseHeaders.set("Expires", "0");
+  // The loopback call asked for an identity body, so compress here for the
+  // real client (covers the `next start` fallback where Express is not the
+  // request handler).
+  const clientEncoding = pickEncoding(request.headers.get("accept-encoding") || undefined);
+  const upstreamContentType = typeof upstream.headers["content-type"] === "string" ? upstream.headers["content-type"] : "";
+  if (
+    clientEncoding &&
+    ![204, 205, 304].includes(upstream.status) &&
+    bodyBuffer.length >= 1024 &&
+    isCompressibleType(upstreamContentType)
+  ) {
+    bodyBuffer = compressBuffer(bodyBuffer, clientEncoding);
+    responseHeaders.set("Content-Encoding", clientEncoding);
+    const vary = responseHeaders.get("vary");
+    if (!vary || !/accept-encoding/i.test(vary)) {
+      responseHeaders.set("Vary", vary ? `${vary}, Accept-Encoding` : "Accept-Encoding");
+    }
+  }
+
+  // Preserve the cache policy chosen by the API: public read endpoints send an
+  // explicit public policy, everything else (auth, admin, cart, orders) sends
+  // no-store. Only fall back to no-store when the upstream is silent.
+  if (!responseHeaders.has("cache-control")) {
+    responseHeaders.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0");
+  }
+  if (!responseHeaders.has("pragma")) responseHeaders.set("Pragma", "no-cache");
+  if (!responseHeaders.has("expires")) responseHeaders.set("Expires", "0");
 
   const responseBody = [204, 205, 304].includes(upstream.status) ? null : new Uint8Array(bodyBuffer);
   return new Response(responseBody, {

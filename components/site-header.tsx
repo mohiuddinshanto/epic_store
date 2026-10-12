@@ -3,8 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { FiShoppingBag, FiUser } from "react-icons/fi";
-
-const apiUrl = "";
+import { getStoreStatus } from "../lib/store-status";
 
 export function SiteHeader() {
   const [storeName, setStoreName] = useState("");
@@ -12,8 +11,7 @@ export function SiteHeader() {
   const [count, setCount] = useState(0);
 
   useEffect(() => {
-    fetch(apiUrl + "/api/store/status")
-      .then((r) => r.json())
+    getStoreStatus()
       .then((data) => {
         setStoreName(data.config?.storeName ?? "");
         setLogoUrl(data.config?.logoUrl ?? "");

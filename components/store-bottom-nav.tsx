@@ -4,8 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { FiArrowRight, FiGrid, FiHome, FiShoppingBag, FiUser } from "react-icons/fi";
-
-const apiUrl = "";
+import { getStoreStatus } from "../lib/store-status";
 
 const money = (value: number) => "৳ " + (Number(value) || 0).toLocaleString("en-BD");
 
@@ -30,8 +29,7 @@ export function StoreBottomNav() {
 
   useEffect(() => {
     let alive = true;
-    fetch(`${apiUrl}/api/store/status`)
-      .then((r) => r.json())
+    getStoreStatus()
       .then((s) => {
         if (alive) {
           setEnabled(s?.config?.featureFlags?.bottomNav !== false);

@@ -2,8 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
-
-const apiUrl = "";
+import { getStoreStatus } from "../lib/store-status";
 
 const CATALOG_VARS: Record<string, string> = {
   "--color-primary": "#093d2b",
@@ -29,8 +28,7 @@ export function StoreTheme() {
     }
 
     let alive = true;
-    fetch(`${apiUrl}/api/store/status`)
-      .then((r) => r.json())
+    getStoreStatus()
       .then((s) => {
         if (!alive) return;
         if (!original.current) {

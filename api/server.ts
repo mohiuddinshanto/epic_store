@@ -7,6 +7,8 @@ import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library.js
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "./lib/prisma.js";
+import { cached, purgeCache, PUBLIC_CACHE_CONTROL } from "./lib/cache.js";
+import { apiCompression } from "./lib/compress.js";
 import { checkIpCooldown, restrictStaffOrderView } from "./middleware/security.js";
 import { makeSessionToken, requireAuth, requireRole } from "./middleware/auth.js";
 import { decrypt, encrypt } from "./lib/crypto.js";
@@ -40,6 +42,26 @@ app.use((req, res, next) => {
   }
   next();
 });
+// Any successful admin mutation may change products, categories or store
+// config, so drop the read cache instead of tracking every write by hand.
+app.use("/api/admin", (req, res, next) => {
+  if (req.method !== "GET" && req.method !== "HEAD") {
+    res.on("finish", () => {
+      if (res.statusCode >= 200 && res.statusCode < 300) purgeCache();
+    });
+  }
+  next();
+});
+
+// Public, non-user-specific reads may be cached by browsers and the CDN. The
+// default no-store headers set above are cleared for these responses only.
+function applyPublicCache(res: express.Response): void {
+  res.set("Cache-Control", PUBLIC_CACHE_CONTROL);
+  res.removeHeader("Pragma");
+  res.removeHeader("Expires");
+}
+
+app.use(apiCompression());
 const legacyUploadsDirectory = process.env.UPLOADS_DIR ?? "public/uploads";
 app.use("/uploads/products", async (req, res, next) => {
   try {
@@ -146,23 +168,27 @@ const variationSchema = z.object({
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
 app.get("/api/store/status", async (_req, res) => {
-  const config = await prisma.storeConfig.findUnique({
-    where: { id: "store-config-singleton" },
-    select: {
-      isOnboarded: true,
-      storeName: true,
-      logoUrl: true,
-      themeSettings: true,
-      chatConfig: true,
-      marketingPixels: true,
-      featureFlags: true,
-      homePageConfig: true,
-      heroBannerConfig: true,
-      navigationConfig: true,
-    },
+  const payload = await cached("store:status", 30_000, async () => {
+    const config = await prisma.storeConfig.findUnique({
+      where: { id: "store-config-singleton" },
+      select: {
+        isOnboarded: true,
+        storeName: true,
+        logoUrl: true,
+        themeSettings: true,
+        chatConfig: true,
+        marketingPixels: true,
+        featureFlags: true,
+        homePageConfig: true,
+        heroBannerConfig: true,
+        navigationConfig: true,
+      },
+    });
+    const configOut = config ? { ...config, featureFlags: { ...defaultFeatureFlags, ...((config.featureFlags as Record<string, boolean> | null) ?? {}) } } : config;
+    return { onboarded: Boolean(config?.isOnboarded), config: configOut };
   });
-  const configOut = config ? { ...config, featureFlags: { ...defaultFeatureFlags, ...((config.featureFlags as Record<string, boolean> | null) ?? {}) } } : config;
-  res.json({ onboarded: Boolean(config?.isOnboarded), config: configOut });
+  applyPublicCache(res);
+  res.json(payload);
 });
 
 app.post("/api/newsletter/subscribe", async (req, res) => {
@@ -183,126 +209,194 @@ app.post("/api/newsletter/subscribe", async (req, res) => {
 });
 
 app.get("/api/store/checkout-options", async (_req, res) => {
-  const config = await prisma.storeConfig.findUnique({
-    where: { id: "store-config-singleton" },
-    select: { featureFlags: true, paymentConfig: true, checkoutForm: true },
+  const payload = await cached("store:checkout-options", 60_000, async () => {
+    const config = await prisma.storeConfig.findUnique({
+      where: { id: "store-config-singleton" },
+      select: { featureFlags: true, paymentConfig: true, checkoutForm: true },
+    });
+    const flags = { ...defaultFeatureFlags, ...((config?.featureFlags as Record<string, boolean> | null) ?? {}) };
+    const encrypted = config?.paymentConfig as { encrypted?: string } | null;
+    const payments = encrypted?.encrypted ? (decrypt<PaymentSettings>(encrypted.encrypted) ?? {}) : {};
+    const methods = [
+      ...(flags.cod ? [{ id: "COD", label: "Cash on delivery" }] : []),
+      ...(payments.bkash?.enabled ? [{ id: "bKash", label: "bKash" }] : []),
+      ...(payments.nagad?.enabled ? [{ id: "Nagad", label: "Nagad" }] : []),
+      ...(payments.sslcommerz?.enabled ? [{ id: "SSLCommerz", label: "Card / Mobile Banking" }] : []),
+    ];
+    const saved = (config?.checkoutForm as Record<string, Record<string, unknown>> | null) ?? {};
+    const form = Object.fromEntries(
+      Object.keys(defaultCheckoutForm).map((key) => [key, { ...defaultCheckoutForm[key as keyof typeof defaultCheckoutForm], ...(saved[key] ?? {}) }]),
+    );
+    const emailEnabled = Boolean((form as Record<string, { enabled?: boolean }>).email?.enabled);
+    return { methods, codEnabled: flags.cod, requiresEmail: flags.checkoutEmail === true || emailEnabled, form };
   });
-  const flags = { ...defaultFeatureFlags, ...((config?.featureFlags as Record<string, boolean> | null) ?? {}) };
-  const encrypted = config?.paymentConfig as { encrypted?: string } | null;
-  const payments = encrypted?.encrypted ? (decrypt<PaymentSettings>(encrypted.encrypted) ?? {}) : {};
-  const methods = [
-    ...(flags.cod ? [{ id: "COD", label: "Cash on delivery" }] : []),
-    ...(payments.bkash?.enabled ? [{ id: "bKash", label: "bKash" }] : []),
-    ...(payments.nagad?.enabled ? [{ id: "Nagad", label: "Nagad" }] : []),
-    ...(payments.sslcommerz?.enabled ? [{ id: "SSLCommerz", label: "Card / Mobile Banking" }] : []),
-  ];
-  const saved = (config?.checkoutForm as Record<string, Record<string, unknown>> | null) ?? {};
-  const form = Object.fromEntries(
-    Object.keys(defaultCheckoutForm).map((key) => [key, { ...defaultCheckoutForm[key as keyof typeof defaultCheckoutForm], ...(saved[key] ?? {}) }]),
-  );
-  const emailEnabled = Boolean((form as Record<string, { enabled?: boolean }>).email?.enabled);
-  res.json({ methods, codEnabled: flags.cod, requiresEmail: flags.checkoutEmail === true || emailEnabled, form });
+  applyPublicCache(res);
+  res.json(payload);
 });
 
 app.get("/api/categories", async (_req, res) => {
-  const categories = await prisma.category.findMany({
-    include: { _count: { select: { products: { where: { isActive: true } } } } },
-    orderBy: { name: "asc" },
-  });
+  const categories = await cached("categories:all", 60_000, () =>
+    prisma.category.findMany({
+      include: { _count: { select: { products: { where: { isActive: true } } } } },
+      orderBy: { name: "asc" },
+    }),
+  );
+  applyPublicCache(res);
   res.json(categories);
 });
 
+const PRODUCT_LIST_DEFAULT_PAGE_SIZE = 24;
+const PRODUCT_LIST_MAX_PAGE_SIZE = 100;
+
+async function queryProductList(where: Prisma.ProductWhereInput, page?: number, pageSize?: number) {
+  const select = {
+    id: true,
+    slug: true,
+    name: true,
+    price: true,
+    salePrice: true,
+    stock: true,
+    productType: true,
+    sku: true,
+    description: true,
+    images: true,
+    categoryId: true,
+    defaultVariationId: true,
+    imagesDetails: { orderBy: { sortOrder: "asc" as const } },
+    attributes: { select: { id: true, name: true, values: { select: { id: true, value: true } } } },
+    variations: {
+      select: {
+        id: true,
+        name: true,
+        sku: true,
+        price: true,
+        salePrice: true,
+        stock: true,
+        image: true,
+        attributes: {
+          select: { attributeId: true, valueId: true, value: { select: { value: true } } },
+        },
+      },
+      where: { status: "active" },
+      orderBy: { createdAt: "asc" as const },
+    },
+    category: { select: { name: true, slug: true } },
+    _count: { select: { reviews: { where: { isApproved: true } } } },
+  };
+
+  if (page === undefined || pageSize === undefined) {
+    const items = await prisma.product.findMany({ where, select, orderBy: { createdAt: "desc" } });
+    return { paginated: false as const, items };
+  }
+
+  const [total, items] = await prisma.$transaction([
+    prisma.product.count({ where }),
+    prisma.product.findMany({
+      where,
+      select,
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+  ]);
+  return { paginated: true as const, items, total, page, pageSize };
+}
+
 app.get("/api/products", async (req, res) => {
   const category = typeof req.query.category === "string" ? req.query.category : undefined;
-  let categoryFilter: object = {};
-  if (category) {
-    const cats = await prisma.category.findMany({ select: { id: true, slug: true, parentId: true } });
-    const root = cats.find((c) => c.slug === category);
-    if (!root) {
-      categoryFilter = { id: "__none__" };
-    } else {
-      const byParent = new Map<string, string[]>();
-      for (const c of cats) {
-        if (c.parentId) {
-          const arr = byParent.get(c.parentId) ?? [];
-          arr.push(c.id);
-          byParent.set(c.parentId, arr);
+
+  const wantsPagination =
+    req.query.page !== undefined || req.query.limit !== undefined || req.query.pageSize !== undefined;
+
+  const limitRaw = Number(req.query.limit ?? req.query.pageSize);
+  const pageRaw = Number(req.query.page);
+  const pageSize = Math.min(
+    Math.max(Number.isFinite(limitRaw) && limitRaw > 0 ? Math.trunc(limitRaw) : PRODUCT_LIST_DEFAULT_PAGE_SIZE, 1),
+    PRODUCT_LIST_MAX_PAGE_SIZE,
+  );
+  const page = Math.max(Number.isFinite(pageRaw) && pageRaw > 0 ? Math.trunc(pageRaw) : 1, 1);
+
+  const cacheKey = `products:${category ?? "all"}:${wantsPagination ? `${page}:${pageSize}` : "full"}`;
+
+  const payload = await cached(cacheKey, 30_000, async () => {
+    let categoryFilter: object = {};
+    if (category) {
+      const cats = await prisma.category.findMany({ select: { id: true, slug: true, parentId: true } });
+      const root = cats.find((c) => c.slug === category);
+      if (!root) {
+        categoryFilter = { id: "__none__" };
+      } else {
+        const byParent = new Map<string, string[]>();
+        for (const c of cats) {
+          if (c.parentId) {
+            const arr = byParent.get(c.parentId) ?? [];
+            arr.push(c.id);
+            byParent.set(c.parentId, arr);
+          }
         }
+        const ids: string[] = [];
+        const stack = [root.id];
+        while (stack.length) {
+          const cur = stack.pop()!;
+          ids.push(cur);
+          for (const childId of byParent.get(cur) ?? []) stack.push(childId);
+        }
+        categoryFilter = { categoryId: { in: ids } };
       }
-      const ids: string[] = [];
-      const stack = [root.id];
-      while (stack.length) {
-        const cur = stack.pop()!;
-        ids.push(cur);
-        for (const childId of byParent.get(cur) ?? []) stack.push(childId);
-      }
-      categoryFilter = { categoryId: { in: ids } };
     }
-  }
-  const products = await prisma.product.findMany({
-    where: {
-      isActive: true,
-      ...categoryFilter,
-    },
-    select: {
-      id: true,
-      slug: true,
-      name: true,
-      price: true,
-      salePrice: true,
-      stock: true,
-      productType: true,
-      sku: true,
-      description: true,
-      images: true,
-      categoryId: true,
-      defaultVariationId: true,
-      imagesDetails: { orderBy: { sortOrder: "asc" } },
-      attributes: { select: { id: true, name: true, values: { select: { id: true, value: true } } } },
-      variations: {
-        select: {
-          id: true,
-          name: true,
-          sku: true,
-          price: true,
-          salePrice: true,
-          stock: true,
-          image: true,
-          attributes: {
-            select: { attributeId: true, valueId: true, value: { select: { value: true } } },
-          },
-        },
-        where: { status: "active" },
-        orderBy: { createdAt: "asc" },
-      },
-      category: { select: { name: true, slug: true } },
-      _count: { select: { reviews: { where: { isApproved: true } } } },
-    },
-    orderBy: { createdAt: "desc" },
+
+    const where: Prisma.ProductWhereInput = { isActive: true, ...categoryFilter };
+
+    if (!wantsPagination) {
+      const result = await queryProductList(where);
+      return result.items;
+    }
+
+    const result = await queryProductList(where, page, pageSize);
+    if (!result.paginated) return result.items;
+
+    return {
+      items: result.items,
+      page,
+      pageSize,
+      total: result.total,
+      totalPages: Math.max(1, Math.ceil(result.total / pageSize)),
+      hasMore: page * pageSize < result.total,
+    };
   });
-  res.json(products);
+
+  applyPublicCache(res);
+  res.json(payload);
 });
 
 app.get("/api/products/:slug", async (req, res) => {
-  const product = await prisma.product.findUnique({
-    where: { slug: req.params.slug },
-    include: {
-      category: { select: { name: true, slug: true } },
-      imagesDetails: { orderBy: { sortOrder: "asc" } },
-      attributes: { include: { values: true }, orderBy: { createdAt: "asc" } },
-      variations: {
-        where: { status: "active" },
-        include: { attributes: { include: { attribute: { select: { id: true, name: true } }, value: true } } },
-        orderBy: { createdAt: "asc" },
+  const cacheKey = `product:${req.params.slug}`;
+  const product = await cached(cacheKey, 30_000, async () => {
+    const found = await prisma.product.findUnique({
+      where: { slug: req.params.slug },
+      include: {
+        category: { select: { name: true, slug: true } },
+        imagesDetails: { orderBy: { sortOrder: "asc" } },
+        attributes: { include: { values: true }, orderBy: { createdAt: "asc" } },
+        variations: {
+          where: { status: "active" },
+          include: { attributes: { include: { attribute: { select: { id: true, name: true } }, value: true } } },
+          orderBy: { createdAt: "asc" },
+        },
+        reviews: {
+          where: { isApproved: true },
+          include: { user: { select: { name: true } } },
+          orderBy: { createdAt: "desc" },
+        },
       },
-      reviews: {
-        where: { isApproved: true },
-        include: { user: { select: { name: true } } },
-        orderBy: { createdAt: "desc" },
-      },
-    },
+    });
+    return found && found.isActive ? found : null;
   });
-  if (!product?.isActive) return res.status(404).json({ error: "Product not found" });
+  if (!product) {
+    purgeCache(cacheKey);
+    return res.status(404).json({ error: "Product not found" });
+  }
+  applyPublicCache(res);
   res.json(product);
 });
 
@@ -411,6 +505,7 @@ app.post("/api/onboarding", async (req, res) => {
       create: { id: "store-config-singleton", storeName: parsed.data.storeName, themeSettings: parsed.data.themeSettings, featureFlags: defaultFeatureFlags, isOnboarded: true },
     }),
   ]);
+  purgeCache("store:");
   res.status(201).json({ message: "Store onboarding completed" });
 });
 

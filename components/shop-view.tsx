@@ -6,6 +6,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { waNumber } from "../lib/wa";
+import { getStoreStatus } from "../lib/store-status";
 import {
   FiArrowLeft,
   FiCheck,
@@ -490,15 +491,10 @@ export function ShopView({ initialLayout = "classic" }: { initialLayout?: "class
   // Fetch initial data
   useEffect(() => {
     setLoading(true);
-    const cacheOpts: RequestInit = {
-      cache: "no-store",
-      headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
-    };
-    const t = Date.now();
     Promise.all([
-      fetch(`${apiUrl}/api/products?_t=${t}`, cacheOpts).then((r) => r.json()),
-      fetch(`${apiUrl}/api/categories?_t=${t}`, cacheOpts).then((r) => r.json()),
-      fetch(`${apiUrl}/api/store/status?_t=${t}`, cacheOpts).then((r) => r.json()),
+      fetch(`${apiUrl}/api/products`).then((r) => r.json()),
+      fetch(`${apiUrl}/api/categories`).then((r) => r.json()),
+      getStoreStatus(),
     ])
       .then(([prods, cats, status]) => {
         const prodList: Product[] = Array.isArray(prods) ? prods : [];

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { waNumber } from "../lib/wa";
+import { getStoreStatus } from "../lib/store-status";
 import { FiArrowLeft, FiHeart, FiMessageCircle, FiShoppingBag, FiZap } from "react-icons/fi";
 
 const apiUrl = "";
@@ -189,7 +190,7 @@ export function CategoryView({ slug }: { slug: string }) {
     Promise.all([
       fetch(`${apiUrl}/api/products?category=${encodeURIComponent(slug)}`).then(r => r.json()),
       fetch(`${apiUrl}/api/categories`).then(r => r.json()),
-      fetch(`${apiUrl}/api/store/status`).then(r => r.json()),
+      getStoreStatus(),
     ]).then(([items, cats, status]) => {
       setProducts(items);
       const match = cats.find((c: { slug: string }) => c.slug === slug);

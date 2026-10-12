@@ -191,6 +191,9 @@ model Product {
   wishlistedBy Wishlist[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([isActive, createdAt])
+  @@index([isActive, categoryId, createdAt])
 }
 
 model ProductImage {
@@ -281,6 +284,7 @@ model Review {
   isApproved Boolean @default(false)
   createdAt DateTime @default(now())
   @@unique([productId, userId])
+  @@index([productId, isApproved])
 }
 
 model Wishlist {

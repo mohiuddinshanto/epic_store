@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { waNumber } from "../lib/wa";
+import { getStoreStatus } from "../lib/store-status";
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { CarouselSlider } from "./carousel-slider";
@@ -378,15 +379,10 @@ export function Storefront({
   const [bottomNav, setBottomNav] = useState(true);
 
   useEffect(() => {
-    const cacheOpts: RequestInit = {
-      cache: "no-store",
-      headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
-    };
-    const t = Date.now();
     Promise.all([
-      fetch(`${apiUrl}/api/products?home=1&_t=${t}`, cacheOpts).then((r) => r.json()),
-      fetch(`${apiUrl}/api/categories?_t=${t}`, cacheOpts).then((r) => r.json()),
-      fetch(`${apiUrl}/api/store/status?_t=${t}`, cacheOpts).then((r) => r.json()),
+      fetch(`${apiUrl}/api/products?home=1`).then((r) => r.json()),
+      fetch(`${apiUrl}/api/categories`).then((r) => r.json()),
+      getStoreStatus(),
     ])
       .then(([p, c, status]) => {
         if (Array.isArray(p)) setProducts(p);
