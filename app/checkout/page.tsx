@@ -4,6 +4,7 @@ import { Button, Input } from "@heroui/react";
 import Link from "next/link";
 import { FormEvent, useEffect, useState, type ReactNode } from "react";
 import toast from "react-hot-toast";
+import { CheckoutSkeleton } from "../../components/skeletons";
 import {
   FiArrowLeft,
   FiCheckCircle,
@@ -65,6 +66,7 @@ export default function CheckoutPage() {
   const [couponId, setCouponId] = useState<string | null>(null);
   const [validatingCoupon, setValidatingCoupon] = useState(false);
   const [form, setForm] = useState<CheckoutForm>(DEFAULT_CHECKOUT_FORM);
+  const [optionsLoading, setOptionsLoading] = useState(true);
 
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
   const shipping = subtotal ? 80 : 0;
@@ -99,7 +101,8 @@ export default function CheckoutPage() {
       .catch(() => {
         setMethods([]);
         setSelectedMethod("");
-      });
+      })
+      .finally(() => setOptionsLoading(false));
   }, []);
 
   async function applyCoupon() {
@@ -200,6 +203,9 @@ export default function CheckoutPage() {
         </Link>
       </div>
 
+      {optionsLoading ? (
+        <CheckoutSkeleton />
+      ) : (
       <div className="checkout-grid">
         {/* Left Column: Shipping & Payment Form */}
         <div className="checkout-card">
@@ -348,6 +354,7 @@ export default function CheckoutPage() {
           </div>
         </aside>
       </div>
+      )}
     </main>
   );
 }

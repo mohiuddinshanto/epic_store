@@ -10,6 +10,7 @@ import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { CarouselSlider } from "./carousel-slider";
 import { CatalogHome } from "./catalog-home";
+import { HomeSkeleton } from "./skeletons";
 import {
   FiArrowRight,
   FiCheckCircle,
@@ -377,6 +378,7 @@ export function Storefront({
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [allowAddToCart, setAllowAddToCart] = useState(true);
   const [bottomNav, setBottomNav] = useState(true);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -401,7 +403,8 @@ export function Storefront({
         setAllowAddToCart(status?.config?.featureFlags?.addToCart !== false);
         setBottomNav(status?.config?.featureFlags?.bottomNav !== false);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setReady(true));
 
     const stored = localStorage.getItem("epic-cart");
     if (stored) {
@@ -795,7 +798,9 @@ export function Storefront({
         </div>
       )}
 
-      {activeLayout === "catalog" ? (
+      {!ready ? (
+        <HomeSkeleton />
+      ) : activeLayout === "catalog" ? (
         <CatalogHome
           products={products}
           categories={categories}

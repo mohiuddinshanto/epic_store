@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { waNumber } from "../lib/wa";
 import { getStoreStatus } from "../lib/store-status";
+import { ProductGridSkeleton, Skeleton } from "./skeletons";
 import { FiArrowLeft, FiHeart, FiMessageCircle, FiShoppingBag, FiZap } from "react-icons/fi";
 
 const apiUrl = "";
@@ -253,13 +254,17 @@ export function CategoryView({ slug }: { slug: string }) {
 
   if (loading) {
     return (
-      <main className="min-h-[60vh] flex items-center justify-center">
-        <div className="text-center">
-          <div className="mx-auto mb-5 h-14 w-14 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 grid place-items-center animate-pulse">
-            <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-primary to-cyan animate-spin" />
+      <main className="min-h-[70vh] bg-white" aria-busy="true" aria-live="polite">
+        <div className="mx-auto max-w-[1400px] px-[6vw] pt-8">
+          <Skeleton className="h-4 w-40" />
+          <div className="mt-10 space-y-3">
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-10 w-72 max-w-full" />
+            <Skeleton className="h-4 w-80 max-w-full" />
           </div>
-          <p className="eyebrow">CATEGORY</p>
-          <p className="muted">Loading this collection…</p>
+          <div className="pb-16 pt-10">
+            <ProductGridSkeleton count={8} className="lg:grid-cols-4" />
+          </div>
         </div>
       </main>
     );

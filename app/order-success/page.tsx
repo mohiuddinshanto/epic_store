@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { FiCheckCircle, FiChevronRight, FiClock, FiCreditCard, FiMail, FiMapPin, FiPackage, FiPhone, FiUser } from "react-icons/fi";
 import { SiteHeader } from "../../components/site-header";
+import { Skeleton } from "../../components/skeletons";
 
 type OrderItem = {
   name?: string;
@@ -38,6 +39,7 @@ const money = (value?: number) => "৳ " + (Number(value) || 0).toLocaleString("
 
 export default function OrderSuccessPage() {
   const [order, setOrder] = useState<LastOrder | null>(null);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     try {
@@ -45,8 +47,30 @@ export default function OrderSuccessPage() {
       if (raw) setOrder(JSON.parse(raw));
     } catch {
       /* ignore */
+    } finally {
+      setReady(true);
     }
   }, []);
+
+  if (!ready) {
+    return (
+      <main className="order-success-page" aria-busy="true" aria-live="polite">
+        <SiteHeader />
+        <section className="order-success-body">
+          <div className="order-success-card">
+            <div className="mx-auto h-14 w-14 animate-pulse rounded-full bg-slate-200" />
+            <Skeleton className="mx-auto mt-5 h-7 w-56 max-w-full" />
+            <Skeleton className="mx-auto mt-3 h-4 w-80 max-w-full" />
+            <div className="mt-8 space-y-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full rounded-xl" />
+              ))}
+            </div>
+          </div>
+        </section>
+      </main>
+    );
+  }
 
   const items = order?.orderItems ?? [];
   const details = order?.shippingDetails ?? {};

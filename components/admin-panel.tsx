@@ -4,6 +4,7 @@ import { Button, Dropdown, DropdownItem, DropdownMenu, DropdownTrigger, Input, S
 import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
+import { AdminSkeleton } from "./skeletons";
 import { FiArrowDown, FiArrowUp, FiBox, FiCheck, FiChevronDown, FiCopy, FiEdit2, FiEye, FiEyeOff, FiImage, FiLayers, FiLoader, FiMail, FiMenu, FiPhone, FiPlus, FiPrinter, FiRefreshCw, FiSend, FiShuffle, FiStar, FiTag, FiTrash2, FiTruck, FiUpload, FiUser, FiX } from "react-icons/fi";
 
 const apiUrl = "";
@@ -313,12 +314,14 @@ export function AdminPanel() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileSidebar, setMobileSidebar] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [checking, setChecking] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem(tokenKey);
     if (saved) {
+      setChecking(true);
       setToken(saved);
-      load(saved);
+      load(saved).finally(() => setChecking(false));
     }
   }, []);
 
@@ -366,6 +369,10 @@ export function AdminPanel() {
     } finally {
       setSaving(false);
     }
+  }
+
+  if (checking) {
+    return <AdminSkeleton />;
   }
 
   if (!token || !config) {

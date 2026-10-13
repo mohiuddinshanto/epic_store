@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import { AccountSkeleton } from "./skeletons";
 import {
   FiArrowLeft,
   FiCalendar,
@@ -75,10 +76,14 @@ export function AccountPanel() {
   const [user, setUser] = useState<User | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [wishlist, setWishlist] = useState<WishlistItem[]>([]);
+  const [checking, setChecking] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem(key);
-    if (saved) load(saved);
+    if (saved) {
+      setChecking(true);
+      load(saved).finally(() => setChecking(false));
+    }
   }, []);
 
   async function load(value: string) {
@@ -145,6 +150,10 @@ export function AccountPanel() {
     setUser(null);
     setToken("");
     toast.success("উইশলিস্ট থেকে সরানো হয়েছে");
+  }
+
+  if (checking) {
+    return <AccountSkeleton />;
   }
 
   if (!user) {

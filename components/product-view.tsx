@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import { ProductDetailSkeleton } from "./skeletons";
 import {
   FiArrowLeft,
   FiCheckCircle,
@@ -168,11 +169,7 @@ export function ProductView({ slug }: { slug: string }) {
   }, [selectedVariation, isVariable, product, qty]);
 
   if (loading) {
-    return (
-      <main className="product-page" style={{ textAlign: "center", padding: "100px 0" }}>
-        <p style={{ color: "var(--muted)" }}>Loading product details…</p>
-      </main>
-    );
+    return <ProductDetailSkeleton />;
   }
 
   if (!product) {

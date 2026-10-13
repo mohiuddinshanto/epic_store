@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { prisma } from "../../api/lib/prisma";
 import { ShopView } from "../../components/shop-view";
+import ShopLoading from "./loading";
 
 export const dynamic = "force-dynamic";
 
@@ -17,16 +18,7 @@ export default async function ShopPage() {
     /* fallback to classic */
   }
   return (
-    <Suspense
-      fallback={
-        <main className="min-h-[60vh] flex items-center justify-center bg-gray-50">
-          <div className="text-center">
-            <div className="mx-auto mb-4 h-12 w-12 rounded-full border-4 border-[var(--primary)] border-t-transparent animate-spin" />
-            <p className="text-sm font-semibold text-gray-600">শপ পেইজ লোড হচ্ছে...</p>
-          </div>
-        </main>
-      }
-    >
+    <Suspense fallback={<ShopLoading />}>
       <ShopView initialLayout={initialLayout} />
     </Suspense>
   );

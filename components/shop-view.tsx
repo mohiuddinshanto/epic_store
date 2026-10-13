@@ -27,6 +27,7 @@ import {
 } from "react-icons/fi";
 import { CatalogCard } from "./catalog-home";
 import { MiniProductCard } from "./storefront";
+import { ProductGridSkeleton } from "./skeletons";
 
 const apiUrl = "";
 const FALLBACK_IMG =
@@ -1294,16 +1295,7 @@ export function ShopView({ initialLayout = "classic" }: { initialLayout?: "class
 
             {/* PRODUCT GRID DISPLAY */}
             {loading ? (
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 py-12">
-                {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
-                  <div key={n} className="rounded-2xl border border-gray-100 bg-white p-3 shadow-sm animate-pulse space-y-3">
-                    <div className="aspect-[4/5] rounded-xl bg-gray-200" />
-                    <div className="h-4 w-3/4 rounded bg-gray-200" />
-                    <div className="h-4 w-1/2 rounded bg-gray-200" />
-                    <div className="h-9 w-full rounded-lg bg-gray-200" />
-                  </div>
-                ))}
-              </div>
+              <ProductGridSkeleton count={8} className="py-12 lg:grid-cols-4 xl:grid-cols-4" />
             ) : sortedProducts.length > 0 ? (
               <div
                 className={
