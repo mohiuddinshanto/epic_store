@@ -6,6 +6,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { ProductDetailSkeleton } from "./skeletons";
+import { RichContent } from "./rich-text";
+import { RelatedProducts } from "./related-products";
 import {
   FiArrowLeft,
   FiCheckCircle,
@@ -379,11 +381,7 @@ export function ProductView({ slug }: { slug: string }) {
               >
                 Product Details
               </span>
-              {product.longDescription.split("\n\n").map((para, i) => (
-                <p key={i} style={{ margin: "0 0 10px" }}>
-                  {para}
-                </p>
-              ))}
+              <RichContent value={product.longDescription} />
             </div>
           )}
         </div>
@@ -456,7 +454,7 @@ export function ProductView({ slug }: { slug: string }) {
             </div>
           )}
 
-          <p className="description">{selectedVariation?.description || product.description}</p>
+          <RichContent className="description" value={selectedVariation?.description || product.description} />
 
           {isVariable && product.attributes && product.attributes.length > 0 && (
             <div style={{ marginTop: "18px", display: "flex", flexDirection: "column", gap: "14px" }}>
@@ -540,11 +538,7 @@ export function ProductView({ slug }: { slug: string }) {
               >
                 Product Details
               </span>
-              {product.longDescription.split("\n\n").map((para, i) => (
-                <p key={i} style={{ margin: "0 0 10px" }}>
-                  {para}
-                </p>
-              ))}
+              <RichContent value={product.longDescription} />
             </div>
           )}
 
@@ -622,6 +616,8 @@ export function ProductView({ slug }: { slug: string }) {
           </div>
         </div>
       </div>
+
+      <RelatedProducts productId={product.id} categorySlug={product.category.slug} />
 
       {/* Customer Reviews Section */}
       <section style={{ marginTop: "60px", paddingTop: "40px", borderTop: "1px solid var(--border)" }}>

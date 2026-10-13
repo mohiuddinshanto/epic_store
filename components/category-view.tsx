@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { waNumber } from "../lib/wa";
+import { stripHtml } from "../lib/html";
 import { getStoreStatus } from "../lib/store-status";
 import { ProductGridSkeleton, Skeleton } from "./skeletons";
 import { FiArrowLeft, FiHeart, FiMessageCircle, FiShoppingBag, FiZap } from "react-icons/fi";
@@ -165,7 +166,7 @@ function ClassicCard({
           {hasSale && <span className="text-sm text-slate-400 line-through">{money(p.price)}</span>}
         </div>
         <h3 className="line-clamp-2 text-sm font-semibold text-slate-900 group-hover:text-primary">{p.name}</h3>
-        {p.description && <p className="line-clamp-2 text-sm leading-relaxed text-slate-500">{p.description}</p>}
+        {p.description && <p className="line-clamp-2 text-sm leading-relaxed text-slate-500">{stripHtml(p.description)}</p>}
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-2.5">
           <span className="text-xs font-medium text-slate-500">{p.category.name}</span>
           <button onClick={allowAddToCart ? onAdd : buyNow}

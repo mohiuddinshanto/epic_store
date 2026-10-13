@@ -5,6 +5,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { AdminSkeleton } from "./skeletons";
+import { RichTextEditor } from "./rich-text";
 import { FiArrowDown, FiArrowUp, FiBox, FiCheck, FiChevronDown, FiCopy, FiEdit2, FiEye, FiEyeOff, FiImage, FiLayers, FiLoader, FiMail, FiMenu, FiPhone, FiPlus, FiPrinter, FiRefreshCw, FiSend, FiShuffle, FiStar, FiTag, FiTrash2, FiTruck, FiUpload, FiUser, FiX } from "react-icons/fi";
 
 const apiUrl = "";
@@ -1539,8 +1540,8 @@ function AdminProducts({ token }: { token: string }) {
               </div>
             </div>
 
-            <Textarea label="Short Description" name="description" isRequired minRows={3} placeholder="One or two crisp sentences for cards, search and quick glance…" defaultValue={editingProduct?.description ?? ""} />
-            <Textarea label="Long Description (Full Details)" name="longDescription" minRows={5} placeholder="Extended description for the product page — materials, care, shipping, what's in the box…" defaultValue={editingProduct?.longDescription ?? ""} />
+            <RichTextEditor name="description" label="Short Description" placeholder="One or two crisp sentences for cards, search and quick glance…" defaultValue={editingProduct?.description ?? ""} />
+            <RichTextEditor name="longDescription" label="Long Description (Full Details)" placeholder="Extended description for the product page — materials, care, shipping, what's in the box…" defaultValue={editingProduct?.longDescription ?? ""} />
 
             <div>
               <div className="flex items-center justify-between mb-2">

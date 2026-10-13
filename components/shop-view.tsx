@@ -6,6 +6,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { waNumber } from "../lib/wa";
+import { stripHtml } from "../lib/html";
 import { getStoreStatus } from "../lib/store-status";
 import {
   FiArrowLeft,
@@ -223,7 +224,7 @@ function ShopProductCard({
               {p.name}
             </Link>
             {p.description && (
-              <p className="line-clamp-2 text-xs text-gray-500 leading-relaxed">{p.description}</p>
+              <p className="line-clamp-2 text-xs text-gray-500 leading-relaxed">{stripHtml(p.description)}</p>
             )}
 
             <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
@@ -627,7 +628,7 @@ export function ShopView({ initialLayout = "classic" }: { initialLayout?: "class
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         const matchesName = p.name.toLowerCase().includes(q);
-        const matchesDesc = p.description?.toLowerCase().includes(q);
+        const matchesDesc = stripHtml(p.description).toLowerCase().includes(q);
         const matchesCat = p.category?.name.toLowerCase().includes(q);
         if (!matchesName && !matchesDesc && !matchesCat) return false;
       }

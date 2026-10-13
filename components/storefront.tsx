@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { waNumber } from "../lib/wa";
+import { stripHtml } from "../lib/html";
 import { getStoreStatus } from "../lib/store-status";
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
@@ -1539,7 +1540,7 @@ export function MiniProductCard({
           {p.name}
         </h3>
         {p.description && (
-          <p className="line-clamp-2 text-sm leading-relaxed text-slate-500">{p.description}</p>
+          <p className="line-clamp-2 text-sm leading-relaxed text-slate-500">{stripHtml(p.description)}</p>
         )}
         <div className="flex items-center justify-between gap-2 border-t border-slate-100 pt-2.5 max-sm:flex-col max-sm:items-start">
           <span className="text-xs font-medium text-slate-500">
