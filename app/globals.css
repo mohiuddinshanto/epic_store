@@ -1306,7 +1306,7 @@ button[color="danger"]:not(:is([data-slot] *)):hover,
 
 .product-detail-info h1 {
   font-family: 'Outfit', var(--store-font);
-  font-size: clamp(2.2rem, 4vw, 3.4rem);
+  font-size: clamp(1.5rem, 2.3vw, 2.2rem);
   font-weight: 800;
   margin: 10px 0 16px;
   letter-spacing: -0.03em;
@@ -1334,6 +1334,10 @@ button[color="danger"]:not(:is([data-slot] *)):hover,
   color: var(--muted);
   font-size: 1rem;
   margin-bottom: 30px;
+}
+
+.product-details-mobile {
+  display: none;
 }
 
 .stock-badge {
@@ -1729,6 +1733,12 @@ button[color="danger"]:not(:is([data-slot] *)):hover,
   .checkout-grid, .product-detail {
     grid-template-columns: 1fr;
     gap: 32px;
+  }
+  .product-details-desktop {
+    display: none;
+  }
+  .product-details-mobile {
+    display: block;
   }
   .reviews-grid {
     grid-template-columns: 1fr;

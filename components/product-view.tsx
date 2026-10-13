@@ -351,6 +351,40 @@ export function ProductView({ slug }: { slug: string }) {
               ))}
             </div>
           )}
+
+          {product.longDescription && (
+            <div
+              className="product-details-desktop"
+              style={{
+                marginTop: "24px",
+                padding: "20px",
+                background: "var(--surface)",
+                border: "1px solid var(--border)",
+                borderRadius: "14px",
+                fontSize: "0.92rem",
+                lineHeight: 1.7,
+                color: "var(--ink-secondary)",
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: "'Outfit', sans-serif",
+                  fontWeight: 800,
+                  fontSize: "0.95rem",
+                  color: "var(--ink)",
+                  display: "block",
+                  marginBottom: "8px",
+                }}
+              >
+                Product Details
+              </span>
+              {product.longDescription.split("\n\n").map((para, i) => (
+                <p key={i} style={{ margin: "0 0 10px" }}>
+                  {para}
+                </p>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Lightbox */}
@@ -483,6 +517,7 @@ export function ProductView({ slug }: { slug: string }) {
 
           {product.longDescription && (
             <div
+              className="product-details-mobile"
               style={{
                 marginTop: "18px",
                 paddingTop: "16px",
