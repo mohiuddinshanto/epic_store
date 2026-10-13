@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { waNumber } from "../lib/wa";
 import { stripHtml } from "../lib/html";
-import { getStoreStatus } from "../lib/store-status";
+import { getStoreStatus, type StoreStatusResult } from "../lib/store-status";
 import { ProductGridSkeleton, Skeleton } from "./skeletons";
 import { FiArrowLeft, FiHeart, FiMessageCircle, FiShoppingBag, FiZap } from "react-icons/fi";
 
@@ -179,16 +179,33 @@ function ClassicCard({
   );
 }
 
-export function CategoryView({ slug }: { slug: string }) {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [categoryName, setCategoryName] = useState<string>(slug.replaceAll("-", " "));
-  const [loading, setLoading] = useState(true);
-  const [allowAddToCart, setAllowAddToCart] = useState(true);
-  const [layout, setLayout] = useState<"classic" | "catalog">("classic");
-  const [chatConfig, setChatConfig] = useState<{ whatsapp?: { enabled?: boolean; number?: string } } | null>(null);
+type CategoryRecord = { slug: string; name: string };
+
+export type CategoryViewProps = {
+  slug: string;
+  initialProducts?: Product[];
+  initialCategories?: CategoryRecord[];
+  initialStatus?: StoreStatusResult;
+};
+
+export function CategoryView({ slug, initialProducts, initialCategories, initialStatus }: CategoryViewProps) {
+  const [products, setProducts] = useState<Product[]>(initialProducts ?? []);
+  const [categoryName, setCategoryName] = useState<string>(
+    initialCategories?.find((c) => c.slug === slug)?.name ?? slug.replaceAll("-", " ")
+  );
+  const [loading, setLoading] = useState(!initialProducts);
+  const [allowAddToCart, setAllowAddToCart] = useState(initialStatus?.config?.featureFlags?.addToCart !== false);
+  const [layout, setLayout] = useState<"classic" | "catalog">(initialStatus?.config?.homePageConfig?.layout ?? "classic");
+  const [chatConfig, setChatConfig] = useState<{ whatsapp?: { enabled?: boolean; number?: string } } | null>(initialStatus?.config?.chatConfig ?? null);
   const [wishlist, setWishlist] = useState<string[]>([]);
 
+  const hasInitial = Boolean(initialProducts && initialCategories && initialStatus);
+
   useEffect(() => {
+    if (hasInitial) {
+      setLoading(false);
+      return;
+    }
     Promise.all([
       fetch(`${apiUrl}/api/products?category=${encodeURIComponent(slug)}`).then(r => r.json()),
       fetch(`${apiUrl}/api/categories`).then(r => r.json()),
@@ -202,7 +219,7 @@ export function CategoryView({ slug }: { slug: string }) {
       setChatConfig(status?.config?.chatConfig);
       setLoading(false);
     }).catch(() => setLoading(false));
-  }, [slug]);
+  }, [slug, hasInitial]);
 
   useEffect(() => {
     const token = localStorage.getItem("epic-customer-token");

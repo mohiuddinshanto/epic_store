@@ -7,7 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { waNumber } from "../lib/wa";
 import { stripHtml } from "../lib/html";
-import { getStoreStatus } from "../lib/store-status";
+import { getStoreStatus, type StoreStatusResult } from "../lib/store-status";
 import {
   FiArrowLeft,
   FiCheck,
@@ -445,7 +445,20 @@ function ShopProductCard({
 /* -------------------------------------------------------------------------- */
 /* MAIN SHOP VIEW COMPONENT                                                   */
 /* -------------------------------------------------------------------------- */
-export function ShopView({ initialLayout = "classic" }: { initialLayout?: "classic" | "catalog" }) {
+export type ShopViewProps = {
+  initialLayout?: "classic" | "catalog";
+  initialProducts?: Product[];
+  initialCategories?: Category[];
+  initialStatus?: StoreStatusResult;
+};
+
+function priceCap(list: Product[]): number {
+  if (!list.length) return 0;
+  const maxP = Math.max(...list.map((p) => Number(p.salePrice && Number(p.salePrice) < Number(p.price) ? p.salePrice : p.price)));
+  return Math.ceil(maxP / 500) * 500 || 10000;
+}
+
+export function ShopView({ initialLayout = "classic", initialProducts, initialCategories, initialStatus }: ShopViewProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -453,10 +466,11 @@ export function ShopView({ initialLayout = "classic" }: { initialLayout?: "class
   const initialCategory = searchParams.get("category") ?? "all";
   const initialQuery = searchParams.get("q") ?? "";
   const initialSale = searchParams.get("sale") === "true";
+  const initialCap = initialProducts ? priceCap(initialProducts) : 0;
 
-  const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [products, setProducts] = useState<Product[]>(initialProducts ?? []);
+  const [categories, setCategories] = useState<Category[]>(initialCategories ?? []);
+  const [loading, setLoading] = useState(!initialProducts);
 
   // Filters State
   const [searchQuery, setSearchQuery] = useState(initialQuery);
@@ -465,8 +479,8 @@ export function ShopView({ initialLayout = "classic" }: { initialLayout?: "class
   const [onSaleOnly, setOnSaleOnly] = useState(initialSale);
   const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
   const [priceMin, setPriceMin] = useState<number>(0);
-  const [priceMax, setPriceMax] = useState<number>(100000);
-  const [maxPriceLimit, setMaxPriceLimit] = useState<number>(10000);
+  const [priceMax, setPriceMax] = useState<number>(initialCap || 100000);
+  const [maxPriceLimit, setMaxPriceLimit] = useState<number>(initialCap || 10000);
 
   // Layout & Sort State
   const [sortBy, setSortBy] = useState<"newest" | "price-asc" | "price-desc" | "discount" | "name">("newest");
@@ -474,10 +488,12 @@ export function ShopView({ initialLayout = "classic" }: { initialLayout?: "class
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
 
   // Extra config
-  const [allowAddToCart, setAllowAddToCart] = useState(true);
-  const [chatConfig, setChatConfig] = useState<{ whatsapp?: { enabled?: boolean; number?: string } } | null>(null);
+  const [allowAddToCart, setAllowAddToCart] = useState(initialStatus?.config?.featureFlags?.addToCart !== false);
+  const [chatConfig, setChatConfig] = useState<{ whatsapp?: { enabled?: boolean; number?: string } } | null>(initialStatus?.config?.chatConfig ?? null);
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [activeLayout, setActiveLayout] = useState<"classic" | "catalog">(() => {
+    if (initialStatus?.config?.homePageConfig?.layout) return initialStatus.config.homePageConfig.layout;
+    if (initialLayout) return initialLayout;
     if (typeof window !== "undefined") {
       try {
         const saved = localStorage.getItem("epic_home_config");
@@ -490,8 +506,14 @@ export function ShopView({ initialLayout = "classic" }: { initialLayout?: "class
     return initialLayout;
   });
 
+  const hasInitial = Boolean(initialProducts && initialCategories && initialStatus);
+
   // Fetch initial data
   useEffect(() => {
+    if (hasInitial) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     Promise.all([
       fetch(`${apiUrl}/api/products`).then((r) => r.json()),
@@ -505,10 +527,7 @@ export function ShopView({ initialLayout = "classic" }: { initialLayout?: "class
 
         // Calculate max price from products
         if (prodList.length > 0) {
-          const maxP = Math.max(
-            ...prodList.map((p) => Number(p.salePrice && Number(p.salePrice) < Number(p.price) ? p.salePrice : p.price))
-          );
-          const limit = Math.ceil(maxP / 500) * 500 || 10000;
+          const limit = priceCap(prodList);
           setMaxPriceLimit(limit);
           setPriceMax(limit);
         }
@@ -524,7 +543,7 @@ export function ShopView({ initialLayout = "classic" }: { initialLayout?: "class
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, []);
+  }, [hasInitial]);
 
   // Fetch wishlist if logged in
   useEffect(() => {

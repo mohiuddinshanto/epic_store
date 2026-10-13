@@ -3,7 +3,7 @@
 import { Button, Textarea } from "@heroui/react";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { ProductDetailSkeleton } from "./skeletons";
 import { RichContent } from "./rich-text";
@@ -71,7 +71,7 @@ function variationMatches(v: Variation, attrs: Record<string, string>): boolean 
   return v.attributes.every((x) => attrs[x.attributeId] === x.valueId);
 }
 
-type Product = {
+export type Product = {
   id: string;
   slug: string;
   name: string;
@@ -94,45 +94,65 @@ type Product = {
   reviews?: Review[];
 };
 
-export function ProductView({ slug }: { slug: string }) {
-  const [product, setProduct] = useState<Product | null>(null);
+export function ProductView({ slug, initialProduct }: { slug: string; initialProduct?: Product | null }) {
+  const [product, setProduct] = useState<Product | null>(initialProduct ?? null);
   const [activeImg, setActiveImg] = useState<string>("");
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [selected, setSelected] = useState<Record<string, string>>({});
   const [selectedVariation, setSelectedVariation] = useState<Variation | null>(null);
   const [qty, setQty] = useState(1);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialProduct);
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
   const [submittingReview, setSubmittingReview] = useState(false);
   const [wishlisted, setWishlisted] = useState(false);
 
+  const initialRef = useRef(initialProduct);
+  initialRef.current = initialProduct;
+
   useEffect(() => {
+    let active = true;
+
+    const apply = (data: Product | null) => {
+      setProduct(data);
+      const variations = data?.variations ?? [];
+      const isVar = data?.productType === "VARIABLE" && variations.length > 0;
+      if (isVar && data) {
+        const act = variations.filter((v: Variation) => v.status !== "disabled");
+        const def = variations.find((v: Variation) => v.id === data.defaultVariationId) ?? act[0] ?? variations[0];
+        if (def && Array.isArray(data.attributes)) {
+          const sel: Record<string, string> = {};
+          for (const attr of data.attributes) {
+            const link = def.attributes.find((a: VariationAttributeLink) => a.attributeId === attr.id);
+            if (link) sel[attr.id] = link.valueId;
+          }
+          setSelected(sel);
+        }
+      } else {
+        setSelected({});
+      }
+      const featured = data?.imagesDetails?.find((i: ProductImageDetail) => i.isFeatured)?.url;
+      if (featured) setActiveImg(featured);
+      else if (data?.images?.length) setActiveImg(data.images[0]);
+      setLoading(false);
+    };
+
+    const initial = initialRef.current;
+    if (initial && initial.slug === slug) {
+      apply(initial);
+      return;
+    }
+
     fetch(`${apiUrl}/api/products/${slug}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        setProduct(data);
-        const isVar = data?.productType === "VARIABLE" && Array.isArray(data.variations) && data.variations.length > 0;
-        if (isVar) {
-          const active = data.variations.filter((v: Variation) => v.status !== "disabled");
-          const def = data.variations.find((v: Variation) => v.id === data.defaultVariationId) ?? active[0] ?? data.variations[0];
-          if (def && Array.isArray(data.attributes)) {
-            const sel: Record<string, string> = {};
-            for (const attr of data.attributes) {
-              const link = def.attributes.find((a: VariationAttributeLink) => a.attributeId === attr.id);
-              if (link) sel[attr.id] = link.valueId;
-            }
-            setSelected(sel);
-          }
-        } else {
-          setSelected({});
-        }
-        const featured = data?.imagesDetails?.find((i: ProductImageDetail) => i.isFeatured)?.url;
-        if (featured) setActiveImg(featured);
-        else if (data?.images?.length) setActiveImg(data.images[0]);
-        setLoading(false);
+        if (active) apply(data);
       })
       .catch(() => setLoading(false));
+
+    return () => {
+      active = false;
+    };
   }, [slug]);
 
   useEffect(() => {
@@ -617,8 +637,6 @@ export function ProductView({ slug }: { slug: string }) {
         </div>
       </div>
 
-      <RelatedProducts productId={product.id} categorySlug={product.category.slug} />
-
       {/* Customer Reviews Section */}
       <section style={{ marginTop: "60px", paddingTop: "40px", borderTop: "1px solid var(--border)" }}>
         <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: "1.8rem", marginBottom: "24px" }}>
@@ -709,6 +727,8 @@ export function ProductView({ slug }: { slug: string }) {
           </form>
         </div>
       </section>
+
+      <RelatedProducts productId={product.id} categorySlug={product.category.slug} />
     </main>
   );
 }

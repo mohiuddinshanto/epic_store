@@ -6,7 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { waNumber } from "../lib/wa";
 import { stripHtml } from "../lib/html";
-import { getStoreStatus } from "../lib/store-status";
+import { getStoreStatus, type StoreStatusResult } from "../lib/store-status";
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { CarouselSlider } from "./carousel-slider";
@@ -349,21 +349,28 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
 export function Storefront({
   initialLayout = "classic",
   initialHomeConfig = null,
+  initialProducts,
+  initialCategories,
+  initialStatus,
 }: {
   initialLayout?: "classic" | "catalog";
   initialHomeConfig?: HomePageConfig | null;
+  initialProducts?: Product[];
+  initialCategories?: Category[];
+  initialStatus?: StoreStatusResult;
 } = {}) {
   const pathname = usePathname();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [products, setProducts] = useState<Product[]>(initialProducts ?? []);
+  const [categories, setCategories] = useState<Category[]>(initialCategories ?? []);
   const [query, setQuery] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [open, setOpen] = useState(false);
   const [wishlist, setWishlist] = useState<string[]>([]);
-  const [chatConfig, setChatConfig] = useState<ChatConfig | null>(null);
+  const [chatConfig, setChatConfig] = useState<ChatConfig | null>(initialStatus?.config?.chatConfig ?? null);
   const [chatOpen, setChatOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [homeConfig, setHomeConfig] = useState<HomePageConfig | null>(() => {
+    if (initialStatus?.config?.homePageConfig) return initialStatus.config.homePageConfig as HomePageConfig;
     if (initialHomeConfig) return initialHomeConfig;
     if (typeof window !== "undefined") {
       try {
@@ -373,39 +380,48 @@ export function Storefront({
     }
     return initialLayout === "catalog" ? ({ layout: "catalog" } as HomePageConfig) : null;
   });
-  const [bannerConfig, setBannerConfig] = useState<HeroBannerConfig | null>(null);
-  const [navMenus, setNavMenus] = useState<MenuItem[]>([]);
-  const [storeName, setStoreName] = useState("EPIC");
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  const [allowAddToCart, setAllowAddToCart] = useState(true);
-  const [bottomNav, setBottomNav] = useState(true);
+  const [bannerConfig, setBannerConfig] = useState<HeroBannerConfig | null>(initialStatus?.config?.heroBannerConfig ?? null);
+  const [navMenus, setNavMenus] = useState<MenuItem[]>(initialStatus?.config?.navigationConfig?.menus?.[0]?.items ?? []);
+  const [storeName, setStoreName] = useState(
+    typeof initialStatus?.config?.storeName === "string" && initialStatus.config.storeName.trim()
+      ? initialStatus.config.storeName.trim()
+      : "EPIC"
+  );
+  const [logoUrl, setLogoUrl] = useState<string | null>(initialStatus?.config?.logoUrl ?? null);
+  const [allowAddToCart, setAllowAddToCart] = useState(initialStatus?.config?.featureFlags?.addToCart !== false);
+  const [bottomNav, setBottomNav] = useState(initialStatus?.config?.featureFlags?.bottomNav !== false);
   const [ready, setReady] = useState(false);
+  const hasInitial = Boolean(initialProducts && initialCategories && initialStatus);
 
   useEffect(() => {
-    Promise.all([
-      fetch(`${apiUrl}/api/products?home=1`).then((r) => r.json()),
-      fetch(`${apiUrl}/api/categories`).then((r) => r.json()),
-      getStoreStatus(),
-    ])
-      .then(([p, c, status]) => {
-        if (Array.isArray(p)) setProducts(p);
-        if (Array.isArray(c)) setCategories(c);
-        if (status?.config?.chatConfig) setChatConfig(status.config.chatConfig);
-        if (status?.config?.homePageConfig) {
-          setHomeConfig(status.config.homePageConfig);
-          try {
-            localStorage.setItem("epic_home_config", JSON.stringify(status.config.homePageConfig));
-          } catch {}
-        }
-        if (status?.config?.heroBannerConfig) setBannerConfig(status.config.heroBannerConfig);
-        if (status?.config?.navigationConfig?.menus?.[0]?.items) setNavMenus(status.config.navigationConfig.menus[0].items);
-        if (typeof status?.config?.storeName === "string" && status.config.storeName.trim()) setStoreName(status.config.storeName.trim());
-        if (status?.config?.logoUrl) setLogoUrl(status.config.logoUrl);
-        setAllowAddToCart(status?.config?.featureFlags?.addToCart !== false);
-        setBottomNav(status?.config?.featureFlags?.bottomNav !== false);
-      })
-      .catch(() => {})
-      .finally(() => setReady(true));
+    if (!hasInitial) {
+      Promise.all([
+        fetch(`${apiUrl}/api/products?home=1`).then((r) => r.json()),
+        fetch(`${apiUrl}/api/categories`).then((r) => r.json()),
+        getStoreStatus(),
+      ])
+        .then(([p, c, status]) => {
+          if (Array.isArray(p)) setProducts(p);
+          if (Array.isArray(c)) setCategories(c);
+          if (status?.config?.chatConfig) setChatConfig(status.config.chatConfig);
+          if (status?.config?.homePageConfig) {
+            setHomeConfig(status.config.homePageConfig);
+            try {
+              localStorage.setItem("epic_home_config", JSON.stringify(status.config.homePageConfig));
+            } catch {}
+          }
+          if (status?.config?.heroBannerConfig) setBannerConfig(status.config.heroBannerConfig);
+          if (status?.config?.navigationConfig?.menus?.[0]?.items) setNavMenus(status.config.navigationConfig.menus[0].items);
+          if (typeof status?.config?.storeName === "string" && status.config.storeName.trim()) setStoreName(status.config.storeName.trim());
+          if (status?.config?.logoUrl) setLogoUrl(status.config.logoUrl);
+          setAllowAddToCart(status?.config?.featureFlags?.addToCart !== false);
+          setBottomNav(status?.config?.featureFlags?.bottomNav !== false);
+        })
+        .catch(() => {})
+        .finally(() => setReady(true));
+    } else {
+      setReady(true);
+    }
 
     const stored = localStorage.getItem("epic-cart");
     if (stored) {
@@ -413,7 +429,7 @@ export function Storefront({
         setCart(JSON.parse(stored));
       } catch {}
     }
-  }, []);
+  }, [hasInitial]);
 
   useEffect(() => {
     localStorage.setItem("epic-cart", JSON.stringify(cart));
