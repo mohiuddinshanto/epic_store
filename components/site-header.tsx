@@ -42,16 +42,16 @@ export function SiteHeader() {
       </Link>
 
       <div className="nav-links">
-        <Link href="/">হোম</Link>
-        <Link href="/shop">শপ</Link>
-        <Link href="/account">প্রোফাইল</Link>
+        <Link href="/" prefetch>হোম</Link>
+        <Link href="/shop" prefetch>শপ</Link>
+        <Link href="/account" prefetch>প্রোফাইল</Link>
       </div>
 
       <div className="nav-actions">
-        <Link href="/account" className="icon-btn" aria-label="Account">
+        <Link href="/account" className="icon-btn" aria-label="Account" prefetch>
           <FiUser />
         </Link>
-        <Link href="/checkout" className="bag-button" aria-label="Bag">
+        <Link href="/checkout" className="bag-button" aria-label="Bag" prefetch>
           <FiShoppingBag />
           <span>{count}</span>
         </Link>

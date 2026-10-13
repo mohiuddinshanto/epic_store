@@ -698,7 +698,7 @@ export function Storefront({
         </Link>
 
         <div className="nav-links">
-          <Link href="/shop" className={`shop-nav-link ${pathname === "/shop" ? "active" : ""}`}>
+          <Link href="/shop" prefetch className={`shop-nav-link ${pathname === "/shop" ? "active" : ""}`}>
             <FiShoppingBag size={14} /> Shop
           </Link>
           {navMenus.length > 0
@@ -707,6 +707,7 @@ export function Storefront({
                 <Link
                   key={c.id}
                   href={`/categories/${c.slug}`}
+                  prefetch
                   className={pathname === `/categories/${c.slug}` ? "active" : ""}
                 >
                   {c.name}
@@ -726,7 +727,7 @@ export function Storefront({
             />
           </label>
 
-          <Link href="/account" className="icon-btn" aria-label="Account">
+          <Link href="/account" prefetch className="icon-btn" aria-label="Account">
             <FiUser />
           </Link>
 
@@ -753,6 +754,7 @@ export function Storefront({
 
             <Link
               href="/shop"
+              prefetch
               className={`mobile-link ${pathname === "/shop" ? "active" : ""}`}
               onClick={() => setMobileNavOpen(false)}
             >
@@ -773,6 +775,7 @@ export function Storefront({
                   <Link
                     key={c.id}
                     href={`/categories/${c.slug}`}
+                    prefetch
                     className={`mobile-link ${pathname === `/categories/${c.slug}` ? "active" : ""}`}
                     onClick={() => setMobileNavOpen(false)}
                   >
@@ -782,6 +785,7 @@ export function Storefront({
 
             <Link
               href="/account"
+              prefetch
               className="mobile-link mobile-account"
               onClick={() => setMobileNavOpen(false)}
             >
@@ -1357,7 +1361,7 @@ export function Storefront({
                     Taxes and shipping calculated at checkout.
                   </p>
 
-                  <Link href="/checkout" style={{ textDecoration: "none" }}>
+                  <Link href="/checkout" prefetch style={{ textDecoration: "none" }}>
                     <Button color="primary" fullWidth size="lg" className="font-bold shadow-lg">
                       Proceed to Checkout <FiArrowRight className="ml-1" />
                     </Button>
@@ -1390,14 +1394,14 @@ function NavItem({ item, categories, pathname }: { item: MenuItem; categories: C
   const cls = pathname === href ? "active" : "";
   if (!hasKids) {
     return (
-      <Link href={href} className={cls}>
+      <Link href={href} prefetch className={cls}>
         {item.label}
       </Link>
     );
   }
   return (
     <div className="nav-dd">
-      <Link href={href} className={cls}>
+      <Link href={href} prefetch className={cls}>
         {labelNode}
       </Link>
       <div className="nav-dd-panel">
@@ -1413,7 +1417,7 @@ function NavSub({ item, categories, pathname }: { item: MenuItem; categories: Ca
   const hasKids = (item.children?.length ?? 0) > 0;
   const href = resolveCategoryHref(item, categories);
   const link = (
-    <Link href={href} className={pathname === href ? "active" : ""}>
+    <Link href={href} prefetch className={pathname === href ? "active" : ""}>
       {item.label}
     </Link>
   );
@@ -1438,7 +1442,7 @@ function MobileNavLink({ item, categories, pathname, onNavigate }: { item: MenuI
   const href = resolveCategoryHref(item, categories);
   const cls = pathname === href ? "active" : "";
   const link = (
-    <Link href={href} className={`mobile-link ${cls}`} onClick={onNavigate}>
+    <Link href={href} prefetch className={`mobile-link ${cls}`} onClick={onNavigate}>
       {item.label}
     </Link>
   );
