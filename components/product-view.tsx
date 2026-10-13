@@ -76,6 +76,7 @@ type Product = {
   price: string;
   salePrice: string | null;
   stock: number;
+  manageStock?: boolean;
   sku?: string | null;
   productType?: "SIMPLE" | "VARIABLE";
   defaultVariationId?: string | null;
@@ -164,7 +165,7 @@ export function ProductView({ slug }: { slug: string }) {
 
   useEffect(() => {
     if (!product) return;
-    const max = isVariable && selectedVariation ? (selectedVariation.manageStock === false ? 999999 : Number(selectedVariation.stock)) : product.stock;
+    const max = isVariable && selectedVariation ? (selectedVariation.manageStock === false ? 999999 : Number(selectedVariation.stock)) : product.manageStock === false ? 999999 : product.stock;
     if (qty > Math.max(1, max)) setQty(Math.max(1, max));
   }, [selectedVariation, isVariable, product, qty]);
 
@@ -447,7 +448,7 @@ export function ProductView({ slug }: { slug: string }) {
             )
           ) : product.stock > 0 ? (
             <div className="stock-badge">
-              <span className="dot" /> In Stock ({product.stock} items available)
+              <span className="dot" /> {product.manageStock === false ? "In Stock" : `In Stock (${product.stock} items available)`}
             </div>
           ) : (
             <div className="stock-badge" style={{ color: "#ef4444", background: "#fef2f2" }}>

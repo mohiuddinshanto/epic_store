@@ -20,6 +20,11 @@ const nextConfig: NextConfig = {
     "nodemailer",
   ],
   images: {
+    // Some hosts (e.g. the production server) cannot reach upstream image
+    // origins, so the built-in optimizer returns 400 "upstream response is
+    // invalid" and product images disappear. Serving the original files
+    // directly keeps every image visible regardless of where it is hosted.
+    unoptimized: true,
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com" },
       { protocol: "https", hostname: "gadgetlagbe.online" },

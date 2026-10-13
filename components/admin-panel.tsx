@@ -195,6 +195,7 @@ type Product = {
   price: string;
   salePrice: string | null;
   stock: number;
+  manageStock?: boolean;
   sku?: string | null;
   productType?: "SIMPLE" | "VARIABLE";
   images: string[];
@@ -984,6 +985,8 @@ function AdminProducts({ token }: { token: string }) {
   const [uploading, setUploading] = useState(false);
   const [gallery, setGallery] = useState<{ id?: string; url: string; preview?: string; altText?: string; title?: string; isFeatured: boolean }[]>([]);
   const [productType, setProductType] = useState<"SIMPLE" | "VARIABLE">("SIMPLE");
+  const [manageStockQty, setManageStockQty] = useState(true);
+  const [manualOutOfStock, setManualOutOfStock] = useState(false);
   const [sku, setSku] = useState("");
   const [basePrice, setBasePrice] = useState("");
   const [attributes, setAttributes] = useState<ProductAttribute[]>([]);
@@ -1026,6 +1029,8 @@ function AdminProducts({ token }: { token: string }) {
     setEditingProduct(null);
     setGallery([]);
     setProductType("SIMPLE");
+    setManageStockQty(true);
+    setManualOutOfStock(false);
     setSku("");
     setBasePrice("");
     setAttributes([]);
@@ -1053,6 +1058,8 @@ function AdminProducts({ token }: { token: string }) {
       }))
     );
     setProductType(p.productType ?? "SIMPLE");
+    setManageStockQty(p.manageStock !== false);
+    setManualOutOfStock(p.manageStock === false && p.stock <= 0);
     setSku(p.sku ?? "");
     setBasePrice(String(p.price ?? ""));
     setAttributes(
@@ -1384,7 +1391,7 @@ function AdminProducts({ token }: { token: string }) {
     const longDescriptionText = form.get("longDescription") ? String(form.get("longDescription")) : undefined;
     const price = toBdtNumber(String(form.get("price") ?? ""));
     const salePrice = toBdtNumber(form.get("salePrice") ? String(form.get("salePrice")) : null);
-    const stock = Number(form.get("stock") || 0);
+    const stock = manageStockQty ? Math.max(0, Math.floor(Number(form.get("stock") || 0))) : manualOutOfStock ? 0 : 1;
     const images = imageDetails.map((i) => i.url);
     const productTypeValue = productType;
     const variationsPayload = productTypeValue === "VARIABLE" ? cleanVariations : undefined;
@@ -1398,6 +1405,7 @@ function AdminProducts({ token }: { token: string }) {
       price,
       salePrice,
       stock,
+      manageStock: manageStockQty,
       images,
       imageDetails,
       sku: sku.trim() || undefined,
@@ -1409,7 +1417,7 @@ function AdminProducts({ token }: { token: string }) {
       const url = editingProduct ? `/api/admin/products/${editingProduct.id}` : "/api/admin/products";
       const method = editingProduct ? "PATCH" : "POST";
       const body = editingProduct
-        ? { name, description: descriptionText, longDescription: longDescriptionText, price, salePrice, stock, images, imageDetails, sku: sku.trim() || undefined, productType: productTypeValue, attributes: attributesPayload, variations: variationsPayload }
+        ? { name, description: descriptionText, longDescription: longDescriptionText, price, salePrice, stock, manageStock: manageStockQty, images, imageDetails, sku: sku.trim() || undefined, productType: productTypeValue, attributes: attributesPayload, variations: variationsPayload }
         : payload;
       const response = await api(url, token, { method, body: JSON.stringify(body) });
       const data = await response.json();
@@ -1512,7 +1520,23 @@ function AdminProducts({ token }: { token: string }) {
               </Select>
               <Input label="Regular Price (BDT)" name="price" type="text" inputMode="decimal" isRequired placeholder="1500" defaultValue={editingProduct ? String(editingProduct.price) : ""} />
               <Input label="Sale Price (BDT)" name="salePrice" type="text" inputMode="decimal" placeholder="1200 (Optional)" defaultValue={editingProduct?.salePrice != null ? String(editingProduct.salePrice) : ""} />
-              <Input label="Initial Stock Qty" name="stock" type="number" defaultValue={String(editingProduct?.stock ?? 10)} />
+              <div className="flex flex-col justify-center gap-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-700 dark:text-slate-200">Track stock quantity</p>
+                    <p className="text-[11px] text-gray-400 dark:text-slate-500">Off = always available, no quantity needed</p>
+                  </div>
+                  <Switch size="sm" isSelected={manageStockQty} onValueChange={setManageStockQty} />
+                </div>
+                {manageStockQty ? (
+                  <Input label="Stock Qty" name="stock" type="number" defaultValue={String(editingProduct?.stock ?? 10)} />
+                ) : (
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-sm text-gray-600 dark:text-slate-300">Out of stock</span>
+                    <Switch size="sm" isSelected={manualOutOfStock} onValueChange={setManualOutOfStock} />
+                  </div>
+                )}
+              </div>
             </div>
 
             <Textarea label="Short Description" name="description" isRequired minRows={3} placeholder="One or two crisp sentences for cards, search and quick glance…" defaultValue={editingProduct?.description ?? ""} />
@@ -2062,7 +2086,11 @@ function AdminProducts({ token }: { token: string }) {
                     <td className="py-3 px-4 text-xs text-gray-600 dark:text-slate-400">{p.category?.name ?? "—"}</td>
                     <td className="py-3 px-4 font-bold text-xs text-gray-900 dark:text-white">{money(p.salePrice ?? p.price)}</td>
                     <td className="py-3 px-4">
-                      <span className={`font-mono text-xs font-bold ${p.stock === 0 ? "text-rose-500" : p.stock < 20 ? "text-amber" : "text-emerald"}`}>{p.stock}</span>
+                      {p.manageStock === false ? (
+                        <span className={`font-mono text-xs font-bold ${p.stock <= 0 ? "text-rose-500" : "text-emerald"}`}>{p.stock <= 0 ? "Out" : "∞"}</span>
+                      ) : (
+                        <span className={`font-mono text-xs font-bold ${p.stock === 0 ? "text-rose-500" : p.stock < 20 ? "text-amber" : "text-emerald"}`}>{p.stock}</span>
+                      )}
                     </td>
                     <td className="py-3 px-4">
                       <span

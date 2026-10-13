@@ -256,6 +256,7 @@ async function queryProductList(where: Prisma.ProductWhereInput, page?: number, 
     price: true,
     salePrice: true,
     stock: true,
+    manageStock: true,
     productType: true,
     sku: true,
     description: true,
@@ -272,6 +273,7 @@ async function queryProductList(where: Prisma.ProductWhereInput, page?: number, 
         price: true,
         salePrice: true,
         stock: true,
+        manageStock: true,
         image: true,
         attributes: {
           select: { attributeId: true, valueId: true, value: { select: { value: true } } },
@@ -601,8 +603,12 @@ app.post("/api/orders", checkIpCooldown, async (req, res) => {
         } else {
           if (item.variationId) throw new OrderRequestError(400, `The selected option for ${product.name} is invalid.`);
           unitPrice = product.salePrice !== null && Number(product.salePrice) < Number(product.price) ? cents(product.salePrice) : cents(product.price);
-          const updated = await tx.product.updateMany({ where: { id: product.id, isActive: true, stock: { gte: item.qty } }, data: { stock: { decrement: item.qty } } });
-          if (updated.count !== 1) throw new OrderRequestError(409, `${product.name} is out of stock.`);
+          if (product.manageStock) {
+            const updated = await tx.product.updateMany({ where: { id: product.id, isActive: true, stock: { gte: item.qty } }, data: { stock: { decrement: item.qty } } });
+            if (updated.count !== 1) throw new OrderRequestError(409, `${product.name} is out of stock.`);
+          } else if (product.stock <= 0) {
+            throw new OrderRequestError(409, `${product.name} is out of stock.`);
+          }
         }
 
         subtotalCents += unitPrice * item.qty;
@@ -727,6 +733,7 @@ app.patch("/api/admin/products/:id", requireAuth, requireRole("ADMIN", "STAFF"),
       salePrice: z.number().nonnegative().nullable().optional(),
       longDescription: z.string().nullable().optional(),
       stock: z.number().int().nonnegative().optional(),
+      manageStock: z.boolean().optional(),
       isActive: z.boolean().optional(),
       showOnHome: z.boolean().optional(),
       productType: z.enum(["SIMPLE", "VARIABLE"]).optional(),
@@ -1061,7 +1068,8 @@ app.post("/api/admin/products", requireAuth, requireRole("ADMIN", "STAFF"), asyn
       longDescription: z.string().optional(),
       price: z.number().nonnegative(),
       salePrice: z.number().nonnegative().optional(),
-      stock: z.number().int().nonnegative(),
+      stock: z.number().int().nonnegative().optional(),
+      manageStock: z.boolean().optional(),
       sku: z.string().trim().max(100).optional(),
       productType: z.enum(["SIMPLE", "VARIABLE"]).optional(),
       images: z.array(z.string().url().or(z.string().regex(/^\//))).min(1),
