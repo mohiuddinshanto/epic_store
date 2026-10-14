@@ -2303,7 +2303,11 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
     const mode: CategoryDisplay["mode"] = d.mode === "carousel" || d.mode === "loop" ? d.mode : "grid";
     const seconds = Math.min(60, Math.max(1, Math.round(Number(d.seconds) || 3)));
     const perView = d.perView;
-    const clean: CategoryDisplay = { mode };
+    const clean: typeof d = { mode };
+    clean.eyebrow = d.eyebrow?.trim() || undefined;
+    clean.title = d.title?.trim() || undefined;
+    clean.accent = d.accent?.trim() || undefined;
+    clean.countLabel = d.countLabel?.trim() || undefined;
     if (mode !== "grid") {
       clean.seconds = seconds;
       if (perView) {
@@ -3892,7 +3896,6 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
   function saveCatShow() {
     const clean: typeof catShow = {
       ...catShow,
-      mode: catShow.mode && catShow.mode !== "grid" ? catShow.mode : catShow.mode,
       eyebrow: catShow.eyebrow?.trim() || undefined,
       title: catShow.title?.trim() || undefined,
       accent: catShow.accent?.trim() || undefined,

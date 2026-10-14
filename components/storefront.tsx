@@ -390,7 +390,7 @@ export function Storefront({
   const [logoUrl, setLogoUrl] = useState<string | null>(initialStatus?.config?.logoUrl ?? null);
   const [allowAddToCart, setAllowAddToCart] = useState(initialStatus?.config?.featureFlags?.addToCart !== false);
   const [bottomNav, setBottomNav] = useState(initialStatus?.config?.featureFlags?.bottomNav !== false);
-  const [ready, setReady] = useState(false);
+  const [ready, setReady] = useState(Boolean(initialProducts && initialCategories && initialStatus));
   const hasInitial = Boolean(initialProducts && initialCategories && initialStatus);
 
   useEffect(() => {
@@ -830,6 +830,7 @@ export function Storefront({
           sections={homeConfig?.sections}
           promoBanners={homeConfig?.promoBanners}
           trustBadges={homeConfig?.trustBadges}
+          categoryShowcase={homeConfig?.categories}
           sectionVisibility={homeConfig?.sectionVisibility}
         />
       ) : (

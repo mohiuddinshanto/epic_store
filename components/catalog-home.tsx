@@ -301,6 +301,19 @@ export type TrustBadgeDef = {
   subtitle?: string;
 };
 
+export type CategoryShowcase = {
+  mode?: "grid" | "carousel" | "loop";
+  auto?: boolean;
+  loop?: boolean;
+  seconds?: number;
+  pagination?: boolean;
+  perView?: { mobile: number; tablet: number; desktop: number };
+  eyebrow?: string;
+  title?: string;
+  accent?: string;
+  countLabel?: string;
+};
+
 export function CatalogHome({
   products,
   categories,
@@ -313,6 +326,7 @@ export function CatalogHome({
   sections,
   promoBanners,
   trustBadges,
+  categoryShowcase,
   sectionVisibility,
 }: {
   products: Product[];
@@ -326,6 +340,7 @@ export function CatalogHome({
   sections?: HomeSectionDef[];
   promoBanners?: PromoBannerDef[];
   trustBadges?: TrustBadgeDef[];
+  categoryShowcase?: CategoryShowcase;
   sectionVisibility?: Partial<Record<"hero" | "categories" | "products" | "collections" | "trust" | "promos" | "announcement", boolean>>;
 }) {
   const [activeTab, setActiveTab] = useState<string>("all");
@@ -489,40 +504,69 @@ export function CatalogHome({
       </section>}
 
       {/* CATEGORIES */}
-      {sectionVisibility?.categories !== false && <section id="categories" className="mx-auto max-w-7xl px-4 py-8">
-        <div className="mb-5 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-[var(--primary)]">
-              <FiShoppingBag size={18} />
-            </span>
-            <h2 className="text-xl font-bold text-gray-900 md:text-2xl">ক্যাটাগরি সমূহ</h2>
-          </div>
-          <Link href="/shop" className="flex items-center gap-1 text-sm font-semibold text-[var(--primary)] hover:underline">
-            সকল দেখুন <span>→</span>
+      {sectionVisibility?.categories !== false && (() => {
+        const mode = categoryShowcase?.mode ?? "grid";
+        const eyebrow = categoryShowcase?.eyebrow?.trim();
+        const title = categoryShowcase?.title?.trim();
+        const accent = categoryShowcase?.accent?.trim();
+        const card = (c: (typeof catCounts)[number]) => (
+          <Link
+            key={c.id}
+            href={`/categories/${c.slug}`}
+            className="group flex h-full flex-col rounded-xl border border-gray-100 bg-white p-3 text-center shadow-sm transition hover:border-emerald-300 hover:shadow-md"
+          >
+            <div className="relative mb-2.5 aspect-square overflow-hidden rounded-lg bg-emerald-50">
+              <Image
+                src={c.image ?? img(products.find((p) => p.categoryId === c.id) ?? { images: [] } as any)}
+                alt={c.name}
+                fill
+                sizes="200px"
+                className="rounded-lg object-cover transition duration-300 group-hover:scale-105"
+              />
+            </div>
+            <h3 className="truncate text-sm font-bold text-gray-800 group-hover:text-[var(--primary)] sm:text-[0.95rem]">{c.name}</h3>
+            <p className="text-xs text-gray-400">({c.count} টি)</p>
           </Link>
-        </div>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 md:grid-cols-7">
-          {catCounts.map((c) => (
-            <Link
-              key={c.id}
-              href={`/categories/${c.slug}`}
-              className="group rounded-xl border border-gray-100 bg-white p-3 text-center shadow-sm transition hover:border-emerald-300 hover:shadow-md"
-            >
-              <div className="relative mb-2.5 aspect-square overflow-hidden rounded-lg bg-emerald-50">
-                <Image
-                  src={c.image ?? img(products.find((p) => p.categoryId === c.id) ?? { images: [] } as any)}
-                  alt={c.name}
-                  fill
-                  sizes="200px"
-                  className="rounded-lg object-cover transition duration-300 group-hover:scale-105"
-                />
+        );
+        return (
+          <section id="categories" className="mx-auto max-w-7xl px-4 py-8">
+            <div className="mb-5 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-[var(--primary)]">
+                  <FiShoppingBag size={18} />
+                </span>
+                <div>
+                  {eyebrow && <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">{eyebrow}</p>}
+                  <h2 className="text-xl font-bold text-gray-900 md:text-2xl">
+                    {title || "ক্যাটাগরি সমূহ"}
+                    {accent && <span className="text-emerald-700"> {accent}</span>}
+                  </h2>
+                </div>
               </div>
-              <h3 className="truncate text-sm font-bold text-gray-800 group-hover:text-[var(--primary)] sm:text-[0.95rem]">{c.name}</h3>
-              <p className="text-xs text-gray-400">({c.count} টি)</p>
-            </Link>
-          ))}
-        </div>
-      </section>}
+              <Link href="/shop" className="flex shrink-0 items-center gap-1 text-sm font-semibold text-[var(--primary)] hover:underline">
+                সকল দেখুন <span>→</span>
+              </Link>
+            </div>
+            {mode === "grid" ? (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 md:grid-cols-7">
+                {catCounts.map(card)}
+              </div>
+            ) : (
+              <CarouselSlider
+                key={`cat-${mode}`}
+                items={catCounts.map(card)}
+                seconds={categoryShowcase?.seconds ?? 3}
+                auto={mode === "loop" ? true : (categoryShowcase?.auto ?? false)}
+                loop={mode === "loop" ? true : (categoryShowcase?.loop ?? false)}
+                perView={categoryShowcase?.perView ?? { mobile: 2, tablet: 4, desktop: 6 }}
+                pagination={categoryShowcase?.pagination ?? false}
+                spaceBetween={12}
+                ariaLabel="Shop by category"
+              />
+            )}
+          </section>
+        );
+      })()}
 
       {/* POPULAR PRODUCTS */}
       {sectionVisibility?.products !== false && <section id="shop" className="mx-auto max-w-7xl px-4 py-8">
