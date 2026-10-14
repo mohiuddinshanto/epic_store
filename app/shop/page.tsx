@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { prisma } from "../../api/lib/prisma";
 import { ShopView, type ShopViewProps } from "../../components/shop-view";
+import { SiteFooter } from "../../components/store-footer";
 import { fetchInternalJson } from "../../lib/internal-fetch";
 import ShopLoading from "./loading";
 
@@ -34,13 +35,16 @@ export default async function ShopPage() {
   if (status?.config?.homePageConfig?.layout === "catalog") initialLayout = "catalog";
 
   return (
-    <Suspense fallback={<ShopLoading />}>
-      <ShopView
-        initialLayout={initialLayout}
-        initialProducts={products ?? undefined}
-        initialCategories={categories ?? undefined}
-        initialStatus={status ?? undefined}
-      />
-    </Suspense>
+    <>
+      <Suspense fallback={<ShopLoading />}>
+        <ShopView
+          initialLayout={initialLayout}
+          initialProducts={products ?? undefined}
+          initialCategories={categories ?? undefined}
+          initialStatus={status ?? undefined}
+        />
+      </Suspense>
+      <SiteFooter initialStatus={status} initialCategories={categories} />
+    </>
   );
 }

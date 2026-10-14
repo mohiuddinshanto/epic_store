@@ -11,6 +11,7 @@ import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { CarouselSlider } from "./carousel-slider";
 import { CatalogHome } from "./catalog-home";
+import { StoreFooter } from "./store-footer";
 import { HomeSkeleton } from "./skeletons";
 import {
   FiArrowRight,
@@ -168,6 +169,16 @@ export type HomePageConfig = {
   };
   footer?: {
     enabled?: boolean;
+    brand?: string;
+    logo?: string | null;
+    slogan?: string;
+    social?: { facebook?: string; youtube?: string; instagram?: string; whatsapp?: string; phone?: string };
+    showCategories?: boolean;
+    categoryTitle?: string;
+    categoryLimit?: number;
+    categories?: { label?: string; url?: string }[];
+    contactTitle?: string;
+    contact?: { address?: string; phone?: string; email?: string };
     copyright?: string;
     links?: { label?: string; url?: string }[];
   };
@@ -253,13 +264,6 @@ const DEFAULT_TRUST_BADGES: TrustBadgeConfig[] = [
   { enabled: true, icon: "truck", title: "Express BD Delivery", subtitle: "All 64 districts in 2–4 days" },
   { enabled: true, icon: "check", title: "Flexible Payment", subtitle: "COD, bKash, Nagad, Cards" },
   { enabled: true, icon: "refresh", title: "Easy Exchange", subtitle: "7-day hassle-free returns" },
-];
-
-const DEFAULT_FOOTER_LINKS = [
-  { label: "Privacy Notice", url: "/" },
-  { label: "Terms of Service", url: "/" },
-  { label: "Shipping", url: "#shop" },
-  { label: "Contact", url: "/account" },
 ];
 
 type Testimonial = { init?: string; image?: string; name?: string; role?: string; quote?: string; rating?: number };
@@ -1156,45 +1160,18 @@ export function Storefront({
       )}
 
       {/* Footer */}
-      {(() => {
-        const cfg = homeConfig?.footer ?? {};
-        if (cfg.enabled === false) return null;
-        const links = cfg.links && cfg.links.length > 0 ? cfg.links : DEFAULT_FOOTER_LINKS;
-        return (
-          <footer className="border-t border-slate-200 bg-slate-50 pb-16 md:pb-0">
-            <div className="mx-auto flex max-w-[1400px] flex-col items-center justify-between gap-4 px-[6vw] py-8 text-center sm:flex-row sm:text-left">
-              <div className="flex items-center gap-3">
-                <Link href="/" className="brand">
-                  {storeName}
-                </Link>
-                <span className="hidden text-slate-300 sm:inline">•</span>
-                <p className="text-sm text-slate-400">
-                  {cfg.copyright ?? `© ${new Date().getFullYear()} ${storeName}. Everyday premium essentials from Bangladesh.`}
-                </p>
-              </div>
-              <nav className="flex flex-wrap items-center justify-center gap-6">
-                {links.map((l) => (
-                  <Link
-                    key={l.label || l.url}
-                    href={l.url || "/"}
-                    onClick={(e) => {
-                      const href = l.url || "/";
-                      if (href.startsWith("#")) {
-                        e.preventDefault();
-                        const id = href.slice(1);
-                        document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
-                      }
-                    }}
-                    className="text-sm text-slate-400 transition-colors hover:text-primary"
-                  >
-                    {l.label}
-                  </Link>
-                ))}
-              </nav>
-            </div>
-          </footer>
-        );
-      })()}
+      <StoreFooter
+        config={homeConfig?.footer}
+        storeName={storeName}
+        storeLogo={logoUrl}
+        whatsappUrl={
+          chatConfig?.whatsapp?.enabled && chatConfig.whatsapp.number
+            ? `https://wa.me/${waNumber(chatConfig.whatsapp.number)}`
+            : null
+        }
+        phone={chatConfig?.phone}
+        categories={categories}
+      />
 
       {/* Floating Customer Chat Widget */}
       {chatConfig?.enabled !== false && (chatConfig?.whatsapp?.number || chatConfig?.messenger?.url || chatConfig?.phone) && (

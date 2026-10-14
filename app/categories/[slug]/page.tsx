@@ -1,4 +1,5 @@
 import { CategoryView, type CategoryViewProps } from "../../../components/category-view";
+import { SiteFooter } from "../../../components/store-footer";
 import { fetchInternalJson } from "../../../lib/internal-fetch";
 
 export const dynamic = "force-dynamic";
@@ -15,12 +16,15 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
     fetchInternalJson<Status>("/api/store/status"),
   ]);
   return (
-    <CategoryView
-      key={slug}
-      slug={slug}
-      initialProducts={products ?? undefined}
-      initialCategories={categories ?? undefined}
-      initialStatus={status ?? undefined}
-    />
+    <>
+      <CategoryView
+        key={slug}
+        slug={slug}
+        initialProducts={products ?? undefined}
+        initialCategories={categories ?? undefined}
+        initialStatus={status ?? undefined}
+      />
+      <SiteFooter initialStatus={status} initialCategories={categories} />
+    </>
   );
 }

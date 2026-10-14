@@ -55,6 +55,16 @@ type HomePageConfigShape = {
   };
   footer?: {
     enabled?: boolean;
+    brand?: string;
+    logo?: string | null;
+    slogan?: string;
+    social?: { facebook?: string; youtube?: string; instagram?: string; whatsapp?: string; phone?: string };
+    showCategories?: boolean;
+    categoryTitle?: string;
+    categoryLimit?: number;
+    categories?: { label?: string; url?: string }[];
+    contactTitle?: string;
+    contact?: { address?: string; phone?: string; email?: string };
     copyright?: string;
     links?: { label?: string; url?: string }[];
   };
@@ -3847,11 +3857,40 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
     const links = (footer.links ?? [])
       .filter((l) => l.label?.trim())
       .map((l) => ({ label: l.label?.trim() || undefined, url: l.url?.trim() || undefined }));
+    const manualCats = (footer.categories ?? [])
+      .filter((c) => c.label?.trim())
+      .map((c) => ({ label: c.label?.trim() || undefined, url: c.url?.trim() || undefined }));
+    const soc = footer.social ?? {};
+    const social = {
+      facebook: soc.facebook?.trim() || undefined,
+      youtube: soc.youtube?.trim() || undefined,
+      instagram: soc.instagram?.trim() || undefined,
+      whatsapp: soc.whatsapp?.trim() || undefined,
+      phone: soc.phone?.trim() || undefined,
+    };
+    const ct = footer.contact ?? {};
+    const contact = {
+      address: ct.address?.trim() || undefined,
+      phone: ct.phone?.trim() || undefined,
+      email: ct.email?.trim() || undefined,
+    };
+    const hasSocial = Object.values(social).some(Boolean);
+    const hasContact = Object.values(contact).some(Boolean);
     save({
       homePageConfig: {
         ...(config.homePageConfig ?? {}),
         footer: {
           enabled: footer.enabled !== false,
+          brand: footer.brand?.trim() || undefined,
+          logo: footer.logo?.trim() || undefined,
+          slogan: footer.slogan?.trim() || undefined,
+          social: hasSocial ? social : undefined,
+          showCategories: footer.showCategories !== false,
+          categoryTitle: footer.categoryTitle?.trim() || undefined,
+          categoryLimit: Math.min(20, Math.max(1, Number(footer.categoryLimit) || 6)),
+          categories: manualCats.length ? manualCats : undefined,
+          contactTitle: footer.contactTitle?.trim() || undefined,
+          contact: hasContact ? contact : undefined,
           copyright: footer.copyright?.trim() || undefined,
           links: links.length ? links : undefined,
         },
@@ -4247,7 +4286,7 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
           <div>
             <h3 className="font-display font-bold text-gray-900 dark:text-white">Footer</h3>
             <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
-              Copyright text and footer links. Turn it off to hide the footer entirely.
+              Brand, slogan, social links, categories, contact details, copyright and footer links. Turn it off to hide the footer entirely.
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -4267,7 +4306,71 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
             )}
           </div>
         </div>
-        <Input label="Copyright text" placeholder="© 2026 EPIC Store. Everyday premium essentials from Bangladesh." value={footer.copyright ?? ""} onValueChange={(v) => { setFooter((f) => ({ ...f, copyright: v })); setFooterDirty(true); }} />
+
+        {/* Brand */}
+        <p className="text-xs font-bold uppercase tracking-wide text-gray-400 pt-1">Brand</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Input label="Brand name" placeholder={config.storeName} value={footer.brand ?? ""} onValueChange={(v) => { setFooter((f) => ({ ...f, brand: v })); setFooterDirty(true); }} description="Leave empty to use the store name." />
+          <Input label="Logo image URL" placeholder="https://…/logo.png" value={footer.logo ?? ""} onValueChange={(v) => { setFooter((f) => ({ ...f, logo: v })); setFooterDirty(true); }} description="Leave empty to use the store logo." />
+        </div>
+        <Input label="Slogan" placeholder="এখানে আপনার স্লোগান লিখুন — মান, বিশ্বাস আর সেবার প্রতিশ্রুতি।" value={footer.slogan ?? ""} onValueChange={(v) => { setFooter((f) => ({ ...f, slogan: v })); setFooterDirty(true); }} />
+
+        {/* Social */}
+        <p className="text-xs font-bold uppercase tracking-wide text-gray-400 pt-1">Social links</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Input label="Facebook URL" placeholder="https://facebook.com/yourpage" value={footer.social?.facebook ?? ""} onValueChange={(v) => { setFooter((f) => ({ ...f, social: { ...(f.social ?? {}), facebook: v } })); setFooterDirty(true); }} />
+          <Input label="YouTube URL" placeholder="https://youtube.com/@yourchannel" value={footer.social?.youtube ?? ""} onValueChange={(v) => { setFooter((f) => ({ ...f, social: { ...(f.social ?? {}), youtube: v } })); setFooterDirty(true); }} />
+          <Input label="Instagram URL" placeholder="https://instagram.com/yourpage" value={footer.social?.instagram ?? ""} onValueChange={(v) => { setFooter((f) => ({ ...f, social: { ...(f.social ?? {}), instagram: v } })); setFooterDirty(true); }} />
+          <Input label="WhatsApp link/number" placeholder="https://wa.me/8801XXXXXXXXX or 8801…" value={footer.social?.whatsapp ?? ""} onValueChange={(v) => { setFooter((f) => ({ ...f, social: { ...(f.social ?? {}), whatsapp: v } })); setFooterDirty(true); }} />
+          <Input label="Phone (call button)" placeholder="+880 1XXX-XXXXXX" value={footer.social?.phone ?? ""} onValueChange={(v) => { setFooter((f) => ({ ...f, social: { ...(f.social ?? {}), phone: v } })); setFooterDirty(true); }} />
+        </div>
+
+        {/* Categories */}
+        <div className="flex items-center gap-3 pt-1">
+          <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300">
+            <Switch isSelected={footer.showCategories !== false} onValueChange={(v) => { setFooter((f) => ({ ...f, showCategories: v })); setFooterDirty(true); }} color="primary" />
+            Show categories column
+          </label>
+        </div>
+        {footer.showCategories !== false && (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input label="Category heading" placeholder="ক্যাটাগরি" value={footer.categoryTitle ?? ""} onValueChange={(v) => { setFooter((f) => ({ ...f, categoryTitle: v })); setFooterDirty(true); }} />
+              <Input type="number" label="Max categories" min={1} max={20} value={String(footer.categoryLimit ?? 6)} onValueChange={(v) => { setFooter((f) => ({ ...f, categoryLimit: Number(v) || 6 })); setFooterDirty(true); }} description="Used when no manual categories are set below (auto from store)." />
+            </div>
+            {(footer.categories ?? []).map((c, i) => (
+              <div key={i} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-3">
+                <Input label="Category label" placeholder="ক্যাটাগরি ১" value={c.label ?? ""} onValueChange={(v) => { setFooter((f) => ({ ...f, categories: (f.categories ?? []).map((x, xi) => (xi === i ? { ...x, label: v } : x)) })); setFooterDirty(true); }} />
+                <Input label="URL" placeholder="/categories/slug" value={c.url ?? ""} onValueChange={(v) => { setFooter((f) => ({ ...f, categories: (f.categories ?? []).map((x, xi) => (xi === i ? { ...x, url: v } : x)) })); setFooterDirty(true); }} />
+                <div className="flex items-end pb-1">
+                  <button type="button" onClick={() => { setFooter((f) => ({ ...f, categories: (f.categories ?? []).filter((_, bi) => bi !== i) })); setFooterDirty(true); }} className="text-xs text-red-500 font-semibold hover:underline">
+                    Remove
+                  </button>
+                </div>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => { setFooter((f) => ({ ...f, categories: [...(f.categories ?? []), { label: "", url: "" }] })); setFooterDirty(true); }}
+              className="inline-flex items-center gap-2 px-4 h-9 text-sm font-semibold text-primary border border-primary/30 rounded-xl hover:bg-primary/5 transition"
+            >
+              <FiPlus /> Add Category (optional — auto-detected when empty)
+            </button>
+          </>
+        )}
+
+        {/* Contact */}
+        <p className="text-xs font-bold uppercase tracking-wide text-gray-400 pt-1">Contact</p>
+        <Input label="Contact heading" placeholder="যোগাযোগ" value={footer.contactTitle ?? ""} onValueChange={(v) => { setFooter((f) => ({ ...f, contactTitle: v })); setFooterDirty(true); }} />
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Input label="Address" placeholder="ঢাকা, বাংলাদেশ" value={footer.contact?.address ?? ""} onValueChange={(v) => { setFooter((f) => ({ ...f, contact: { ...(f.contact ?? {}), address: v } })); setFooterDirty(true); }} />
+          <Input label="Phone" placeholder="+880 1XXX-XXXXXX" value={footer.contact?.phone ?? ""} onValueChange={(v) => { setFooter((f) => ({ ...f, contact: { ...(f.contact ?? {}), phone: v } })); setFooterDirty(true); }} />
+          <Input label="Email" placeholder="info@example.com" value={footer.contact?.email ?? ""} onValueChange={(v) => { setFooter((f) => ({ ...f, contact: { ...(f.contact ?? {}), email: v } })); setFooterDirty(true); }} />
+        </div>
+
+        {/* Bottom */}
+        <p className="text-xs font-bold uppercase tracking-wide text-gray-400 pt-1">Bottom bar</p>
+        <Input label="Copyright text" placeholder="© 2026 EPIC Store. All rights reserved." value={footer.copyright ?? ""} onValueChange={(v) => { setFooter((f) => ({ ...f, copyright: v })); setFooterDirty(true); }} />
         {(footer.links ?? []).map((l, i) => (
           <div key={i} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-3">
             <Input label="Label" placeholder="Privacy Notice" value={l.label ?? ""} onValueChange={(v) => { setFooter((f) => ({ ...f, links: (f.links ?? []).map((x, xi) => (xi === i ? { ...x, label: v } : x)) })); setFooterDirty(true); }} />
