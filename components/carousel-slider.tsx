@@ -21,13 +21,21 @@ type Props = {
   spaceBetween?: number;
 };
 
-const maxPerView = (p: PerView) => Math.max(1, Math.ceil(p.mobile), Math.ceil(p.tablet), Math.ceil(p.desktop));
-
 export function CarouselSlider({ items, seconds, auto, perView, pagination, loop, ariaLabel, spaceBetween = 20 }: Props) {
   const prevRef = useRef<HTMLButtonElement | null>(null);
   const nextRef = useRef<HTMLButtonElement | null>(null);
 
-  const hasRoomToMove = items.length > maxPerView(perView);
+  // Keep at least one item moving at every breakpoint. Using the largest
+  // configured perView here disabled autoplay on desktop whenever there were
+  // fewer categories than the desktop card count, even though mobile/tablet
+  // had room to slide.
+  const visibleCount = Math.max(1, items.length - 1);
+  const responsivePerView = {
+    mobile: Math.min(perView.mobile, visibleCount),
+    tablet: Math.min(perView.tablet, visibleCount),
+    desktop: Math.min(perView.desktop, visibleCount),
+  };
+  const hasRoomToMove = items.length > 1;
   const canLoop = loop && hasRoomToMove;
   const useAutoplay = auto && hasRoomToMove;
 
@@ -58,7 +66,7 @@ export function CarouselSlider({ items, seconds, auto, perView, pagination, loop
       <Swiper
         modules={[Autoplay, Pagination, Navigation]}
         spaceBetween={spaceBetween}
-        slidesPerView={perView.mobile}
+        slidesPerView={responsivePerView.mobile}
         loop={canLoop}
         grabCursor
         touchRatio={1.1}
@@ -81,8 +89,8 @@ export function CarouselSlider({ items, seconds, auto, perView, pagination, loop
         }
         pagination={pagination && hasRoomToMove ? { clickable: true, dynamicBullets: true } : false}
         breakpoints={{
-          640: { slidesPerView: perView.tablet },
-          1024: { slidesPerView: perView.desktop },
+          640: { slidesPerView: responsivePerView.tablet },
+          1024: { slidesPerView: responsivePerView.desktop },
         }}
         className="carousel-swiper no-scrollbar !items-stretch"
         aria-label={ariaLabel}
