@@ -2153,13 +2153,6 @@ type CategoryDisplay = {
 function AdminCategories({ token, config, save, saving }: { token: string; config: Config; save: (payload: object) => Promise<void>; saving: boolean }) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [creating, setCreating] = useState(false);
-  const [display, setDisplay] = useState<CategoryDisplay>(config.homePageConfig?.categories ?? {});
-  const [displayDirty, setDisplayDirty] = useState(false);
-
-  useEffect(() => {
-    setDisplay(config.homePageConfig?.categories ?? {});
-    setDisplayDirty(false);
-  }, [config.homePageConfig?.categories]);
   const [parentId, setParentId] = useState<string>("");
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -2299,137 +2292,14 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
 
   const subCategories = (parentId: string) => categories.filter((c) => c.parentId === parentId);
 
-  function sanitizeDisplay(d: CategoryDisplay): CategoryDisplay {
-    const mode: CategoryDisplay["mode"] = d.mode === "carousel" || d.mode === "loop" ? d.mode : "grid";
-    const seconds = Math.min(60, Math.max(1, Math.round(Number(d.seconds) || 3)));
-    const perView = d.perView;
-    const clean: typeof d = { mode };
-    clean.eyebrow = d.eyebrow?.trim() || undefined;
-    clean.title = d.title?.trim() || undefined;
-    clean.accent = d.accent?.trim() || undefined;
-    clean.countLabel = d.countLabel?.trim() || undefined;
-    if (mode !== "grid") {
-      clean.seconds = seconds;
-      if (perView) {
-        clean.perView = {
-          mobile: Math.min(4, Math.max(1, Number(perView.mobile) || 1)),
-          tablet: Math.min(5, Math.max(1, Number(perView.tablet) || 2)),
-          desktop: Math.min(6, Math.max(1, Number(perView.desktop) || 4)),
-        };
-      }
-      clean.auto = Boolean(d.auto);
-      clean.loop = Boolean(d.loop);
-      clean.pagination = Boolean(d.pagination);
-    }
-    return clean;
-  }
-
-  async function saveDisplay() {
-    await save({ homePageConfig: { ...(config.homePageConfig ?? {}), categories: sanitizeDisplay(display) } });
-  }
-
   return (
     <div className="space-y-5 max-w-3xl">
-      <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-5 sm:p-6 space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h3 className="font-display font-bold text-gray-900 dark:text-white">Category Showcase (Shop by Category)</h3>
-            <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
-              How the category cards appear on the home page. Classic layout only.
-            </p>
-          </div>
-          {displayDirty && (
-            <button
-              onClick={saveDisplay}
-              disabled={saving}
-              className="flex items-center gap-2 px-4 h-9 bg-gradient-to-r from-primary to-indigo-500 text-white text-sm font-bold rounded-xl hover:shadow-lg hover:shadow-primary/30 transition-all disabled:opacity-60"
-            >
-              {saving ? <FiUpload className="animate-pulse" /> : <FiCheck />} Save Display
-            </button>
-          )}
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Select
-            label="Display mode"
-            selectedKeys={[display.mode ?? "grid"]}
-            onSelectionChange={(keys) => {
-              const mode = (Array.from(keys as Set<string>)[0] as CategoryDisplay["mode"]) ?? "grid";
-              setDisplay((d) => ({ ...d, mode }));
-              setDisplayDirty(true);
-            }}
-          >
-            <SelectItem key="grid">Grid — static cards</SelectItem>
-            <SelectItem key="carousel">Carousel — swipeable</SelectItem>
-            <SelectItem key="loop">Loop — auto-sliding carousel</SelectItem>
-          </Select>
-          {(display.mode === "carousel" || display.mode === "loop") && (
-            <Input
-              type="number"
-              label="Auto-slide seconds"
-              min={1}
-              max={60}
-              step={1}
-              value={String(display.seconds ?? 3)}
-              onValueChange={(v) => {
-                setDisplay((d) => ({ ...d, seconds: Number(v) || 3 }));
-                setDisplayDirty(true);
-              }}
-            />
-          )}
-        </div>
-        {(display.mode === "carousel" || display.mode === "loop") && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Input
-              type="number"
-              label="Per view — mobile"
-              min={1}
-              max={4}
-              value={String(display.perView?.mobile ?? 1)}
-              onValueChange={(v) => {
-                setDisplay((d) => ({ ...d, perView: { ...d.perView!, mobile: Number(v) || 1 } }));
-                setDisplayDirty(true);
-              }}
-            />
-            <Input
-              type="number"
-              label="Per view — tablet"
-              min={1}
-              max={5}
-              value={String(display.perView?.tablet ?? 2)}
-              onValueChange={(v) => {
-                setDisplay((d) => ({ ...d, perView: { ...d.perView!, tablet: Number(v) || 2 } }));
-                setDisplayDirty(true);
-              }}
-            />
-            <Input
-              type="number"
-              label="Per view — desktop"
-              min={1}
-              max={6}
-              value={String(display.perView?.desktop ?? 4)}
-              onValueChange={(v) => {
-                setDisplay((d) => ({ ...d, perView: { ...d.perView!, desktop: Number(v) || 4 } }));
-                setDisplayDirty(true);
-              }}
-            />
-          </div>
-        )}
-        {display.mode === "carousel" && (
-          <div className="flex flex-wrap items-center gap-6">
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300">
-              <Switch isSelected={display.auto ?? false} onValueChange={(v) => { setDisplay((d) => ({ ...d, auto: v })); setDisplayDirty(true); }} color="primary" />
-              Auto-slide
-            </label>
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300">
-              <Switch isSelected={display.loop ?? false} onValueChange={(v) => { setDisplay((d) => ({ ...d, loop: v })); setDisplayDirty(true); }} color="primary" />
-              Loop
-            </label>
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300">
-              <Switch isSelected={display.pagination ?? false} onValueChange={(v) => { setDisplay((d) => ({ ...d, pagination: v })); setDisplayDirty(true); }} color="primary" />
-              Dots
-            </label>
-          </div>
-        )}
+      <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-5 sm:p-6">
+        <h3 className="font-display font-bold text-gray-900 dark:text-white">Category Showcase (Shop by Category)</h3>
+        <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
+          Configure the home page &quot;Shop by Category&quot; heading, grid/carousel layout and auto-slide from the{" "}
+          <span className="font-semibold text-primary">Home Layout</span> tab.
+        </p>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -3894,13 +3764,23 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
   }
 
   function saveCatShow() {
-    const clean: typeof catShow = {
-      ...catShow,
-      eyebrow: catShow.eyebrow?.trim() || undefined,
-      title: catShow.title?.trim() || undefined,
-      accent: catShow.accent?.trim() || undefined,
-      countLabel: catShow.countLabel?.trim() || undefined,
-    };
+    const mode: CategoryDisplay["mode"] = catShow.mode === "carousel" || catShow.mode === "loop" ? catShow.mode : "grid";
+    const clean: typeof catShow = { mode };
+    clean.eyebrow = catShow.eyebrow?.trim() || undefined;
+    clean.title = catShow.title?.trim() || undefined;
+    clean.accent = catShow.accent?.trim() || undefined;
+    clean.countLabel = catShow.countLabel?.trim() || undefined;
+    if (mode !== "grid") {
+      clean.seconds = Math.min(60, Math.max(1, Math.round(Number(catShow.seconds) || 3)));
+      clean.perView = {
+        mobile: Math.min(4, Math.max(1, Number(catShow.perView?.mobile) || 2)),
+        tablet: Math.min(5, Math.max(1, Number(catShow.perView?.tablet) || 4)),
+        desktop: Math.min(6, Math.max(1, Number(catShow.perView?.desktop) || 6)),
+      };
+      clean.auto = mode === "loop" ? true : Boolean(catShow.auto);
+      clean.loop = mode === "loop" ? true : Boolean(catShow.loop);
+      clean.pagination = Boolean(catShow.pagination);
+    }
     save({ homePageConfig: { ...(config.homePageConfig ?? {}), categories: clean } });
   }
 
@@ -4147,25 +4027,70 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
           <Input label="Eyebrow" placeholder="SHOP BY CATEGORY" value={catShow.eyebrow ?? ""} onValueChange={(v) => { setCatShow((s) => ({ ...s, eyebrow: v })); setCatShowDirty(true); }} />
           <Input label="Title" placeholder="Curated collections," value={catShow.title ?? ""} onValueChange={(v) => { setCatShow((s) => ({ ...s, title: v })); setCatShowDirty(true); }} />
           <Input label="Accent (highlighted)" placeholder="organized for you." value={catShow.accent ?? ""} onValueChange={(v) => { setCatShow((s) => ({ ...s, accent: v })); setCatShowDirty(true); }} />
-          <Input label="Count label" placeholder="CATEGORIES" value={catShow.countLabel ?? ""} onValueChange={(v) => { setCatShow((s) => ({ ...s, countLabel: v })); setCatShowDirty(true); }} />
           <Select
             label="Display mode"
             selectedKeys={[catShow.mode ?? "grid"]}
             onSelectionChange={(keys) => { setCatShow((s) => ({ ...s, mode: (Array.from(keys as Set<string>)[0] as CategoryDisplay["mode"]) ?? "grid" })); setCatShowDirty(true); }}
           >
-            <SelectItem key="grid">Grid</SelectItem>
-            <SelectItem key="carousel">Carousel (manual)</SelectItem>
-            <SelectItem key="loop">Carousel (auto-loop)</SelectItem>
+            <SelectItem key="grid">Grid — static cards</SelectItem>
+            <SelectItem key="carousel">Carousel — swipeable</SelectItem>
+            <SelectItem key="loop">Loop — auto-sliding carousel</SelectItem>
           </Select>
-          <Input
-            type="number"
-            label="Auto-slide seconds"
-            min={1}
-            max={60}
-            value={String(catShow.seconds ?? 3)}
-            onValueChange={(v) => { setCatShow((s) => ({ ...s, seconds: Math.max(1, Math.min(60, Number(v) || 3)) })); setCatShowDirty(true); }}
-          />
+          {(catShow.mode === "carousel" || catShow.mode === "loop") && (
+            <Input
+              type="number"
+              label="Auto-slide seconds"
+              min={1}
+              max={60}
+              value={String(catShow.seconds ?? 3)}
+              onValueChange={(v) => { setCatShow((s) => ({ ...s, seconds: Math.max(1, Math.min(60, Number(v) || 3)) })); setCatShowDirty(true); }}
+            />
+          )}
         </div>
+        {(catShow.mode === "carousel" || catShow.mode === "loop") && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Input
+              type="number"
+              label="Per view — mobile"
+              min={1}
+              max={4}
+              value={String(catShow.perView?.mobile ?? 2)}
+              onValueChange={(v) => { setCatShow((s) => ({ ...s, perView: { ...(s.perView ?? { mobile: 2, tablet: 4, desktop: 6 }), mobile: Number(v) || 2 } })); setCatShowDirty(true); }}
+            />
+            <Input
+              type="number"
+              label="Per view — tablet"
+              min={1}
+              max={5}
+              value={String(catShow.perView?.tablet ?? 4)}
+              onValueChange={(v) => { setCatShow((s) => ({ ...s, perView: { ...(s.perView ?? { mobile: 2, tablet: 4, desktop: 6 }), tablet: Number(v) || 4 } })); setCatShowDirty(true); }}
+            />
+            <Input
+              type="number"
+              label="Per view — desktop"
+              min={1}
+              max={6}
+              value={String(catShow.perView?.desktop ?? 6)}
+              onValueChange={(v) => { setCatShow((s) => ({ ...s, perView: { ...(s.perView ?? { mobile: 2, tablet: 4, desktop: 6 }), desktop: Number(v) || 6 } })); setCatShowDirty(true); }}
+            />
+          </div>
+        )}
+        {catShow.mode === "carousel" && (
+          <div className="flex flex-wrap items-center gap-6">
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300">
+              <Switch isSelected={catShow.auto ?? false} onValueChange={(v) => { setCatShow((s) => ({ ...s, auto: v })); setCatShowDirty(true); }} color="primary" />
+              Auto-slide
+            </label>
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300">
+              <Switch isSelected={catShow.loop ?? false} onValueChange={(v) => { setCatShow((s) => ({ ...s, loop: v })); setCatShowDirty(true); }} color="primary" />
+              Loop
+            </label>
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300">
+              <Switch isSelected={catShow.pagination ?? false} onValueChange={(v) => { setCatShow((s) => ({ ...s, pagination: v })); setCatShowDirty(true); }} color="primary" />
+              Dots
+            </label>
+          </div>
+        )}
       </div>
 
       {/* TESTIMONIALS */}
