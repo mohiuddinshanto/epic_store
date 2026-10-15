@@ -1586,6 +1586,38 @@ app.patch("/api/admin/config", requireAuth, requireRole("ADMIN"), async (req, re
           footer: z
             .object({
               enabled: z.boolean().optional(),
+              brand: z.string().max(100).optional(),
+              logo: z.string().max(500).optional(),
+              slogan: z.string().max(300).optional(),
+              social: z
+                .object({
+                  facebook: z.string().max(500).optional(),
+                  youtube: z.string().max(500).optional(),
+                  instagram: z.string().max(500).optional(),
+                  whatsapp: z.string().max(500).optional(),
+                  phone: z.string().max(60).optional(),
+                })
+                .optional(),
+              showCategories: z.boolean().optional(),
+              categoryTitle: z.string().max(80).optional(),
+              categoryLimit: z.number().int().min(1).max(20).optional(),
+              categories: z
+                .array(
+                  z.object({
+                    label: z.string().max(80).optional(),
+                    url: z.string().max(300).optional(),
+                  })
+                )
+                .max(20)
+                .optional(),
+              contactTitle: z.string().max(80).optional(),
+              contact: z
+                .object({
+                  address: z.string().max(300).optional(),
+                  phone: z.string().max(60).optional(),
+                  email: z.string().max(200).optional(),
+                })
+                .optional(),
               copyright: z.string().max(200).optional(),
               links: z
                 .array(
