@@ -9,13 +9,13 @@ import { z } from "zod";
 import { prisma } from "./lib/prisma.js";
 import { cached, purgeCache, PUBLIC_CACHE_CONTROL } from "./lib/cache.js";
 import { apiCompression } from "./lib/compress.js";
-import { checkIpCooldown, restrictStaffOrderView } from "./middleware/security.js";
+import { checkIpCooldown, restrictStaffOrderView, staffCanAccessOrderItems } from "./middleware/security.js";
 import { rateLimit } from "./lib/rate-limit.js";
 import { makeSessionToken, readSessionToken, requireAuth, requireRole, setSessionCookie, clearSessionCookie, SESSION_MAX_AGE_MS } from "./middleware/auth.js";
 import { decrypt, encrypt } from "./lib/crypto.js";
 import { uploadImage, deleteImage, getLocalProductsDirectory } from "./lib/storage.js";
 import { baseSkuForParts, generateVariationsForProduct, makeUniqueSku, replaceProductVariations } from "./lib/product-variations.js";
-import { sendEmailVerification, sendNewOrderToOwner, sendNewsletterWelcome, sendOrderConfirmation, sendOrderStatusEmail, sendPasswordReset, sendTestMail } from "./lib/mailer.js";
+import { resendStoredEmail, sendEmailVerification, sendNewOrderToOwner, sendNewsletterWelcome, sendOrderConfirmation, sendOrderStatusEmail, sendPasswordReset, sendTestMail } from "./lib/mailer.js";
 
 const app = express();
 app.set("trust proxy", 1);
@@ -145,6 +145,33 @@ type PaymentSettings = z.infer<typeof paymentSettingsSchema>;
 // that would silently leave the order unpaid.
 const ACTIVE_PAYMENT_GATEWAYS = new Set<string>([]);
 
+const DEFAULT_SHIPPING_CENTS = 8000;
+
+export type ShippingZone = { name?: string; charge?: number; districts?: string[] };
+export type ShippingConfig = { defaultCharge?: number; freeAbove?: number | null; zones?: ShippingZone[] };
+
+/** Resolve the shipping charge (in poisha/cents) from the admin zone config. */
+export function computeShippingCents(subtotalCents: number, config: unknown, details: Record<string, unknown>): number {
+  if (subtotalCents <= 0) return 0;
+  const cfg = (config ?? {}) as ShippingConfig;
+  const freeAbove = cfg.freeAbove;
+  if (typeof freeAbove === "number" && freeAbove > 0 && subtotalCents >= Math.round(freeAbove * 100)) return 0;
+  const district = String(details.district ?? "").trim().toLowerCase();
+  const division = String(details.division ?? "").trim().toLowerCase();
+  const zones = Array.isArray(cfg.zones) ? cfg.zones : [];
+  const match = zones.find(
+    (zone) =>
+      Array.isArray(zone?.districts) &&
+      zone.districts.some((entry) => {
+        const target = String(entry ?? "").trim().toLowerCase();
+        return target !== "" && (target === district || target === division);
+      }),
+  );
+  const chargeTaka = match?.charge ?? cfg.defaultCharge;
+  if (typeof chargeTaka === "number" && Number.isFinite(chargeTaka) && chargeTaka >= 0) return Math.round(chargeTaka * 100);
+  return DEFAULT_SHIPPING_CENTS;
+}
+
 const attributeValueSchema = z.object({
   id: z.string().min(1),
   value: z.string().trim().min(1),
@@ -208,21 +235,34 @@ app.post("/api/newsletter/subscribe", rateLimit({ windowMs: 60 * 60_000, max: 10
   try {
     await prisma.newsletterSubscriber.upsert({
       where: { email },
-      create: { email },
-      update: {},
+      create: { email, unsubscribeToken: makeSessionToken() },
+      update: { unsubscribedAt: null },
     });
-    sendNewsletterWelcome(email).catch((err) => console.error("newsletter welcome mail failed:", err.message));
+    const subscriber = await prisma.newsletterSubscriber.findUnique({ where: { email }, select: { unsubscribeToken: true } });
+    const unsubscribeUrl = subscriber ? `${appBaseUrl()}/unsubscribe?token=${subscriber.unsubscribeToken}` : undefined;
+    sendNewsletterWelcome(email, unsubscribeUrl).catch((err) => console.error("newsletter welcome mail failed:", err.message));
     res.json({ ok: true });
   } catch {
     res.status(500).json({ error: "Could not save subscription" });
   }
 });
 
+app.post("/api/newsletter/unsubscribe", rateLimit({ windowMs: 15 * 60_000, max: 20 }), async (req, res) => {
+  const parsed = z.object({ token: z.string().min(10).max(200) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid unsubscribe link" });
+  const subscriber = await prisma.newsletterSubscriber.findUnique({ where: { unsubscribeToken: parsed.data.token } });
+  if (!subscriber) return res.status(404).json({ error: "This unsubscribe link is invalid or has already been used." });
+  if (!subscriber.unsubscribedAt) {
+    await prisma.newsletterSubscriber.update({ where: { id: subscriber.id }, data: { unsubscribedAt: new Date() } });
+  }
+  res.json({ ok: true, email: subscriber.email });
+});
+
 app.get("/api/store/checkout-options", async (_req, res) => {
   const payload = await cached("store:checkout-options", 60_000, async () => {
     const config = await prisma.storeConfig.findUnique({
       where: { id: "store-config-singleton" },
-      select: { featureFlags: true, paymentConfig: true, checkoutForm: true },
+      select: { featureFlags: true, paymentConfig: true, checkoutForm: true, shippingConfig: true },
     });
     const flags = { ...defaultFeatureFlags, ...((config?.featureFlags as Record<string, boolean> | null) ?? {}) };
     const encrypted = config?.paymentConfig as { encrypted?: string } | null;
@@ -238,7 +278,8 @@ app.get("/api/store/checkout-options", async (_req, res) => {
       Object.keys(defaultCheckoutForm).map((key) => [key, { ...defaultCheckoutForm[key as keyof typeof defaultCheckoutForm], ...(saved[key] ?? {}) }]),
     );
     const emailEnabled = Boolean((form as Record<string, { enabled?: boolean }>).email?.enabled);
-    return { methods, codEnabled: flags.cod, requiresEmail: flags.checkoutEmail === true || emailEnabled, form };
+    const shippingConfig = (config?.shippingConfig ?? null) as ShippingConfig | null;
+    return { methods, codEnabled: flags.cod, requiresEmail: flags.checkoutEmail === true || emailEnabled, form, shippingConfig };
   });
   applyPublicCache(res);
   res.json(payload);
@@ -449,6 +490,26 @@ app.post("/api/auth/sign-out", requireAuth, async (req, res) => {
   res.status(204).end();
 });
 
+app.post("/api/auth/change-password", requireAuth, rateLimit({ windowMs: 15 * 60_000, max: 10, message: "Too many attempts. Please try again later." }), async (req, res) => {
+  const parsed = z.object({ currentPassword: z.string().min(1).max(128), newPassword: z.string().min(8).max(128) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid password payload" });
+  const user = await prisma.user.findUnique({ where: { id: req.user!.id } });
+  if (!user || !user.passwordHash) return res.status(404).json({ error: "Account not found" });
+  if (!(await bcrypt.compare(parsed.data.currentPassword, user.passwordHash)))
+    return res.status(400).json({ error: "Current password is incorrect" });
+  if (await bcrypt.compare(parsed.data.newPassword, user.passwordHash))
+    return res.status(400).json({ error: "New password must be different from the current password" });
+  const passwordHash = await bcrypt.hash(parsed.data.newPassword, 12);
+  const token = makeSessionToken();
+  await prisma.$transaction([
+    prisma.user.update({ where: { id: user.id }, data: { passwordHash } }),
+    prisma.session.deleteMany({ where: { userId: user.id } }),
+    prisma.session.create({ data: { userId: user.id, token, expiresAt: new Date(Date.now() + SESSION_MAX_AGE_MS) } }),
+  ]);
+  setSessionCookie(req, res, token);
+  res.json({ ok: true });
+});
+
 function appBaseUrl(): string {
   const raw = process.env.FRONTEND_URL ?? process.env.APP_URL ?? "";
   const first = raw.split(",")[0]?.trim();
@@ -612,7 +673,7 @@ app.post("/api/orders", rateLimit({ windowMs: 10 * 60_000, max: 20, message: "To
     customerId = session.userId;
   }
 
-  const storeConfig = await prisma.storeConfig.findUnique({ where: { id: "store-config-singleton" }, select: { featureFlags: true, paymentConfig: true, checkoutForm: true } });
+  const storeConfig = await prisma.storeConfig.findUnique({ where: { id: "store-config-singleton" }, select: { featureFlags: true, paymentConfig: true, checkoutForm: true, shippingConfig: true } });
   const flags = { ...defaultFeatureFlags, ...((storeConfig?.featureFlags as Record<string, boolean> | null) ?? {}) };
   const encryptedPayments = storeConfig?.paymentConfig as { encrypted?: string } | null;
   const payments = encryptedPayments?.encrypted ? (decrypt<PaymentSettings>(encryptedPayments.encrypted) ?? {}) : {};
@@ -684,7 +745,7 @@ app.post("/api/orders", rateLimit({ windowMs: 10 * 60_000, max: 20, message: "To
         normalizedItems.push({ productId: product.id, variationId: item.variationId, name, qty: item.qty, price: asMoney(unitPrice), categoryId: product.categoryId, sku });
       }
 
-      const shippingCents = subtotalCents > 0 ? 8000 : 0;
+      const shippingCents = computeShippingCents(subtotalCents, storeConfig?.shippingConfig, shippingDetails);
       let discountCents = 0;
       let couponId: string | undefined;
       if (parsed.data.couponId) {
@@ -899,7 +960,9 @@ app.patch("/api/admin/orders/:id", requireAuth, requireRole("ADMIN", "STAFF"), a
     })
     .safeParse(req.body);
   if (!data.success) return res.status(400).json({ error: "Invalid order update" });
-  const prior = await prisma.order.findUnique({ where: { id: String(req.params.id) }, select: { status: true, shippingDetails: true } });
+  const prior = await prisma.order.findUnique({ where: { id: String(req.params.id) }, select: { status: true, shippingDetails: true, orderItems: true } });
+  if (!prior) return res.status(404).json({ error: "Order not found" });
+  if (req.user && !staffCanAccessOrderItems(req.user, prior.orderItems)) return res.status(403).json({ error: "Not authorized for this order" });
   const updated = await prisma.order.update({ where: { id: String(req.params.id) }, data: data.data });
   if (data.data.status && prior && prior.status !== data.data.status) {
     const details = (prior.shippingDetails as Record<string, unknown>) ?? {};
@@ -919,6 +982,7 @@ app.patch("/api/admin/orders/:id", requireAuth, requireRole("ADMIN", "STAFF"), a
 app.post("/api/admin/orders/:id/send-steadfast", requireAuth, requireRole("ADMIN", "STAFF"), async (req, res) => {
   const order = await prisma.order.findUnique({ where: { id: String(req.params.id) } });
   if (!order) return res.status(404).json({ error: "Order not found" });
+  if (req.user && !staffCanAccessOrderItems(req.user, order.orderItems)) return res.status(403).json({ error: "Not authorized for this order" });
   if (order.courierName && order.courierName !== "Steadfast") return res.status(400).json({ error: `Order already sent via ${order.courierName}` });
 
   const settings = await prisma.storeConfig.findUnique({ where: { id: "store-config-singleton" }, select: { courierConfig: true } });
@@ -1519,7 +1583,7 @@ app.post("/api/admin/staff", requireAuth, requireRole("ADMIN"), async (req, res)
       passwordHash,
       role: "STAFF",
       staffType: data.data.staffType,
-      allowedCategories: data.data.allowedCategories ? (JSON.stringify(data.data.allowedCategories) as Prisma.InputJsonValue) : undefined,
+      allowedCategories: data.data.allowedCategories ? (data.data.allowedCategories as Prisma.InputJsonValue) : undefined,
     },
   });
 
@@ -1530,6 +1594,47 @@ app.delete("/api/admin/staff/:id", requireAuth, requireRole("ADMIN"), async (req
   await prisma.user.delete({ where: { id: String(req.params.id) } });
   res.status(204).end();
 });
+
+// Keys whose decrypted values are secrets and must never reach the browser.
+const SECRET_MASK = "••••••••";
+const SECRET_KEYS = new Set([
+  "appSecret",
+  "password",
+  "storePassword",
+  "pass",
+  "apiKey",
+  "secretKey",
+  "clientSecret",
+  "secretAccessKey",
+  "privateKey",
+  "refreshToken",
+]);
+
+/** Recursively replace secret string values with a mask for browser responses. */
+function maskSecrets<T>(value: T): T {
+  if (!value || typeof value !== "object") return value;
+  if (Array.isArray(value)) return value.map((item) => maskSecrets(item)) as unknown as T;
+  const out: Record<string, unknown> = {};
+  for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+    if (entry && typeof entry === "object") out[key] = maskSecrets(entry);
+    else if (typeof entry === "string" && entry !== "" && SECRET_KEYS.has(key)) out[key] = SECRET_MASK;
+    else out[key] = entry;
+  }
+  return out as T;
+}
+
+/** Deep-merge new config over prior, treating masked/empty values as "keep prior". */
+function mergeSecretConfig<T extends Record<string, unknown>>(oldValue: T | undefined, newValue: T | undefined): T | undefined {
+  if (!newValue) return oldValue;
+  if (!oldValue) return newValue;
+  const out: Record<string, unknown> = { ...oldValue };
+  for (const [key, value] of Object.entries(newValue)) {
+    if (value === undefined || value === SECRET_MASK) continue;
+    if (value && typeof value === "object" && !Array.isArray(value)) out[key] = mergeSecretConfig(oldValue[key] as Record<string, unknown>, value as Record<string, unknown>);
+    else out[key] = value;
+  }
+  return out as T;
+}
 
 app.patch("/api/admin/config", requireAuth, requireRole("ADMIN"), async (req, res) => {
   const data = z
@@ -1546,6 +1651,22 @@ app.patch("/api/admin/config", requireAuth, requireRole("ADMIN"), async (req, re
         district: z.object({ enabled: z.boolean().optional(), required: z.boolean().optional(), label: z.string().max(80).optional(), placeholder: z.string().max(120).optional() }).optional(),
         division: z.object({ enabled: z.boolean().optional(), required: z.boolean().optional(), label: z.string().max(80).optional(), placeholder: z.string().max(120).optional() }).optional(),
       }).optional(),
+      shippingConfig: z
+        .object({
+          defaultCharge: z.number().min(0).max(100000).optional(),
+          freeAbove: z.number().min(0).max(1000000).nullable().optional(),
+          zones: z
+            .array(
+              z.object({
+                name: z.string().max(80).optional(),
+                charge: z.number().min(0).max(100000).optional(),
+                districts: z.array(z.string().max(80)).max(200).optional(),
+              }),
+            )
+            .max(50)
+            .optional(),
+        })
+        .optional(),
       marketingPixels: z.unknown().optional(),
       chatConfig: z.unknown().optional(),
       homePageConfig: z
@@ -1795,7 +1916,9 @@ app.patch("/api/admin/config", requireAuth, requireRole("ADMIN"), async (req, re
   });
   const priorPayment = decrypt<PaymentSettings>((existing?.paymentConfig as { encrypted?: string } | null)?.encrypted) ?? {};
   const mergeGateway = <T extends Record<string, unknown>>(oldValue: T | undefined, newValue: T | undefined) =>
-    newValue ? { ...oldValue, ...newValue, ...Object.fromEntries(Object.entries(newValue).filter(([, value]) => value !== undefined && value !== "")) } : oldValue;
+    newValue
+      ? { ...oldValue, ...Object.fromEntries(Object.entries(newValue).filter(([, value]) => value !== undefined && value !== "" && value !== SECRET_MASK)) }
+      : oldValue;
 
   const paymentConfig = input.paymentConfig
     ? {
@@ -1805,13 +1928,15 @@ app.patch("/api/admin/config", requireAuth, requireRole("ADMIN"), async (req, re
       }
     : undefined;
 
+  const priorEmail = decrypt<Record<string, unknown>>((existing?.emailConfig as { encrypted?: string } | null)?.encrypted) ?? {};
+  const priorCourier = decrypt<Record<string, unknown>>((existing?.courierConfig as { encrypted?: string } | null)?.encrypted) ?? {};
   const priorStorage = decrypt<Record<string, unknown>>((existing?.storageConfig as { encrypted?: string } | null)?.encrypted) ?? {};
-  const storageConfig = input.storageConfig
-    ? ({ ...priorStorage, ...input.storageConfig, ...Object.fromEntries(Object.entries(input.storageConfig).filter(([, value]) => value !== undefined && value !== "")) } as Record<
-        string,
-        unknown
-      >)
-    : undefined;
+  const priorAi = decrypt<Record<string, unknown>>((existing?.aiConfig as { encrypted?: string } | null)?.encrypted) ?? {};
+
+  const emailConfig = input.emailConfig ? mergeSecretConfig(priorEmail, input.emailConfig as Record<string, unknown>) : undefined;
+  const courierConfig = input.courierConfig ? mergeSecretConfig(priorCourier, input.courierConfig as Record<string, unknown>) : undefined;
+  const storageConfig = input.storageConfig ? mergeSecretConfig(priorStorage, input.storageConfig as Record<string, unknown>) : undefined;
+  const aiConfig = input.aiConfig ? mergeSecretConfig(priorAi, input.aiConfig as Record<string, unknown>) : undefined;
 
   const config = await prisma.storeConfig.update({
     where: { id: "store-config-singleton" },
@@ -1831,11 +1956,12 @@ app.patch("/api/admin/config", requireAuth, requireRole("ADMIN"), async (req, re
         ? ({ ...((existing?.heroBannerConfig as Record<string, unknown>) ?? {}), ...Object.fromEntries(Object.entries(input.heroBannerConfig).filter(([, v]) => v !== undefined)) } as Prisma.InputJsonValue)
         : undefined,
       navigationConfig: input.navigationConfig as Prisma.InputJsonValue,
+      shippingConfig: input.shippingConfig as Prisma.InputJsonValue,
       paymentConfig: paymentConfig ? { encrypted: encrypt(paymentConfig) } : undefined,
-      emailConfig: input.emailConfig ? { encrypted: encrypt(input.emailConfig) } : undefined,
-      courierConfig: input.courierConfig ? { encrypted: encrypt(input.courierConfig) } : undefined,
+      emailConfig: emailConfig ? { encrypted: encrypt(emailConfig) } : undefined,
+      courierConfig: courierConfig ? { encrypted: encrypt(courierConfig) } : undefined,
       storageConfig: storageConfig ? { encrypted: encrypt(storageConfig) } : undefined,
-      aiConfig: input.aiConfig ? { encrypted: encrypt(input.aiConfig) } : undefined,
+      aiConfig: aiConfig ? { encrypted: encrypt(aiConfig) } : undefined,
     },
   });
 
@@ -1848,11 +1974,11 @@ app.patch("/api/admin/config", requireAuth, requireRole("ADMIN"), async (req, re
   res.json({
     ...config,
     featureFlags: { ...defaultFeatureFlags, ...((config.featureFlags as Record<string, boolean> | null) ?? {}) },
-    paymentConfig: dec(updatedPayment),
-    emailConfig: dec(updatedEmail),
-    courierConfig: dec(updatedCourier),
-    storageConfig: dec(updatedStorage),
-    aiConfig: dec(updatedAi),
+    paymentConfig: maskSecrets(dec(updatedPayment)),
+    emailConfig: maskSecrets(dec(updatedEmail)),
+    courierConfig: maskSecrets(dec(updatedCourier)),
+    storageConfig: maskSecrets(dec(updatedStorage)),
+    aiConfig: maskSecrets(dec(updatedAi)),
   });
 });
 
@@ -1872,11 +1998,11 @@ app.get("/api/admin/config", requireAuth, requireRole("ADMIN"), async (_req, res
   res.json({
     ...config,
     featureFlags: { ...defaultFeatureFlags, ...((config.featureFlags as Record<string, boolean> | null) ?? {}) },
-    paymentConfig: payments,
-    emailConfig: emailDecrypted,
-    courierConfig: courierDecrypted,
-    storageConfig: storageDecrypted,
-    aiConfig: aiDecrypted,
+    paymentConfig: maskSecrets(payments),
+    emailConfig: maskSecrets(emailDecrypted),
+    courierConfig: maskSecrets(courierDecrypted),
+    storageConfig: maskSecrets(storageDecrypted),
+    aiConfig: maskSecrets(aiDecrypted),
     emailConfigured: Boolean(config.emailConfig),
     courierConfigured: Boolean(config.courierConfig),
     storageConfigured: Boolean(config.storageConfig),
@@ -1893,6 +2019,33 @@ app.post("/api/admin/test-email", requireAuth, requireRole("ADMIN"), async (req,
   } catch (err) {
     res.status(400).json({ error: err instanceof Error ? err.message : "Could not send test email" });
   }
+});
+
+app.get("/api/admin/failed-emails", requireAuth, requireRole("ADMIN"), async (_req, res) => {
+  res.json(
+    await prisma.failedEmail.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 100,
+      select: { id: true, to: true, subject: true, error: true, attempts: true, createdAt: true },
+    }),
+  );
+});
+
+app.post("/api/admin/failed-emails/:id/resend", requireAuth, requireRole("ADMIN"), async (req, res) => {
+  const row = await prisma.failedEmail.findUnique({ where: { id: String(req.params.id) } });
+  if (!row) return res.status(404).json({ error: "Failed email not found" });
+  try {
+    await resendStoredEmail(row.to, row.subject, row.html);
+  } catch (err) {
+    return res.status(502).json({ error: err instanceof Error ? err.message : "Could not resend email" });
+  }
+  await prisma.failedEmail.delete({ where: { id: row.id } });
+  res.json({ ok: true });
+});
+
+app.delete("/api/admin/failed-emails/:id", requireAuth, requireRole("ADMIN"), async (req, res) => {
+  await prisma.failedEmail.delete({ where: { id: String(req.params.id) } });
+  res.status(204).end();
 });
 
 app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

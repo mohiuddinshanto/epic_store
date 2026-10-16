@@ -31,6 +31,7 @@ import { MiniProductCard } from "./storefront";
 import { ProductGridSkeleton } from "./skeletons";
 
 const apiUrl = "";
+const SHOP_PAGE_SIZE = 24;
 const FALLBACK_IMG =
   "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80";
 
@@ -486,6 +487,7 @@ export function ShopView({ initialLayout = "classic", initialProducts, initialCa
   const [sortBy, setSortBy] = useState<"newest" | "price-asc" | "price-desc" | "discount" | "name">("newest");
   const [layoutMode, setLayoutMode] = useState<"grid-4" | "grid-3" | "grid-2" | "list">("grid-3");
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(SHOP_PAGE_SIZE);
 
   // Extra config
   const [allowAddToCart, setAllowAddToCart] = useState(initialStatus?.config?.featureFlags?.addToCart !== false);
@@ -734,6 +736,20 @@ export function ShopView({ initialLayout = "classic", initialProducts, initialCa
     }
     return list;
   }, [filteredProducts, sortBy]);
+
+  useEffect(() => {
+    setVisibleCount(SHOP_PAGE_SIZE);
+  }, [searchQuery, selectedCategory, selectedSizes, priceMin, priceMax, inStockOnly, onSaleOnly, sortBy]);
+
+  const visibleProducts = useMemo(
+    () => sortedProducts.slice(0, visibleCount),
+    [sortedProducts, visibleCount]
+  );
+  const hasMore = sortedProducts.length > visibleCount;
+
+  function loadMore() {
+    setVisibleCount((prev) => prev + SHOP_PAGE_SIZE);
+  }
 
   // Reset all filters
   const resetFilters = () => {
@@ -1316,54 +1332,71 @@ export function ShopView({ initialLayout = "classic", initialProducts, initialCa
             {loading ? (
               <ProductGridSkeleton count={8} className="py-12 lg:grid-cols-4 xl:grid-cols-4" />
             ) : sortedProducts.length > 0 ? (
-              <div
-                className={
-                  layoutMode === "list"
-                    ? "space-y-4"
-                    : layoutMode === "grid-4"
-                    ? "grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4"
-                    : layoutMode === "grid-2"
-                    ? "grid grid-cols-1 gap-4 min-[480px]:grid-cols-2"
-                    : "grid grid-cols-2 gap-3 sm:grid-cols-3"
-                }
-              >
-                {sortedProducts.map((p) =>
-                  layoutMode === "list" ? (
-                    <ShopProductCard
-                      key={p.id}
-                      p={p}
-                      allowAddToCart={allowAddToCart}
-                      add={addToCart}
-                      buyNow={buyNowAction}
-                      whatsapp={whatsapp}
-                      isList
-                      wishlisted={wishlist.includes(p.id)}
-                      onWishlist={handleWishlistToggle}
-                    />
-                  ) : activeLayout === "classic" ? (
-                    <MiniProductCard
-                      key={p.id}
-                      p={p}
-                      onAdd={() => addToCart(p)}
-                      buyNow={() => buyNowAction(p)}
-                      allowAddToCart={allowAddToCart}
-                      wishlisted={wishlist.includes(p.id)}
-                      onWishlist={handleWishlistToggle}
-                      fill
-                    />
-                  ) : (
-                    <CatalogCard
-                      key={p.id}
-                      p={p}
-                      allowAddToCart={allowAddToCart}
-                      add={addToCart}
-                      buyNow={buyNowAction}
-                      whatsapp={whatsapp}
-                      fill
-                    />
-                  )
+              <>
+                <div
+                  className={
+                    layoutMode === "list"
+                      ? "space-y-4"
+                      : layoutMode === "grid-4"
+                      ? "grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4"
+                      : layoutMode === "grid-2"
+                      ? "grid grid-cols-1 gap-4 min-[480px]:grid-cols-2"
+                      : "grid grid-cols-2 gap-3 sm:grid-cols-3"
+                  }
+                >
+                  {visibleProducts.map((p) =>
+                    layoutMode === "list" ? (
+                      <ShopProductCard
+                        key={p.id}
+                        p={p}
+                        allowAddToCart={allowAddToCart}
+                        add={addToCart}
+                        buyNow={buyNowAction}
+                        whatsapp={whatsapp}
+                        isList
+                        wishlisted={wishlist.includes(p.id)}
+                        onWishlist={handleWishlistToggle}
+                      />
+                    ) : activeLayout === "classic" ? (
+                      <MiniProductCard
+                        key={p.id}
+                        p={p}
+                        onAdd={() => addToCart(p)}
+                        buyNow={() => buyNowAction(p)}
+                        allowAddToCart={allowAddToCart}
+                        wishlisted={wishlist.includes(p.id)}
+                        onWishlist={handleWishlistToggle}
+                        fill
+                      />
+                    ) : (
+                      <CatalogCard
+                        key={p.id}
+                        p={p}
+                        allowAddToCart={allowAddToCart}
+                        add={addToCart}
+                        buyNow={buyNowAction}
+                        whatsapp={whatsapp}
+                        fill
+                      />
+                    )
+                  )}
+                </div>
+                {hasMore && (
+                  <div className="mt-10 flex flex-col items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={loadMore}
+                      className="inline-flex items-center gap-2 rounded-full bg-[var(--shop-brand)] px-8 py-3 text-sm font-bold text-white shadow-md transition hover:bg-[var(--shop-brand-hover)] active:scale-95"
+                    >
+                      <FiRefreshCw size={14} />
+                      <span>আরও দেখুন ({sortedProducts.length - visibleCount}টি বাকি)</span>
+                    </button>
+                    <span className="text-xs text-gray-400">
+                      {visibleCount} / {sortedProducts.length} দেখানো হচ্ছে
+                    </span>
+                  </div>
                 )}
-              </div>
+              </>
             ) : (
               /* EMPTY NO RESULTS STATE */
               <div className="rounded-3xl border border-dashed border-gray-200 bg-white p-12 text-center shadow-xs">

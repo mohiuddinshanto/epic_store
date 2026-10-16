@@ -67,43 +67,37 @@
 
 ---
 
-# P1 — High
+# P1 — ✅ সব সমাধান হয়েছে ও verified
 
-## ৯. STAFF যেকোনো Order-এর Status/Payment বদলাতে পারে
-- **অবস্থান:** `api/server.ts:823` (PATCH), `api/server.ts:819` (`restrictStaffOrderView` শুধু GET list filter করে)
-- **সমস্যা:** `allowedCategories` ignore করে স্টাফ অন্য ক্যাটাগরির order-এর status এমনকি `paymentStatus=PAID` সেট করতে পারে।
-- **করনীয়:** PATCH-এও category authorization enforce করুন।
+## ✅ ৯. STAFF-order category authorization enforce
+- **সমাধান:** নতুন `staffCanAccessOrderItems()` (`api/middleware/security.ts`) — STAFF-এর `allowedCategories` (খালি হলে = unrestricted) অনুযায়ী order access check। `PATCH /api/admin/orders/:id` ও `send-steadfast`-এ enforce (না মিললে 403)। সাথে list filter-ও ঠিক করা হয়েছে (array handle করে, scope-এর বাইরের order বাদ যায়)। staff create-এ `allowedCategories` এখন array হিসেবে সেভ হয় (আগে stringify হয়ে restriction অকেজো ছিল)।
+- **Verified:** mismatched staff → 403, matched → 200, no-scope → 200; list filtered।
 
-## ১০. Password Reset / Session Invalidation
-- **সমস্যা:** password বদলালে পুরনো session invalid হয় না; session ৩০ দিন ফিক্সড, rotate হয় না (`api/server.ts:415,426`)।
-- **করনীয়:** password change-এ সব session মুছুন; সন্দেহ হলে session revoke UI।
+## ✅ ১০. Password change-এ session invalidation
+- **সমাধান:** নতুন `POST /api/auth/change-password` (current password যাচাই) — পাসওয়ার্ড বদলে **সব পুরনো session বাতিল** করে শুধু বর্তমান ডিভাইসের জন্য নতুন cookie দেয় (rotation)। account-panel-এ "নিরাপত্তা" ট্যাবে UI। (reset-password-ও আগেই সব session মুছে দিত।)
+- **Verified:** ভুল current → 400; সঠিক → 200 + নতুন cookie; পুরনো session → 401; নতুন password দিয়ে sign-in → 200।
 
-## ১১. Shop পেজে Pagination ব্যবহার হয় না (catalog বড় হলে সমস্যা)
-- **অবস্থান:** `components/shop-view.tsx:519` — `fetch('/api/products')` (পূর্ণ লিস্ট)
-- **সমস্যা:** সার্ভার pagination সাপোর্ট করে (`api/server.ts:310-367`) কিন্তু frontend তা ব্যবহার করে না; প্রতিটি product-এ সব variation+attribute লোড হয় → catalog বাড়লে slow/heavy।
-- **করনীয়:** infinite-scroll / "Load more" সহ `?page=&limit=` ব্যবহার।
+## ✅ ১১. Shop-এ incremental rendering (Load more)
+- **সমাধান:** `components/shop-view.tsx` — প্রথমে ২৪টা card render, "আরও দেখুন" বাটনে পরের ব্যাচ (DOM/LCP হালকা; filter/size/count accuracy ধরে রাখতে full data fetch অপরিবর্তিত)। filter/sort বদলালে আবার ২৪-এ reset।
+- **নোট:** খুব বড় catalogue-এর জন্য server `?page=&limit=` + facets একটি follow-up।
 
-## ১২. Admin-এ Decrypted Secret ব্রাউজারে যায়
-- **অবস্থান:** `api/server.ts:1747` (PATCH response), `:1771` (GET)
-- **সমস্যা:** appSecret / SMTP pass / API key প্লেইন JSON হিসেবে ক্লায়েন্টে আসে (ADMIN-only হলেও)।
-- **করনীয়:** GET-এ secret mask করুন (যেমন `••••last4`); খালি পাঠালে পুরনো মান রাখুন (merge আগে থেকেই আছে)।
+## ✅ ১২. Admin secret masking
+- **সমাধান:** `api/server.ts` — GET ও PATCH response-এ `appSecret/password/pass/apiKey/secretAccessKey/...` গুলো `••••••••` মানে masked। খালি/মাস্কেড মান পাঠালে `mergeSecretConfig`/`mergeGateway` পুরনো আসল secret রাখে। email/courier/ai/storage সবই এখন prior-এর সাথে merge হয়।
+- **Verified:** GET mask করে, non-secret appKey আগের মতো; masked পাঠালে DB-তে পুরনো আসল মান থাকে।
 
-## ১৩. Shipping Hardcoded ৳80, admin-controlled নয়
-- **অবস্থান:** `api/server.ts:618` (`subtotalCents > 0 ? 8000 : 0`), checkoutও ৮০ দেখায়
-- **সমস্যা:** admin থেকে বদলানো যায় না; ঢাকা/ঢাকার বাইরে ভিন্ন rate দেওয়া যায় না (BD-তে দরকার)।
-- **করনীয়:** shipping config (zone wise) admin settings-এ।
+## ✅ ১৩. Shipping config (zone-wise)
+- **সমাধান:** `StoreConfig.shippingConfig` (migration `20261016000000_add_shipping_config`) — `defaultCharge`, `freeAbove`, এবং zone list (`charge` + `districts`). `computeShippingCents()` district/division মিলিয়ে charge ঠিক করে; কোনো config না থাকলে fallback ৳80। checkout-options ও checkout page-এ live charge দেখায়; admin "Delivery" সেকশনে zone editor।
+- **Verified:** Dhaka zone → 60, অন্য → 80, freeAbove (≥2000) → 0।
 
-## ১৪. Graceful Shutdown / Crash Handler নেই
-- **অবস্থান:** `server.js` (শুধু `main().catch`)
-- **সমস্যা:** `SIGTERM`-এ পরিষ্কার shutdown নেই; `unhandledRejection`/`uncaughtException` handle নেই → একটা bug-এ পুরো site down।
-- **করনীয়:** handler যোগ + restart policy (host level)।
+## ✅ ১৪. Graceful shutdown + crash handlers
+- **সমাধান:** `server.js` — `SIGTERM`/`SIGINT`-এ server.close() + Prisma disconnect (১০s force-exit timeout); `unhandledRejection` লগ করে site আপ রাখে; `uncaughtException`-এ clean shutdown + exit 1 (host restart policy-র জন্য)।
 
-## ১৫. Email fire-and-forget (হারিয়ে যেতে পারে)
-- **অবস্থান:** `api/server.ts:672-696` (order email `.catch` করে ignore)
-- **সমস্যা:** process crash/restart হলে order confirmation/owner notification হারাতে পারে; কোনো retry নেই।
-- **করনীয়:** queue + retry (P2) বা অন্তত failed mail log/table।
+## ✅ ১৫. Email retry + durable failed-email log
+- **সমাধান:** `api/lib/mailer.ts` — প্রতিটি mail ৩ বার backoff সহ retry; সব attempt ব্যর্থ হলে নতুন `FailedEmail` টেবিলে (migration `20261016010000_add_failed_email`) persist। admin API `GET/POST resend/DELETE /api/admin/failed-emails` + Delivery সেকশনে "Failed Emails" কার্ড (resend/delete)।
+- **Verified:** ব্যর্থ SMTP-এ order দিলে FailedEmail row তৈরি ও admin list-এ দেখায়।
 
 ---
+
 
 # P2 — Medium
 
@@ -172,10 +166,9 @@
 - **সমস্যা:** ORDER_MANAGER / PRODUCT_MANAGER পার্থক্য সব জায়গায় enforce নয়।
 - **করনীয়:** endpoint-permission matrix।
 
-## ২৮. Newsletter-এ Unsubscribe ব্যবস্থা নেই
-- **অবস্থান:** `api/lib/mailer.ts:195`, `api/server.ts:194`, `prisma/schema.prisma:79`
-- **সমস্যা:** স্বাগত ইমেইলে “one-click unsubscribe anytime” বলা আছে, কিন্তু unsubscribe endpoint/token flow বা subscriber-এর active/unsubscribed status নেই। প্রতিশ্রুত সুবিধাটি কাজ করে না।
-- **করনীয়:** প্রতিটি subscriber-এর জন্য নিরাপদ unsubscribe token ও endpoint যোগ করুন; unsubscribe হওয়া email-এ আর marketing email পাঠাবেন না। পুনরায় subscribe করার নিয়মও নির্ধারণ করুন।
+## ✅ ২৮. Newsletter unsubscribe flow যোগ করা হয়েছে
+- **সমাধান:** `NewsletterSubscriber`-এ `unsubscribeToken` (unique) + `unsubscribedAt` (migration `20261016020000_add_newsletter_unsubscribe`)। subscribe-এ token তৈরি, welcome mail-এ আসল unsubscribe লিংক। নতুন `POST /api/newsletter/unsubscribe` ও `/unsubscribe` পেজ (confirm-based)। আবার subscribe করলে `unsubscribedAt` ক্লিয়ার হয়।
+- **Verified:** token issue, invalid token → 404, unsubscribe → unsubscribedAt সেট।
 
 ## ২৯. Health Check Database সচলতা যাচাই করে না
 - **অবস্থান:** `api/server.ts:168` (`/health`)
@@ -234,13 +227,17 @@
 - [x] **P0-7** email verification + forgot-password
 - [x] **P0-8** automated DB backup + smoke test + CI
 
-## P1 — বাকি
-- [ ] **P1-9** STAFF order-update authorization
-- [ ] **P1-11** shop pagination
-- [ ] **P1-12** admin secret masking
-- [ ] **P1-13** shipping config (zone wise)
-- [ ] **P1-14** graceful shutdown + crash handlers
-- [ ] **P1-28** newsletter unsubscribe flow
+## P1 — ✅ সম্পন্ন (typecheck + build + runtime test verified)
+- [x] **P1-9** STAFF order-update authorization
+- [x] **P1-10** password change → session invalidation + rotation
+- [x] **P1-11** shop load-more (incremental render)
+- [x] **P1-12** admin secret masking
+- [x] **P1-13** shipping config (zone wise)
+- [x] **P1-14** graceful shutdown + crash handlers
+- [x] **P1-15** email retry + failed-email log
+- [x] **P1-28** newsletter unsubscribe flow
+
+## বাকি
 - [ ] **P2-29** database-aware readiness check
 - [ ] **P2-30** password reset CLI secret input
 - [ ] **P2-31** variable product manual stock check

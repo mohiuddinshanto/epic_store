@@ -36,6 +36,14 @@ type Method = { id: string; label: string };
 type CheckoutField = { enabled: boolean; required: boolean; label: string; placeholder: string };
 type CheckoutForm = Record<string, CheckoutField>;
 
+type ShippingConfig = {
+  defaultCharge?: number;
+  freeAbove?: number | null;
+  zones?: { name?: string; charge?: number; districts?: string[] }[];
+};
+
+const FALLBACK_SHIPPING = 80;
+
 const DEFAULT_CHECKOUT_FORM: CheckoutForm = {
   name: { enabled: true, required: true, label: "Full name", placeholder: "Rahim Ahmed" },
   phone: { enabled: true, required: true, label: "Mobile number", placeholder: "01712345678" },
@@ -56,6 +64,22 @@ const FIELD_META: Record<string, { icon?: ReactNode; full?: boolean }> = {
 
 const money = (value: number) => "৳ " + value.toLocaleString("en-BD");
 
+function computeShipping(subtotal: number, config: ShippingConfig | null, district: string, division: string): number {
+  if (!subtotal) return 0;
+  const freeAbove = config?.freeAbove;
+  if (typeof freeAbove === "number" && freeAbove > 0 && subtotal >= freeAbove) return 0;
+  const d = district.trim().toLowerCase();
+  const v = division.trim().toLowerCase();
+  const match = (config?.zones ?? []).find((zone) =>
+    (zone.districts ?? []).some((entry) => {
+      const target = entry.trim().toLowerCase();
+      return target !== "" && (target === d || target === v);
+    }),
+  );
+  const charge = match?.charge ?? config?.defaultCharge;
+  return typeof charge === "number" && charge >= 0 ? charge : FALLBACK_SHIPPING;
+}
+
 export default function CheckoutPage() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [methods, setMethods] = useState<Method[]>([]);
@@ -67,9 +91,12 @@ export default function CheckoutPage() {
   const [validatingCoupon, setValidatingCoupon] = useState(false);
   const [form, setForm] = useState<CheckoutForm>(DEFAULT_CHECKOUT_FORM);
   const [optionsLoading, setOptionsLoading] = useState(true);
+  const [shippingConfig, setShippingConfig] = useState<ShippingConfig | null>(null);
+  const [districtValue, setDistrictValue] = useState("");
+  const [divisionValue, setDivisionValue] = useState("");
 
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
-  const shipping = subtotal ? 80 : 0;
+  const shipping = computeShipping(subtotal, shippingConfig, districtValue, divisionValue);
   const totalAmount = Math.max(0, subtotal - discountAmount + shipping);
 
   useEffect(() => {
@@ -97,6 +124,7 @@ export default function CheckoutPage() {
           ]),
         );
         if (Object.keys(mergedForm).length) setForm(mergedForm);
+        setShippingConfig(data.shippingConfig ?? null);
       })
       .catch(() => {
         setMethods([]);
@@ -225,6 +253,8 @@ export default function CheckoutPage() {
                     placeholder={field.placeholder}
                     isRequired={Boolean(field.required)}
                     startContent={FIELD_META[key]?.icon}
+                    {...(key === "district" ? { value: districtValue, onValueChange: setDistrictValue } : {})}
+                    {...(key === "division" ? { value: divisionValue, onValueChange: setDivisionValue } : {})}
                   />
                 ))}
             </div>

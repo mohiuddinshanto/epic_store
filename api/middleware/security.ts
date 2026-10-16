@@ -15,14 +15,65 @@ export async function checkIpCooldown(req: Request, res: Response, next: NextFun
   } catch { res.status(500).json({ error: "Spam check failed" }); }
 }
 
-export function restrictStaffOrderView(req: Request & { user?: { role: string; allowedCategories?: unknown } }, res: Response, next: NextFunction) {
-  if (!req.user || req.user.role === "ADMIN") return next();
-  const allowed = Array.isArray(req.user.allowedCategories) ? req.user.allowedCategories.filter((id): id is string => typeof id === "string") : [];
+type ScopedUser = { role: string; allowedCategories?: unknown };
+
+function scopedCategoryIds(user: ScopedUser): string[] | null {
+  if (user.role === "ADMIN") return null;
+  const allowed = Array.isArray(user.allowedCategories) ? user.allowedCategories.filter((id): id is string => typeof id === "string") : [];
+  return allowed.length ? allowed : null;
+}
+
+function itemCategoryId(item: unknown): string | null {
+  if (item && typeof item === "object" && "categoryId" in item) {
+    const value = (item as { categoryId?: unknown }).categoryId;
+    return value == null ? null : String(value);
+  }
+  return null;
+}
+
+function filterVisibleItems(orderItems: unknown, allowed: string[] | null) {
+  if (allowed === null || !Array.isArray(orderItems)) return orderItems;
+  return orderItems.filter((item) => {
+    const id = itemCategoryId(item);
+    return id !== null && allowed.includes(id);
+  });
+}
+
+export function staffCanAccessOrderItems(user: ScopedUser, orderItems: unknown): boolean {
+  const allowed = scopedCategoryIds(user);
+  if (allowed === null) return true;
+  if (!Array.isArray(orderItems)) return true;
+  return orderItems.some((item) => {
+    const id = itemCategoryId(item);
+    return id !== null && allowed.includes(id);
+  });
+}
+
+function restrictedSubtotal(items: unknown[]) {
+  return items.reduce((sum: number, item) => sum + Number((item as { price?: unknown }).price) * Number((item as { qty?: unknown }).qty), 0);
+}
+
+export function restrictStaffOrderView(req: Request & { user?: ScopedUser }, res: Response, next: NextFunction) {
+  if (!req.user) return next();
+  const allowed = scopedCategoryIds(req.user);
+  if (allowed === null) return next();
   const originalJson = res.json.bind(res);
   res.json = ((data: unknown) => {
-    if (data && typeof data === "object" && "orderItems" in data && Array.isArray(data.orderItems)) {
-      const orderItems = data.orderItems.filter((item: unknown) => Boolean(item && typeof item === "object" && "categoryId" in item && allowed.includes(String(item.categoryId))));
-      return originalJson({ ...data, orderItems, restrictedSubtotal: orderItems.reduce((sum, item) => sum + Number(item.price) * Number(item.qty), 0) });
+    if (Array.isArray(data)) {
+      const orders = data
+        .map((order) => {
+          if (order && typeof order === "object" && "orderItems" in order) {
+            const items = (filterVisibleItems((order as { orderItems?: unknown }).orderItems, allowed) as unknown[]) ?? [];
+            return { ...(order as Record<string, unknown>), orderItems: items, restrictedSubtotal: restrictedSubtotal(items) };
+          }
+          return order;
+        })
+        .filter((order) => !(order && typeof order === "object" && "orderItems" in order) || ((order as { orderItems?: unknown }).orderItems as unknown[]).length > 0);
+      return originalJson(orders);
+    }
+    if (data && typeof data === "object" && "orderItems" in data) {
+      const items = (filterVisibleItems((data as { orderItems?: unknown }).orderItems, allowed) as unknown[]) ?? [];
+      return originalJson({ ...(data as Record<string, unknown>), orderItems: items, restrictedSubtotal: restrictedSubtotal(items) });
     }
     return originalJson(data);
   }) as Response["json"];

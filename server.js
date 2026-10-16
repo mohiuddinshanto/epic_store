@@ -29,6 +29,41 @@ function loadApiApp() {
   return require(compiledApi).default;
 }
 
+function loadPrisma() {
+  try {
+    if (dev) return require("./api/lib/prisma.ts").prisma;
+    const compiled = path.join(rootDir, "dist", "lib", "prisma.js");
+    if (fs.existsSync(compiled)) return require(compiled).prisma;
+  } catch (error) {
+    console.error("could not load prisma for shutdown:", error.message);
+  }
+  return null;
+}
+
+let server;
+let shuttingDown = false;
+
+async function shutdown(reason, code = 0) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`received ${reason}, shutting down gracefully…`);
+  const forceTimer = setTimeout(() => {
+    console.error("graceful shutdown timed out, forcing exit");
+    process.exit(1);
+  }, 10_000);
+  forceTimer.unref();
+  try {
+    if (server) await new Promise((resolve) => server.close(resolve));
+    const prisma = loadPrisma();
+    if (prisma) await prisma.$disconnect();
+  } catch (error) {
+    console.error("error during shutdown:", error);
+  } finally {
+    clearTimeout(forceTimer);
+    process.exit(code);
+  }
+}
+
 async function main() {
   const nextApp = next({ dev, dir: rootDir, hostname: host, port });
   const handle = nextApp.getRequestHandler();
@@ -57,12 +92,22 @@ async function main() {
 
   await nextApp.prepare();
 
-  http
-    .createServer(app)
-    .listen(port, host, () =>
-      console.log(`store ready on http://${host}:${port} (${dev ? "development" : "production"})`),
-    );
+  server = http.createServer(app);
+  server.listen(port, host, () =>
+    console.log(`store ready on http://${host}:${port} (${dev ? "development" : "production"})`),
+  );
 }
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
+// A rejected promise should never take the store down; log it and keep serving.
+process.on("unhandledRejection", (reason) => console.error("unhandledRejection:", reason));
+// An uncaught exception leaves the process in an unknown state, so log, close
+// cleanly, and let the host restart policy bring it back.
+process.on("uncaughtException", (error) => {
+  console.error("uncaughtException:", error);
+  shutdown("uncaughtException", 1);
+});
 
 main().catch((error) => {
   console.error("failed to start store server:", error);

@@ -167,7 +167,10 @@ function journey(st: string, primary: string) {
 
 /* ==================== MAILERS ==================== */
 
-async function deliver(to: string, subject: string, html: string): Promise<void> {
+const MAIL_MAX_ATTEMPTS = 3;
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+async function buildTransport() {
   const row = await prisma.storeConfig.findUnique({ where: { id: "store-config-singleton" }, select: { emailConfig: true, storeName: true } });
   const raw = row?.emailConfig as { encrypted?: string } | null;
   if (!raw?.encrypted) throw new Error("SMTP is not configured");
@@ -179,12 +182,49 @@ async function deliver(to: string, subject: string, html: string): Promise<void>
     secure: Number(config.port) === 465,
     auth: config.user ? { user: config.user, pass: config.pass } : undefined,
   });
-  await transporter.sendMail({ from: `"${row?.storeName ?? "Store"}" <${config.fromEmail}>`, to, subject, html });
+  return { transporter, from: `"${row?.storeName ?? "Store"}" <${config.fromEmail}>` };
 }
 
-export async function sendNewsletterWelcome(email: string): Promise<void> {
+async function recordFailedEmail(to: string, subject: string, html: string, error: unknown, attempts: number): Promise<void> {
+  try {
+    await prisma.failedEmail.create({
+      data: { to, subject, html, attempts, error: error instanceof Error ? error.message : String(error) },
+    });
+    console.error(`MAIL_FAILURE persisted after ${attempts} attempts | to=${to} | subject=${subject}`);
+  } catch (persistError) {
+    console.error("could not persist failed email:", persistError);
+  }
+}
+
+/** Send a single email, retrying transient SMTP failures with backoff. */
+async function deliver(to: string, subject: string, html: string): Promise<void> {
+  const { transporter, from } = await buildTransport();
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= MAIL_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      await transporter.sendMail({ from, to, subject, html });
+      return;
+    } catch (error) {
+      lastError = error;
+      if (attempt < MAIL_MAX_ATTEMPTS) await sleep(attempt * 1_000);
+    }
+  }
+  await recordFailedEmail(to, subject, html, lastError, MAIL_MAX_ATTEMPTS);
+  throw lastError;
+}
+
+/** Re-send a previously failed email once; throws on failure so callers can react. */
+export async function resendStoredEmail(to: string, subject: string, html: string): Promise<void> {
+  const { transporter, from } = await buildTransport();
+  await transporter.sendMail({ from, to, subject, html });
+}
+
+export async function sendNewsletterWelcome(email: string, unsubscribeUrl?: string): Promise<void> {
   const brand = await getBrand();
   if (!brand) return;
+  const unsubscribe = unsubscribeUrl
+    ? `<a href="${unsubscribeUrl}" style="color:${brand.primary};font-weight:700;">Unsubscribe</a> anytime.`
+    : "one-click unsubscribe anytime.";
   const html = layout(
     brand,
     heroCard(
@@ -192,7 +232,8 @@ export async function sendNewsletterWelcome(email: string): Promise<void> {
       "You have subscribed to our newsletter. You will be the first to hear about new drops, restocks and exclusive offers.",
       brand.primaryLight
     ) +
-      `<p style="font-size:14px;color:#475569;line-height:1.7;margin:20px 0 0;text-align:center;">No spam — one-click unsubscribe anytime. We are glad to have you on board.</p>`
+      `<p style="font-size:14px;color:#475569;line-height:1.7;margin:20px 0 0;text-align:center;">No spam — ${unsubscribe} We are glad to have you on board.</p>`,
+    unsubscribeUrl ? `<a href="${unsubscribeUrl}" style="color:#94a3b8;">Unsubscribe from newsletter</a>` : ""
   );
   await deliver(email, `Welcome to ${brand.storeName}!`, html);
 }

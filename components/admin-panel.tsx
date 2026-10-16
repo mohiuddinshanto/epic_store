@@ -81,6 +81,11 @@ type Config = {
   };
   emailConfig?: { host: string; port: number; user: string; pass: string; fromEmail: string };
   checkoutForm?: Record<string, { enabled?: boolean; required?: boolean; label?: string; placeholder?: string }> | null;
+  shippingConfig?: {
+    defaultCharge?: number;
+    freeAbove?: number | null;
+    zones?: { name?: string; charge?: number; districts?: string[] }[];
+  };
   courierConfig?: {
     steadfast?: { enabled: boolean; apiKey?: string; secretKey?: string };
     pathao?: { enabled: boolean; clientId?: string; clientSecret?: string; clientEmail?: string };
@@ -4853,6 +4858,11 @@ function DeliverySettings({ save, saving, config, token }: { save: (payload: obj
   const [pathao, setPathao] = useState(Boolean(config.courierConfig?.pathao?.enabled));
   const [redx, setRedx] = useState(Boolean(config.courierConfig?.redx?.enabled));
   const [testSending, setTestSending] = useState(false);
+  const [shippingDefault, setShippingDefault] = useState<string>(String(config.shippingConfig?.defaultCharge ?? 80));
+  const [freeAbove, setFreeAbove] = useState<string>(config.shippingConfig?.freeAbove != null ? String(config.shippingConfig.freeAbove) : "");
+  const [zones, setZones] = useState<{ name: string; charge: string; districts: string }[]>(
+    (config.shippingConfig?.zones ?? []).map((z) => ({ name: z.name ?? "", charge: z.charge != null ? String(z.charge) : "", districts: (z.districts ?? []).join(", ") })),
+  );
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -4865,6 +4875,13 @@ function DeliverySettings({ save, saving, config, token }: { save: (payload: obj
         steadfast: { enabled: steadfast, apiKey: f.get("steadfastKey") || undefined, secretKey: f.get("steadfastSecret") || undefined },
         pathao: { enabled: pathao, clientId: f.get("pathaoId") || undefined, clientSecret: f.get("pathaoSecret") || undefined, clientEmail: f.get("pathaoEmail") || undefined },
         redx: { enabled: redx, apiKey: f.get("redxKey") || undefined },
+      },
+      shippingConfig: {
+        defaultCharge: Number(shippingDefault) || 0,
+        freeAbove: freeAbove.trim() === "" ? null : Number(freeAbove) || 0,
+        zones: zones
+          .map((z) => ({ name: z.name.trim() || undefined, charge: Number(z.charge) || 0, districts: z.districts.split(",").map((s) => s.trim()).filter(Boolean) }))
+          .filter((z) => z.name || z.districts.length),
       },
     });
   }
@@ -4950,10 +4967,147 @@ function DeliverySettings({ save, saving, config, token }: { save: (payload: obj
         </div>
       </div>
 
+      <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-6">
+        <h3 className="font-display font-bold text-gray-900 dark:text-white mb-1">Shipping Charges</h3>
+        <p className="text-xs text-gray-400 dark:text-slate-500 mb-5">A default charge applies everywhere; add zones to override it by district or division.</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Input type="number" min={0} label="Default Charge (৳)" value={shippingDefault} onValueChange={setShippingDefault} />
+          <Input
+            type="number"
+            min={0}
+            label="Free shipping above (৳, optional)"
+            placeholder="e.g. 2000"
+            value={freeAbove}
+            onValueChange={setFreeAbove}
+          />
+        </div>
+        <div className="mt-5 space-y-3">
+          {zones.map((zone, index) => (
+            <div key={index} className="grid grid-cols-1 sm:grid-cols-[1fr_120px_1.6fr_auto] gap-3 items-end">
+              <Input
+                label="Zone name"
+                placeholder="Dhaka"
+                value={zone.name}
+                onValueChange={(v) => setZones((prev) => prev.map((z, i) => (i === index ? { ...z, name: v } : z)))}
+              />
+              <Input
+                type="number"
+                min={0}
+                label="Charge (৳)"
+                value={zone.charge}
+                onValueChange={(v) => setZones((prev) => prev.map((z, i) => (i === index ? { ...z, charge: v } : z)))}
+              />
+              <Input
+                label="Districts / Divisions (comma separated)"
+                placeholder="Dhaka, Gazipur"
+                value={zone.districts}
+                onValueChange={(v) => setZones((prev) => prev.map((z, i) => (i === index ? { ...z, districts: v } : z)))}
+              />
+              <button
+                type="button"
+                onClick={() => setZones((prev) => prev.filter((_, i) => i !== index))}
+                className="h-10 px-3 text-sm font-semibold text-danger hover:bg-danger/5 rounded-xl"
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() => setZones((prev) => [...prev, { name: "", charge: "", districts: "" }])}
+            className="inline-flex items-center gap-1.5 px-4 h-9 text-sm font-semibold text-primary border border-primary/30 rounded-xl hover:bg-primary/5 transition"
+          >
+            + Add Zone
+          </button>
+        </div>
+      </div>
+
+      <FailedEmails token={token} />
+
       <button type="submit" className="px-5 h-10 bg-primary text-white text-sm font-bold font-display rounded-xl hover:bg-primary-dark transition-colors">
         {saving ? "Saving…" : "Save Delivery Settings"}
       </button>
     </form>
+  );
+}
+
+type FailedEmailRow = { id: string; to: string; subject: string; error?: string | null; attempts: number; createdAt: string };
+
+function FailedEmails({ token }: { token: string }) {
+  const [rows, setRows] = useState<FailedEmailRow[]>([]);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  function load() {
+    api("/api/admin/failed-emails", token)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => Array.isArray(data) && setRows(data))
+      .catch(() => {});
+  }
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function resend(id: string) {
+    setBusy(id);
+    const res = await api(`/api/admin/failed-emails/${id}/resend`, token, { method: "POST" });
+    setBusy(null);
+    if (res.ok) {
+      toast.success("Email resent");
+      setRows((prev) => prev.filter((row) => row.id !== id));
+    } else {
+      const data = await res.json().catch(() => ({}));
+      toast.error(data.error ?? "Could not resend email");
+    }
+  }
+
+  async function remove(id: string) {
+    setBusy(id);
+    await api(`/api/admin/failed-emails/${id}`, token, { method: "DELETE" });
+    setBusy(null);
+    setRows((prev) => prev.filter((row) => row.id !== id));
+  }
+
+  return (
+    <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-6">
+      <h3 className="font-display font-bold text-gray-900 dark:text-white mb-1">Failed Emails{rows.length ? ` (${rows.length})` : ""}</h3>
+      <p className="text-xs text-gray-400 dark:text-slate-500 mb-4">Emails that could not be delivered after 3 attempts. Resend once SMTP is fixed.</p>
+      {!rows.length ? (
+        <p className="text-sm text-gray-400">No failed emails.</p>
+      ) : (
+        <div className="space-y-2">
+          {rows.map((row) => (
+            <div key={row.id} className="flex items-center justify-between gap-3 rounded-xl border border-gray-100 dark:border-white/6 px-4 py-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-gray-800 dark:text-slate-200 truncate">{row.subject}</p>
+                <p className="text-xs text-gray-400 truncate">
+                  {row.to} · {new Date(row.createdAt).toLocaleString()}
+                  {row.error ? ` · ${row.error}` : ""}
+                </p>
+              </div>
+              <div className="flex shrink-0 gap-2">
+                <button
+                  type="button"
+                  disabled={busy === row.id}
+                  onClick={() => resend(row.id)}
+                  className="h-8 px-3 text-xs font-semibold text-primary border border-primary/30 rounded-lg hover:bg-primary/5 disabled:opacity-50"
+                >
+                  Resend
+                </button>
+                <button
+                  type="button"
+                  disabled={busy === row.id}
+                  onClick={() => remove(row.id)}
+                  className="h-8 px-3 text-xs font-semibold text-danger border border-danger/30 rounded-lg hover:bg-danger/5 disabled:opacity-50"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

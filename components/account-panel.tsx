@@ -168,6 +168,23 @@ export function AccountPanel() {
     toast.success("সাইন আউট হয়েছে");
   }
 
+  async function changePassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formEl = event.currentTarget;
+    const form = new FormData(formEl);
+    const newPassword = form.get("newPassword");
+    if (newPassword !== form.get("confirmPassword")) return toast.error("নতুন পাসওয়ার্ড দুইবার একই দিতে হবে");
+    const response = await fetch(apiUrl + "/api/auth/change-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ currentPassword: form.get("currentPassword"), newPassword }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) return toast.error(result.error ?? "পাসওয়ার্ড বদলানো যায়নি");
+    formEl.reset();
+    toast.success("পাসওয়ার্ড বদলানো হয়েছে। অন্য ডিভাইসগুলো লগআউট হয়ে গেছে।");
+  }
+
   if (checking) {
     return <AccountSkeleton />;
   }
@@ -447,6 +464,31 @@ export function AccountPanel() {
                 ))}
               </div>
             )}
+          </section>
+        </Tab>
+
+        <Tab
+          key="security"
+          title={
+            <span className="flex items-center gap-2">
+              <FiLock /> নিরাপত্তা
+            </span>
+          }
+        >
+          <section className="pt-6">
+            <form
+              onSubmit={changePassword}
+              className="mx-auto flex max-w-md flex-col gap-4 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm"
+            >
+              <h3 className="font-display text-lg font-bold text-slate-900">পাসওয়ার্ড বদলান</h3>
+              <p className="muted text-sm">পাসওয়ার্ড বদলালে অন্য সব ডিভাইস থেকে লগআউট হয়ে যাবে।</p>
+              <Input name="currentPassword" type="password" label="বর্তমান পাসওয়ার্ড" isRequired startContent={<FiLock />} />
+              <Input name="newPassword" type="password" label="নতুন পাসওয়ার্ড" minLength={8} isRequired startContent={<FiLock />} />
+              <Input name="confirmPassword" type="password" label="নতুন পাসওয়ার্ড (আবার)" minLength={8} isRequired startContent={<FiLock />} />
+              <Button type="submit" color="primary" radius="full" className="mt-2 font-display text-sm font-bold tracking-wide">
+                পাসওয়ার্ড সংরক্ষণ করুন
+              </Button>
+            </form>
           </section>
         </Tab>
       </Tabs>

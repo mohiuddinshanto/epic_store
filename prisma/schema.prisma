@@ -109,9 +109,11 @@ model Verification {
 }
 
 model NewsletterSubscriber {
-  id String @id @default(uuid())
-  email String @unique
-  subscribedAt DateTime @default(now())
+  id             String    @id @default(uuid())
+  email          String    @unique
+  unsubscribeToken String  @unique @default(uuid())
+  unsubscribedAt DateTime?
+  subscribedAt   DateTime  @default(now())
 }
 
 model Address {
@@ -148,6 +150,7 @@ model StoreConfig {
   courierConfig Json?
   storageConfig Json?
   checkoutForm Json?
+  shippingConfig Json?
   updatedAt DateTime @updatedAt
 }
 
@@ -340,4 +343,14 @@ model Order {
   courierTrackingId String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model FailedEmail {
+  id        String   @id @default(uuid())
+  to        String
+  subject   String
+  html      String   @db.MediumText
+  error     String?  @db.Text
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
 }
