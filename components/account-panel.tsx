@@ -20,9 +20,8 @@ import {
 } from "react-icons/fi";
 
 const apiUrl = "";
-const key = "epic-customer-token";
 
-type User = { id: string; name: string; email: string; role: string };
+type User = { id: string; name: string; email: string; role: string; emailVerified?: boolean };
 type Order = { id: string; status: string; totalAmount: string; createdAt: string };
 type WishlistItem = {
   id: string;
@@ -37,8 +36,7 @@ type WishlistItem = {
   };
 };
 
-const request = (path: string, token: string) =>
-  fetch(apiUrl + path, { headers: { Authorization: "Bearer " + token } });
+const request = (path: string) => fetch(apiUrl + path);
 
 const money = (v: number | string) => "৳ " + Number(v).toLocaleString("en-BD");
 
@@ -72,33 +70,55 @@ function StatusChip({ status }: { status: string }) {
 }
 
 export function AccountPanel() {
-  const [token, setToken] = useState("");
   const [user, setUser] = useState<User | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [wishlist, setWishlist] = useState<WishlistItem[]>([]);
-  const [checking, setChecking] = useState(false);
+  const [checking, setChecking] = useState(true);
+  const [showForgot, setShowForgot] = useState(false);
+  const [resending, setResending] = useState(false);
+
+  async function resendVerification() {
+    setResending(true);
+    try {
+      const response = await fetch(apiUrl + "/api/auth/resend-verification", { method: "POST" });
+      if (!response.ok) throw new Error();
+      toast.success("Verification email পাঠানো হয়েছে");
+    } catch {
+      toast.error("Verification email পাঠানো যায়নি");
+    } finally {
+      setResending(false);
+    }
+  }
+
+  async function requestReset(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const response = await fetch(apiUrl + "/api/auth/forgot-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: form.get("email") }),
+    });
+    if (!response.ok) {
+      const result = await response.json().catch(() => ({}));
+      return toast.error(result.error ?? "Could not send reset link");
+    }
+    toast.success("এই ইমেইল থাকলে একটি রিসেট লিংক পাঠানো হয়েছে।");
+    setShowForgot(false);
+  }
 
   useEffect(() => {
-    const saved = localStorage.getItem(key);
-    if (saved) {
-      setChecking(true);
-      load(saved).finally(() => setChecking(false));
-    }
+    load().finally(() => setChecking(false));
   }, []);
 
-  async function load(value: string) {
-    const response = await request("/api/auth/me", value);
-    if (!response.ok) {
-      localStorage.removeItem(key);
-      return;
-    }
+  async function load() {
+    const response = await request("/api/auth/me");
+    if (!response.ok) return;
     const result = await response.json();
-    setToken(value);
     setUser(result.user);
 
     const [history, wishRes] = await Promise.all([
-      request("/api/account/orders", value),
-      request("/api/wishlist", value),
+      request("/api/account/orders"),
+      request("/api/wishlist"),
     ]);
 
     if (history.ok) {
@@ -113,11 +133,7 @@ export function AccountPanel() {
   }
 
   async function removeFromWishlist(productId: string) {
-    if (!token) return;
-    await fetch(`${apiUrl}/api/wishlist/${productId}`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    await fetch(`${apiUrl}/api/wishlist/${productId}`, { method: "POST" });
     setWishlist((prev) => prev.filter((item) => item.product.id !== productId));
     toast.success("উইশলিস্ট থেকে সরানো হয়েছে");
   }
@@ -140,16 +156,16 @@ export function AccountPanel() {
     const result = await response.json();
     if (!response.ok) return toast.error(result.error ?? "Unable to continue");
 
-    localStorage.setItem(key, result.token);
-    await load(result.token);
+    await load();
     toast.success(mode === "sign-in" ? "Welcome back!" : "Account created successfully!");
   }
 
   function signOut() {
-    localStorage.removeItem(key);
+    fetch(apiUrl + "/api/auth/sign-out", { method: "POST" }).catch(() => {});
     setUser(null);
-    setToken("");
-    toast.success("উইশলিস্ট থেকে সরানো হয়েছে");
+    setOrders([]);
+    setWishlist([]);
+    toast.success("সাইন আউট হয়েছে");
   }
 
   if (checking) {
@@ -190,14 +206,38 @@ export function AccountPanel() {
             </div>
 
             <div className="px-7 py-7 sm:px-9">
-              <Tabs aria-label="Account" color="primary" fullWidth size="md" variant="solid">
-                <Tab key="signin" title="লগইন">
-                  <AccountForm mode="sign-in" submit={submit} />
-                </Tab>
-                <Tab key="signup" title="নতুন অ্যাকাউন্ট">
-                  <AccountForm mode="sign-up" submit={submit} />
-                </Tab>
-              </Tabs>
+              {showForgot ? (
+                <form onSubmit={requestReset} className="flex flex-col gap-4">
+                  <p className="text-sm text-slate-500">
+                    আপনার ইমেইল দিন — আমরা একটি রিসেট লিংক পাঠাব।
+                  </p>
+                  <Input name="email" type="email" label="Email" placeholder="you@example.com" isRequired startContent={<FiMail />} />
+                  <Button type="submit" color="primary" size="lg" radius="full" className="mt-1 font-display text-sm font-bold tracking-wide">
+                    পাঠান
+                  </Button>
+                  <button type="button" onClick={() => setShowForgot(false)} className="text-xs font-semibold text-slate-400 hover:text-primary">
+                    ফিরে যান
+                  </button>
+                </form>
+              ) : (
+                <>
+                  <Tabs aria-label="Account" color="primary" fullWidth size="md" variant="solid">
+                    <Tab key="signin" title="লগইন">
+                      <AccountForm mode="sign-in" submit={submit} />
+                    </Tab>
+                    <Tab key="signup" title="নতুন অ্যাকাউন্ট">
+                      <AccountForm mode="sign-up" submit={submit} />
+                    </Tab>
+                  </Tabs>
+                  <button
+                    type="button"
+                    onClick={() => setShowForgot(true)}
+                    className="mt-4 w-full text-center text-xs font-semibold text-slate-400 hover:text-primary"
+                  >
+                    পাসওয়ার্ড ভুলে গেছেন?
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
@@ -229,6 +269,17 @@ export function AccountPanel() {
           </Button>
         </div>
       </header>
+
+      {user.emailVerified === false && (
+        <div className="mb-8 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-300/70 bg-amber-50 px-5 py-4 text-sm text-amber-800">
+          <span className="flex items-center gap-2">
+            <FiMail size={16} /> আপনার ইমেইল এখনো ভেরিফাই হয়নি — ইনবক্সে পাঠানো লিংকে ক্লিক করুন।
+          </span>
+          <Button size="sm" color="warning" variant="flat" radius="full" onPress={resendVerification} isLoading={resending}>
+            আবার পাঠান
+          </Button>
+        </div>
+      )}
 
       <section className="relative mb-10 overflow-hidden rounded-3xl border border-slate-100 bg-white p-8 shadow-sm sm:p-10">
         <div

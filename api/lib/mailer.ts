@@ -344,3 +344,36 @@ export async function sendTestMail(to: string): Promise<void> {
     `<p style="font-size:14px;color:#475569;line-height:1.7;margin:20px 0 0;text-align:center;">Sender host: <em>${escapeHtml(brand.fromEmail)}</em></p>`;
   await deliver(to, `Test email from ${brand.storeName}`, layout(brand, body));
 }
+
+function actionButton(brand: Brand, href: string, label: string): string {
+  return `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:22px 0;">
+      <tr>
+        <td align="center">
+          <a href="${escapeHtml(href)}" style="display:inline-block;background-color:${brand.primary};color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:14px 30px;border-radius:12px;">${escapeHtml(label)}</a>
+        </td>
+      </tr>
+    </table>`;
+}
+
+export async function sendEmailVerification(email: string, name: string, link: string): Promise<void> {
+  const brand = await getBrand();
+  if (!brand) return;
+  const body =
+    `<p style="font-size:16px;color:#111827;font-weight:700;margin:0 0 6px;">Hi ${escapeHtml(name || "there")},</p>` +
+    `<p style="font-size:14px;color:#475569;line-height:1.7;margin:0 0 6px;">Please confirm your email address to finish setting up your ${escapeHtml(brand.storeName)} account.</p>` +
+    actionButton(brand, link, "Verify email") +
+    `<p style="font-size:12px;color:#94a3b8;line-height:1.7;margin:14px 0 0;">This link expires in 24 hours. If you did not create an account you can safely ignore this email.</p>`;
+  await deliver(email, `Verify your email for ${brand.storeName}`, layout(brand, body));
+}
+
+export async function sendPasswordReset(email: string, name: string, link: string): Promise<void> {
+  const brand = await getBrand();
+  if (!brand) return;
+  const body =
+    `<p style="font-size:16px;color:#111827;font-weight:700;margin:0 0 6px;">Hi ${escapeHtml(name || "there")},</p>` +
+    `<p style="font-size:14px;color:#475569;line-height:1.7;margin:0 0 6px;">We received a request to reset your ${escapeHtml(brand.storeName)} password. Click the button below to choose a new one.</p>` +
+    actionButton(brand, link, "Reset password") +
+    `<p style="font-size:12px;color:#94a3b8;line-height:1.7;margin:14px 0 0;">This link expires in 1 hour. If you did not request this, you can safely ignore this email.</p>`;
+  await deliver(email, `Reset your ${brand.storeName} password`, layout(brand, body));
+}
