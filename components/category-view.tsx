@@ -222,9 +222,7 @@ export function CategoryView({ slug, initialProducts, initialCategories, initial
   }, [slug, hasInitial]);
 
   useEffect(() => {
-    const token = localStorage.getItem("epic-customer-token");
-    if (!token) return;
-    fetch(`${apiUrl}/api/wishlist`, { headers: { Authorization: "Bearer " + token } })
+    fetch(`${apiUrl}/api/wishlist`)
       .then((r) => (r.ok ? r.json() : []))
       .then((list: Array<{ productId: string }>) => setWishlist(list.map((i) => i.productId)))
       .catch(() => {});
@@ -258,16 +256,20 @@ export function CategoryView({ slug, initialProducts, initialCategories, initial
 
   function handleWishlistToggle(id: string, e: React.MouseEvent) {
     e.preventDefault();
-    const token = localStorage.getItem("epic-customer-token");
-    if (!token) { toast.error("লগইন করুন"); return; }
     const isWishlisted = wishlist.includes(id);
     fetch(`${apiUrl}/api/wishlist/${id}`, {
       method: "POST",
-      headers: { Authorization: "Bearer " + token },
     }).then((response) => {
+      if (response.status === 401) {
+        toast.error("লগইন করুন");
+        throw new Error("unauthorized");
+      }
       if (!response.ok) throw new Error("Could not update wishlist");
       setWishlist((prev) => isWishlisted ? prev.filter((i) => i !== id) : [...prev, id]);
-    }).catch(() => toast.error("Could not update wishlist"));
+    }).catch((error) => {
+      if (error instanceof Error && error.message === "unauthorized") return;
+      toast.error("Could not update wishlist");
+    });
   }
 
   if (loading) {

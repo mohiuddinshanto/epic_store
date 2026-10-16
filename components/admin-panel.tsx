@@ -245,13 +245,13 @@ type Review = { id: string; rating: number; comment?: string; isApproved: boolea
 type StaffUser = { id: string; name: string; email: string; staffType: string; allowedCategories?: string };
 
 const money = (value: number | string) => "৳ " + Number(value).toLocaleString("en-BD");
-const tokenKey = "epic-admin-token";
 
-const api = (path: string, token: string, init?: RequestInit) =>
+// The session now travels in an httpOnly cookie. The second argument is kept
+// (and ignored) so the hundreds of existing call sites stay unchanged.
+const api = (path: string, _token?: string, init?: RequestInit) =>
   fetch(apiUrl + path, {
     ...init,
     headers: {
-      Authorization: "Bearer " + token,
       "Content-Type": "application/json",
       ...(init?.headers ?? {}),
     },
@@ -329,21 +329,17 @@ export function AdminPanel() {
   const [checking, setChecking] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem(tokenKey);
-    if (saved) {
-      setChecking(true);
-      setToken(saved);
-      load(saved).finally(() => setChecking(false));
-    }
+    setChecking(true);
+    load().finally(() => setChecking(false));
   }, []);
 
-  async function load(current = token) {
-    const response = await api("/api/admin/config", current);
+  async function load() {
+    const response = await api("/api/admin/config");
     if (!response.ok) {
-      localStorage.removeItem(tokenKey);
       setToken("");
       return;
     }
+    setToken("session");
     setConfig(await response.json());
   }
 
@@ -358,9 +354,8 @@ export function AdminPanel() {
     const data = await response.json();
     if (!response.ok || (data.user?.role !== "ADMIN" && data.user?.role !== "STAFF"))
       return toast.error("Admin or Staff account required");
-    localStorage.setItem(tokenKey, data.token);
-    setToken(data.token);
-    load(data.token);
+    setToken("session");
+    load();
   }
 
   async function save(payload: object) {
@@ -514,7 +509,7 @@ export function AdminPanel() {
               variant="flat"
               color="danger"
               onPress={() => {
-                localStorage.removeItem(tokenKey);
+                fetch(apiUrl + "/api/auth/sign-out", { method: "POST" }).catch(() => {});
                 setToken("");
               }}
             >
@@ -1107,7 +1102,7 @@ function AdminProducts({ token }: { token: string }) {
       const preview = URL.createObjectURL(file);
       const form = new FormData();
       form.append("image", file);
-      const response = await fetch(apiUrl + "/api/admin/upload", { method: "POST", headers: { Authorization: "Bearer " + token }, body: form });
+      const response = await fetch(apiUrl + "/api/admin/upload", { method: "POST", body: form });
       const data = await response.json();
       if (!response.ok) {
         URL.revokeObjectURL(preview);
@@ -2235,7 +2230,7 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
     try {
       const form = new FormData();
       form.append("image", file);
-      const response = await fetch(apiUrl + "/api/admin/upload", { method: "POST", headers: { Authorization: "Bearer " + token }, body: form });
+      const response = await fetch(apiUrl + "/api/admin/upload", { method: "POST", body: form });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
       const res = await api(`/api/admin/categories/${id}`, token, {
@@ -3824,7 +3819,7 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
     const form = new FormData();
     form.append("image", file);
     try {
-      const response = await fetch(apiUrl + "/api/admin/upload", { method: "POST", headers: { Authorization: "Bearer " + token }, body: form });
+      const response = await fetch(apiUrl + "/api/admin/upload", { method: "POST", body: form });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
       setTestimonials((t) => ({ ...t, items: (t.items ?? []).map((x, xi) => (xi === index ? { ...x, image: data.url } : x)) }));
@@ -4680,7 +4675,7 @@ function BannerSettings({ save, saving, config, token }: { save: (payload: objec
     try {
       const form = new FormData();
       form.append("image", file);
-      const response = await fetch(apiUrl + "/api/admin/upload", { method: "POST", headers: { Authorization: "Bearer " + token }, body: form });
+      const response = await fetch(apiUrl + "/api/admin/upload", { method: "POST", body: form });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
       updateSlide(id, { image: data.url, uploading: false });
@@ -4910,7 +4905,7 @@ function DeliverySettings({ save, saving, config, token }: { save: (payload: obj
             try {
               const response = await fetch(apiUrl + "/api/admin/test-email", {
                 method: "POST",
-                headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ to }),
               });
               const data = await response.json();

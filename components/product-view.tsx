@@ -156,9 +156,7 @@ export function ProductView({ slug, initialProduct }: { slug: string; initialPro
   }, [slug]);
 
   useEffect(() => {
-    const token = localStorage.getItem("epic-customer-token");
-    if (!token) return;
-    fetch(`${apiUrl}/api/wishlist`, { headers: { Authorization: "Bearer " + token } })
+    fetch(`${apiUrl}/api/wishlist`)
       .then((r) => (r.ok ? r.json() : []))
       .then((list: Array<{ productId: string }>) => setWishlisted(list.some((i) => i.productId === product?.id)))
       .catch(() => {});
@@ -290,11 +288,6 @@ export function ProductView({ slug, initialProduct }: { slug: string; initialPro
 
   async function submitReview(e: React.FormEvent) {
     e.preventDefault();
-    const token = localStorage.getItem("epic-customer-token");
-    if (!token) {
-      toast.error("রিভিউ দিতে প্রথমে আপনার একাউন্টে সাইন ইন করুন");
-      return;
-    }
 
     setSubmittingReview(true);
     try {
@@ -302,11 +295,14 @@ export function ProductView({ slug, initialProduct }: { slug: string; initialPro
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ rating, comment }),
       });
 
+      if (res.status === 401) {
+        toast.error("রিভিউ দিতে প্রথমে আপনার একাউন্টে সাইন ইন করুন");
+        return;
+      }
       if (!res.ok) throw new Error("Review submission failed");
       toast.success("রিভিউটি সফলভাবে জমা হয়েছে! অনুমোদনের পর প্রদর্শিত হবে।");
       setComment("");
@@ -319,18 +315,15 @@ export function ProductView({ slug, initialProduct }: { slug: string; initialPro
 
   async function toggleWishlist() {
     if (!product) return;
-    const token = localStorage.getItem("epic-customer-token");
-    if (!token) {
-      toast("প্রোডাক্টটি উইশলিস্টে রাখতে সাইন ইন করুন");
-      window.location.href = "/account";
-      return;
-    }
     setWishlisted((prev) => !prev);
-    const res = await fetch(`${apiUrl}/api/wishlist/${product.id}`, {
-      method: "POST",
-      headers: { Authorization: "Bearer " + token },
-    }).catch(() => null);
-    if (!res || !res.ok) setWishlisted((prev) => !prev);
+    const res = await fetch(`${apiUrl}/api/wishlist/${product.id}`, { method: "POST" }).catch(() => null);
+    if (!res || !res.ok) {
+      setWishlisted((prev) => !prev);
+      if (res && res.status === 401) {
+        toast("প্রোডাক্টটি উইশলিস্টে রাখতে সাইন ইন করুন");
+        window.location.href = "/account";
+      }
+    }
   }
 
   return (

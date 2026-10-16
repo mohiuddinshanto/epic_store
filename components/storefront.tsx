@@ -440,9 +440,7 @@ export function Storefront({
   }, [cart]);
 
   useEffect(() => {
-    const token = localStorage.getItem("epic-customer-token");
-    if (!token) return;
-    fetch(`${apiUrl}/api/wishlist`, { headers: { Authorization: "Bearer " + token } })
+    fetch(`${apiUrl}/api/wishlist`)
       .then((r) => (r.ok ? r.json() : []))
       .then((list: Array<{ productId: string }>) => setWishlist(list.map((i) => i.productId)))
       .catch(() => {});
@@ -660,18 +658,14 @@ export function Storefront({
   function toggleWishlist(id: string, e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    const token = localStorage.getItem("epic-customer-token");
-    if (!token) {
-      window.location.href = "/account";
-      return;
-    }
     setWishlist((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
-    fetch(`${apiUrl}/api/wishlist/${id}`, {
-      method: "POST",
-      headers: { Authorization: "Bearer " + token },
-    }).catch(() => {});
+    fetch(`${apiUrl}/api/wishlist/${id}`, { method: "POST" })
+      .then((r) => {
+        if (r.status === 401) window.location.href = "/account";
+      })
+      .catch(() => {});
   }
 
   const whatsappUrl = chatConfig?.whatsapp?.number

@@ -10,11 +10,12 @@ import { prisma } from "./lib/prisma.js";
 import { cached, purgeCache, PUBLIC_CACHE_CONTROL } from "./lib/cache.js";
 import { apiCompression } from "./lib/compress.js";
 import { checkIpCooldown, restrictStaffOrderView } from "./middleware/security.js";
-import { makeSessionToken, requireAuth, requireRole } from "./middleware/auth.js";
+import { rateLimit } from "./lib/rate-limit.js";
+import { makeSessionToken, readSessionToken, requireAuth, requireRole, setSessionCookie, clearSessionCookie, SESSION_MAX_AGE_MS } from "./middleware/auth.js";
 import { decrypt, encrypt } from "./lib/crypto.js";
 import { uploadImage, deleteImage, getLocalProductsDirectory } from "./lib/storage.js";
 import { baseSkuForParts, generateVariationsForProduct, makeUniqueSku, replaceProductVariations } from "./lib/product-variations.js";
-import { sendNewOrderToOwner, sendNewsletterWelcome, sendOrderConfirmation, sendOrderStatusEmail, sendTestMail } from "./lib/mailer.js";
+import { sendEmailVerification, sendNewOrderToOwner, sendNewsletterWelcome, sendOrderConfirmation, sendOrderStatusEmail, sendPasswordReset, sendTestMail } from "./lib/mailer.js";
 
 const app = express();
 app.set("trust proxy", 1);
@@ -25,10 +26,13 @@ const allowedOrigins = (process.env.FRONTEND_URL ?? "http://localhost:3000")
 app.use(
   cors({
     origin(origin, cb) {
-      if (!origin || allowedOrigins.includes(origin) || origin.endsWith("gadgetlagbe.online") || origin.includes("localhost")) {
-        return cb(null, true);
-      }
-      cb(null, true);
+      // Same-origin requests (no Origin header) are always allowed.
+      if (!origin) return cb(null, true);
+      const allowed =
+        allowedOrigins.includes(origin) ||
+        /^https?:\/\/([a-z0-9-]+\.)?gadgetlagbe\.online$/i.test(origin) ||
+        (process.env.NODE_ENV !== "production" && /^https?:\/\/localhost(:\d+)?$/i.test(origin));
+      cb(null, allowed);
     },
     credentials: true,
   })
@@ -135,6 +139,12 @@ const paymentSettingsSchema = z.object({
 });
 type PaymentSettings = z.infer<typeof paymentSettingsSchema>;
 
+// Gateways that have a real payment flow (init + callback + verification)
+// implemented. Anything not listed here is hidden from checkout even if it is
+// enabled in the admin payment settings, so customers can never pick a method
+// that would silently leave the order unpaid.
+const ACTIVE_PAYMENT_GATEWAYS = new Set<string>([]);
+
 const attributeValueSchema = z.object({
   id: z.string().min(1),
   value: z.string().trim().min(1),
@@ -191,7 +201,7 @@ app.get("/api/store/status", async (_req, res) => {
   res.json(payload);
 });
 
-app.post("/api/newsletter/subscribe", async (req, res) => {
+app.post("/api/newsletter/subscribe", rateLimit({ windowMs: 60 * 60_000, max: 10, message: "Too many subscription attempts. Please try again later." }), async (req, res) => {
   const parsed = z.object({ email: z.string().email().max(200) }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Invalid email address" });
   const { email } = parsed.data;
@@ -219,9 +229,9 @@ app.get("/api/store/checkout-options", async (_req, res) => {
     const payments = encrypted?.encrypted ? (decrypt<PaymentSettings>(encrypted.encrypted) ?? {}) : {};
     const methods = [
       ...(flags.cod ? [{ id: "COD", label: "Cash on delivery" }] : []),
-      ...(payments.bkash?.enabled ? [{ id: "bKash", label: "bKash" }] : []),
-      ...(payments.nagad?.enabled ? [{ id: "Nagad", label: "Nagad" }] : []),
-      ...(payments.sslcommerz?.enabled ? [{ id: "SSLCommerz", label: "Card / Mobile Banking" }] : []),
+      ...(payments.bkash?.enabled && ACTIVE_PAYMENT_GATEWAYS.has("bKash") ? [{ id: "bKash", label: "bKash" }] : []),
+      ...(payments.nagad?.enabled && ACTIVE_PAYMENT_GATEWAYS.has("Nagad") ? [{ id: "Nagad", label: "Nagad" }] : []),
+      ...(payments.sslcommerz?.enabled && ACTIVE_PAYMENT_GATEWAYS.has("SSLCommerz") ? [{ id: "SSLCommerz", label: "Card / Mobile Banking" }] : []),
     ];
     const saved = (config?.checkoutForm as Record<string, Record<string, unknown>> | null) ?? {};
     const form = Object.fromEntries(
@@ -404,7 +414,7 @@ app.get("/api/products/:slug", async (req, res) => {
 
 const credentialsSchema = z.object({ email: z.string().email(), password: z.string().min(8).max(128) });
 
-app.post("/api/auth/sign-up", async (req, res) => {
+app.post("/api/auth/sign-up", rateLimit({ windowMs: 15 * 60_000, max: 10, message: "Too many sign-up attempts. Please try again later." }), async (req, res) => {
   const data = credentialsSchema.extend({ name: z.string().trim().min(2).max(100) }).safeParse(req.body);
   if (!data.success) return res.status(400).json({ error: "Invalid registration data" });
   if (await prisma.user.findUnique({ where: { email: data.data.email } })) return res.status(409).json({ error: "Email already registered" });
@@ -412,25 +422,84 @@ app.post("/api/auth/sign-up", async (req, res) => {
     data: { name: data.data.name, email: data.data.email, passwordHash: await bcrypt.hash(data.data.password, 12) },
   });
   const token = makeSessionToken();
-  await prisma.session.create({ data: { userId: user.id, token, expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) } });
-  res.status(201).json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+  await prisma.session.create({ data: { userId: user.id, token, expiresAt: new Date(Date.now() + SESSION_MAX_AGE_MS) } });
+  setSessionCookie(req, res, token);
+  const verificationToken = makeSessionToken();
+  await prisma.user.update({ where: { id: user.id }, data: { emailVerificationToken: verificationToken, emailVerificationExpiry: new Date(Date.now() + VERIFICATION_TTL_MS) } });
+  sendEmailVerification(user.email, user.name, `${appBaseUrl()}/verify-email?token=${verificationToken}`).catch((err) => console.error("verification mail failed:", err.message));
+  res.status(201).json({ user: { id: user.id, name: user.name, email: user.email, role: user.role } });
 });
 
-app.post("/api/auth/sign-in", async (req, res) => {
+app.post("/api/auth/sign-in", rateLimit({ windowMs: 15 * 60_000, max: 20, message: "Too many sign-in attempts. Please try again later." }), async (req, res) => {
   const data = credentialsSchema.safeParse(req.body);
   if (!data.success) return res.status(400).json({ error: "Invalid credentials" });
   const user = await prisma.user.findUnique({ where: { email: data.data.email } });
   if (!user || !(await bcrypt.compare(data.data.password, user.passwordHash)))
     return res.status(401).json({ error: "Incorrect email or password" });
   const token = makeSessionToken();
-  await prisma.session.create({ data: { userId: user.id, token, expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) } });
-  res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+  await prisma.session.create({ data: { userId: user.id, token, expiresAt: new Date(Date.now() + SESSION_MAX_AGE_MS) } });
+  setSessionCookie(req, res, token);
+  res.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role } });
 });
 
 app.get("/api/auth/me", requireAuth, async (req, res) => res.json({ user: req.user }));
 app.post("/api/auth/sign-out", requireAuth, async (req, res) => {
   await prisma.session.delete({ where: { token: req.sessionToken } });
+  clearSessionCookie(req, res);
   res.status(204).end();
+});
+
+function appBaseUrl(): string {
+  const raw = process.env.FRONTEND_URL ?? process.env.APP_URL ?? "";
+  const first = raw.split(",")[0]?.trim();
+  return (first || "http://localhost:3000").replace(/\/+$/, "");
+}
+
+const VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
+const PASSWORD_RESET_TTL_MS = 60 * 60 * 1000;
+
+app.post("/api/auth/verify-email", rateLimit({ windowMs: 15 * 60_000, max: 20 }), async (req, res) => {
+  const parsed = z.object({ token: z.string().min(10).max(200) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid verification link" });
+  const user = await prisma.user.findFirst({ where: { emailVerificationToken: parsed.data.token, emailVerificationExpiry: { gt: new Date() } } });
+  if (!user) return res.status(400).json({ error: "This verification link is invalid or has expired." });
+  await prisma.user.update({ where: { id: user.id }, data: { emailVerified: true, emailVerificationToken: null, emailVerificationExpiry: null } });
+  res.json({ ok: true });
+});
+
+app.post("/api/auth/resend-verification", requireAuth, rateLimit({ windowMs: 10 * 60_000, max: 3 }), async (req, res) => {
+  const user = await prisma.user.findUnique({ where: { id: req.user!.id } });
+  if (!user) return res.status(404).json({ error: "Account not found" });
+  if (user.emailVerified) return res.json({ ok: true, alreadyVerified: true });
+  const token = makeSessionToken();
+  await prisma.user.update({ where: { id: user.id }, data: { emailVerificationToken: token, emailVerificationExpiry: new Date(Date.now() + VERIFICATION_TTL_MS) } });
+  sendEmailVerification(user.email, user.name, `${appBaseUrl()}/verify-email?token=${token}`).catch((err) => console.error("verification mail failed:", err.message));
+  res.json({ ok: true });
+});
+
+app.post("/api/auth/forgot-password", rateLimit({ windowMs: 15 * 60_000, max: 5 }), async (req, res) => {
+  const parsed = z.object({ email: z.string().email().max(200) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid email address" });
+  const user = await prisma.user.findUnique({ where: { email: parsed.data.email } });
+  if (user) {
+    const token = makeSessionToken();
+    await prisma.user.update({ where: { id: user.id }, data: { passwordResetToken: token, passwordResetExpiry: new Date(Date.now() + PASSWORD_RESET_TTL_MS) } });
+    sendPasswordReset(user.email, user.name, `${appBaseUrl()}/reset-password?token=${token}`).catch((err) => console.error("password reset mail failed:", err.message));
+  }
+  res.json({ ok: true });
+});
+
+app.post("/api/auth/reset-password", rateLimit({ windowMs: 15 * 60_000, max: 10 }), async (req, res) => {
+  const parsed = z.object({ token: z.string().min(10).max(200), password: z.string().min(8).max(128) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Password must be at least 8 characters long." });
+  const user = await prisma.user.findFirst({ where: { passwordResetToken: parsed.data.token, passwordResetExpiry: { gt: new Date() } } });
+  if (!user) return res.status(400).json({ error: "This reset link is invalid or has expired." });
+  const passwordHash = await bcrypt.hash(parsed.data.password, 12);
+  await prisma.$transaction([
+    prisma.user.update({ where: { id: user.id }, data: { passwordHash, passwordResetToken: null, passwordResetExpiry: null, emailVerified: true } }),
+    prisma.session.deleteMany({ where: { userId: user.id } }),
+  ]);
+  res.json({ ok: true });
 });
 
 // Customer Wishlist
@@ -467,7 +536,7 @@ app.get("/api/account/orders", requireAuth, async (req, res) => {
 });
 
 // Coupons Validation API
-app.post("/api/coupons/validate", async (req, res) => {
+app.post("/api/coupons/validate", rateLimit({ windowMs: 5 * 60_000, max: 40, message: "Too many coupon attempts. Please try again later." }), async (req, res) => {
   const data = z.object({ code: z.string().trim().toUpperCase(), subtotal: z.number().nonnegative(), categoryIds: z.array(z.string()).default([]) }).safeParse(req.body);
   if (!data.success) return res.status(400).json({ error: "Invalid coupon request" });
   const coupon = await prisma.coupon.findUnique({ where: { code: data.data.code } });
@@ -512,7 +581,7 @@ app.post("/api/onboarding", async (req, res) => {
 });
 
 // Create Order API
-app.post("/api/orders", checkIpCooldown, async (req, res) => {
+app.post("/api/orders", rateLimit({ windowMs: 10 * 60_000, max: 20, message: "Too many order attempts. Please try again later." }), checkIpCooldown, async (req, res) => {
   const schema = z.object({
     paymentMethod: z.string().min(2),
     couponId: z.string().optional(),
@@ -535,7 +604,7 @@ app.post("/api/orders", checkIpCooldown, async (req, res) => {
     constructor(public status: number, message: string) { super(message); }
   }
 
-  const token = req.header("authorization")?.replace(/^Bearer\s+/i, "");
+  const token = readSessionToken(req);
   let customerId: string | undefined;
   if (token) {
     const session = await prisma.session.findUnique({ where: { token }, select: { userId: true, expiresAt: true } });
@@ -549,9 +618,9 @@ app.post("/api/orders", checkIpCooldown, async (req, res) => {
   const payments = encryptedPayments?.encrypted ? (decrypt<PaymentSettings>(encryptedPayments.encrypted) ?? {}) : {};
   const methods = [
     ...(flags.cod ? ["COD"] : []),
-    ...(payments.bkash?.enabled ? ["bKash"] : []),
-    ...(payments.nagad?.enabled ? ["Nagad"] : []),
-    ...(payments.sslcommerz?.enabled ? ["SSLCommerz"] : []),
+    ...(payments.bkash?.enabled && ACTIVE_PAYMENT_GATEWAYS.has("bKash") ? ["bKash"] : []),
+    ...(payments.nagad?.enabled && ACTIVE_PAYMENT_GATEWAYS.has("Nagad") ? ["Nagad"] : []),
+    ...(payments.sslcommerz?.enabled && ACTIVE_PAYMENT_GATEWAYS.has("SSLCommerz") ? ["SSLCommerz"] : []),
   ];
   if (!methods.includes(parsed.data.paymentMethod)) return res.status(400).json({ error: "Selected payment method is unavailable." });
 

@@ -150,9 +150,6 @@ export default function CheckoutPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(localStorage.getItem("epic-customer-token")
-            ? { Authorization: "Bearer " + localStorage.getItem("epic-customer-token") }
-            : {}),
         },
         body: JSON.stringify({
           paymentMethod: selectedMethod,
