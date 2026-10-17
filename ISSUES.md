@@ -101,89 +101,60 @@
 
 # P2 — Medium
 
-## ১৬. marketingPixels সেভ হয় কিন্তু Inject হয় না
-- **অবস্থান:** `components/admin-panel.tsx:105,3510` (শুধু সেভ); storefront-এ কোনো inject নেই
-- **সমস্যা:** GA / Meta Pixel / GTM / TikTok ID সেভ হলেও পেজে বসে না → analytics কাজ করে না।
-- **সতর্কতা:** inject করার সময় raw scripts সাবধানে (admin-controlled হলেও XSS ঝুঁকি)।
-- **করনীয়:** `<Script>` দিয়ে Pixels inject।
+## ✅ ১৬. marketingPixels এখন inject হয়
+- **সমাধান:** নতুন `components/marketing-scripts.tsx` (`next/script`) — GA4, GTM, Meta Pixel, TikTok Pixel storefront-এ load হয়। `app/layout.tsx` store-status থেকে `marketingPixels` পড়ে দেয়। প্রতিটি ID provider-format regex দিয়ে validate করা হয় (inline script-এ XSS এড়াতে); ভুল ফরম্যাট হলে skip।
 
-## ১৭. In-memory Cache (single instance only)
-- **অবস্থান:** `api/lib/cache.ts` (`purgeCache` local; `MAX_ENTRIES=1000`)
-- **সমস্যা:** একাধিক instance/দুটো ডেপ্লয়মেন্ট হলে cache আলাদা-আলাদা; horizontal scaling-এ inconsistent।
-- **করনীয়:** বড় হলে Redis।
+## ⏭️ ১৭. In-memory Cache (single instance only) — deferred (roadmap)
+- **নোট:** এক instance-এ ঠিক আছে; horizontal scale করলে Redis লাগবে (`api/lib/cache.ts`)। এখনও প্রযোজ্য নয় — VPS/multi-instance গেলে করণীয়।
 
-## ১৮. Images Unoptimized
-- **অবস্থান:** `next.config.ts:27` (`unoptimized: true`)
-- **সমস্যা:** বড় ছবি হুবহু যায় → bandwidth/মোবাইলে slow; shared host-এ optimizer-এর কারণেই অফ করা।
-- **করনীয়:** CDN (Hostinger Object Storage/Cloudflare) + resized variants।
+## ⏭️ ১৮. Images Unoptimized — deferred (infra)
+- **নোট:** shared host-এ optimizer অফ (`next.config.ts` `unoptimized: true`)। CDN (Hostinger Object Storage/Cloudflare) + resized variants লাগবে — infra কাজ।
 
-## ১৯. Prisma Pool ছোট (5) + Single Process
-- **অবস্থান:** `api/lib/prisma.ts:14-17` (`connection_limit=5`, `pool_timeout=10`)
-- **সমস্যা:** concurrency-র মূল সীমা; অনেক সমান্তরাল DB-hit এলে queue + timeout।
-- **করনীয়:** লোড বাড়লে pool বাড়ান (তবে Hostinger shared `max_connections` মাথায় রাখা)।
+## ✅ ১৯. Prisma Pool এখন env-configurable
+- **সমাধান:** `api/lib/prisma.ts:14` — `DATABASE_CONNECTION_LIMIT` / `DATABASE_POOL_TIMEOUT` env দিয়ে (বা URL params দিয়ে) bump করা যায়; URL-এ থাকলে তা-ই প্রাধান্য পায়। ডিফল্ট ৫ (shared MySQL `max_connections` মাথায় রেখে)।
 
-## ২০. `express.json()` Default 100kb Limit
-- **অবস্থান:** `api/server.ts:36`
-- **সমস্যা:** অনেক variation/attribute সহ বড় product payload reject হতে পারে (413)।
-- **করনীয়:** ইচ্ছাকৃত limit সেট (`express.json({ limit: '1mb' })`)।
+## ✅ ২০. `express.json()` limit স্পষ্ট করা হয়েছে
+- **সমাধান:** `api/server.ts:40` — `express.json({ limit: "1mb" })`। বড় variation/attribute payload আর অপ্রত্যাশিতভাবে 413 খাবে না।
 
-## ২১. `x-forwarded-for` Trust (IP cooldown bypass)
-- **অবস্থান:** `api/server.ts:567`, `api/middleware/security.ts:5-6`
-- **সমস্যা:** header spoof করে IP-based spam guard bypass সম্ভব।
-- **করনীয়:** শুধু trusted proxy থেকে IP নিন; প্রয়োজনে device/cookie fingerprintও।
+## ✅ ২১. `x-forwarded-for` spoof ঠেকানো হয়েছে
+- **সমাধান:** `app.set("trust proxy", 1)` থাকায় `req.ip`-ই trusted-proxy-resolved client IP। তাই `api/middleware/security.ts` (`checkIpCooldown`) ও order IP দুটোই এখন `req.ip` ব্যবহার করে — ক্লায়েন্ট header spoof করে spam-guard bypass করতে পারবে না।
 
-## ২২. Coupon Code Enumeration
-- **অবস্থান:** `api/server.ts:470-491`
-- **সমস্যা:** `validate` endpoint দিয়ে coupon code ক্রমাগত guess করা যায় (rate limit নেই)।
-- **করনীয়:** throttle + ভুল code-এ uniform response।
+## ✅ ২২. Coupon enumeration কমিয়েছে
+- **সমাধান:** validate endpoint-এ rate limit ছিল (`windowMs: 5min, max: 40`)। এখন "valid-but-not-applicable" code-ও invalid-এর মতোই uniform `404 "Coupon is invalid or expired"` ফেরায় — code-এর অস্তিত্ব ফাঁস হয় না।
 
 ---
 
 # P3 — Low / UX / Code quality
 
-## ২৩. `error.tsx` / `not-found.tsx` / `global-error.tsx` নেই
-- **অবস্থান:** `app/**` (শুধু `loading.tsx` আছে)
-- **সমস্যা:** runtime error/404-এ branded পেজ নেই; UX/SEO খারাপ।
-- **করনীয়:** custom error/404 পেজ।
+## ✅ ২৩. `error.tsx` / `not-found.tsx` / `global-error.tsx` যোগ করা হয়েছে
+- **সমাধান:** `app/error.tsx` (retry button), `app/not-found.tsx` (branded ৪০৪), `app/global-error.tsx` (root crash fallback)। ভেরিফায়েড: অজানা path → ৪০৪ branded পেজ।
 
-## ২৪. Admin Panel একটাই বিশাল Component
-- **অবস্থান:** `components/admin-panel.tsx` (~৪৮৪৮ লাইন), First-Load ~300kB
-- **সমস্যা:** বড়, ধীর, মেইনটেইন করা কঠিন।
-- **করনীয়:** section অনুযায়ী ভাগ করুন / lazy-load।
+## ⏭️ ২৪. Admin Panel একটাই বিশাল Component — deferred (refactor)
+- **নোট:** `components/admin-panel.tsx` ~৫৩০০ লাইন, first-load ~৩০০kB। sectional split/lazy-load একটি বড় refactor — আলাদা কাজ হিসেবে রাখা হলো (ভাঙার ঝুঁকি এড়াতে)।
 
-## ২৫. Middleware প্রতি Request-এ Status Fetch
-- **অবস্থান:** `middleware.ts:90-121`
-- **সমস্যা:** onboarding check এর জন্য internally `/api/store/status` কল (৬০s cache), কিন্তু onboarding-এর পরও প্রতি navigation-এ যাচাই।
-- **করনীয়:** onboarded হলে যাচাই কমানো / static করা।
+## ✅ ২৫. Middleware প্রতি Request-এ Status Fetch কমানো
+- **সমাধান:** `middleware.ts` — onboarded=true হলে cache TTL ৬০s → **১০ মিনিট** (onboarded কখনো false হয় না)। onboarded=false/unknown এখনও ৩s (দ্রুত onboarding-এর জন্য)।
 
-## ২৬. Next `start` Bridge Mode-এ Extra Hop
-- **অবস্থান:** `app/api/[...path]/route.ts`
-- **সমস্যা:** হোস্ট `next start` চালালে loopback-এ Express proxy হয় — প্রতি API call-এ বাড়তি overhead।
-- **করনীয়:** নিশ্চিত করুন `server.js` startup file, নাহলে bridge-ই ডিফল্ট।
+## ✅ ২৬. Bridge Mode extra hop নিশ্চিত করা হয়েছে
+- **সমাধান:** deployment **startup file = `server.js`** (Express API + Next একই process-এ mount), তাই `app/api/[...path]` bridge proxy hop লাইভে ব্যবহার হয় না। নিশ্চিত করতে hPanel-এ startup file `server.js` রাখতে হবে (নোট: ব্রীজ শুধু `next start` চালালে সক্রিয় হয়)।
 
-## ২৭. Admin-এ STAFF Role-এর সূক্ষ্ম সীমা
-- **অবস্থান:** `prisma/schema.prisma:57` (`staffType`), `api/server.ts:819`
-- **সমস্যা:** ORDER_MANAGER / PRODUCT_MANAGER পার্থক্য সব জায়গায় enforce নয়।
-- **করনীয়:** endpoint-permission matrix।
+## ✅ ২৭. STAFF Role-এর endpoint-permission matrix
+- **সমাধান:** `api/middleware/auth.ts:68` — নতুন `requireStaffArea("orders" | "products")`। ADMIN সব পায়; STAFF-এর `staffType` সেট থাকলে সে শুধু নিজের domain পায় (`ORDER_MANAGER` → orders/steadfast, `PRODUCT_MANAGER` → products/images/variations/upload)। পুরনো STAFF (staffType=null) আগের মতোই full access (backward-compat)। admin-panel-এ nav-ও sub-role অনুযায়ী filter হয়।
+- **Verified:** PRODUCT_MANAGER orders list/PATCH → 403; ORDER_MANAGER upload → 403; নিজ নিজ domain → 200।
 
 ## ✅ ২৮. Newsletter unsubscribe flow যোগ করা হয়েছে
 - **সমাধান:** `NewsletterSubscriber`-এ `unsubscribeToken` (unique) + `unsubscribedAt` (migration `20261016020000_add_newsletter_unsubscribe`)। subscribe-এ token তৈরি, welcome mail-এ আসল unsubscribe লিংক। নতুন `POST /api/newsletter/unsubscribe` ও `/unsubscribe` পেজ (confirm-based)। আবার subscribe করলে `unsubscribedAt` ক্লিয়ার হয়।
 - **Verified:** token issue, invalid token → 404, unsubscribe → unsubscribedAt সেট।
 
-## ২৯. Health Check Database সচলতা যাচাই করে না
-- **অবস্থান:** `api/server.ts:168` (`/health`)
-- **সমস্যা:** endpoint শুধু `{ ok: true }` ফেরায়; DB সংযোগ নষ্ট হলেও hosting monitor অ্যাপটিকে healthy ভাবতে পারে।
-- **করনীয়:** liveness check আলাদা রাখুন; readiness check-এ Prisma/MySQL connectivity যাচাই করে dependency ব্যর্থ হলে non-200 দিন।
+## ✅ ২৯. Health/Readiness আলাদা
+- **সমাধান:** `api/server.ts` — `/health` liveness (`{ok:true}`) রেখে নতুন **`/ready`** যোগ (Prisma `SELECT 1`); DB down হলে `503 {ok:false,db:"down"}`। ভেরিফায়েড: DB বন্ধ → ৫০৩, চালু → ২০০।
 
-## ৩০. Password Reset CLI-তে Password Argument হিসেবে যায়
-- **অবস্থান:** `api/reset-password.ts:9-11`
-- **সমস্যা:** CLI usage-এ plaintext password command argument-এ দেওয়া হয়; shell history կամ process listing-এ থেকে যেতে পারে।
-- **করনীয়:** password interactive hidden prompt বা অনুমতিসুরক্ষিত secret input থেকে নিন; কমান্ডে সরাসরি password দেওয়ার উদাহরণ সরান।
+## ✅ ৩০. Password Reset CLI-তে secret input
+- **সমাধান:** `api/reset-password.ts` — password আর command argument-এ নয়; `ADMIN_RESET_PASSWORD` env var বা interactive **hidden prompt** থেকে নেয়। usage উদাহরণও নিরাপদ করা হয়েছে।
 
-## ৩১. Variable Product-এ Manual Out-of-Stock অবস্থা মানা হয় না
-- **অবস্থান:** `api/server.ts:595-604` (order stock validation)
-- **সমস্যা:** simple product-এ `manageStock=false` হলে `stock <= 0` যাচাই করে order আটকে দেয়; variable product-এর ক্ষেত্রে `manageStock=false` হলে ওই যাচাই নেই। ফলে variation-কে stock শূন্য রেখে manual out-of-stock করা হলেও order নেওয়া হতে পারে।
-- **করনীয়:** simple ও variable product-এ manual availability-এর একই নিয়ম প্রয়োগ করুন; stock tracking বন্ধ থাকলেও admin-এর out-of-stock অবস্থা checkout-এ কার্যকর রাখুন।
+## ✅ ৩১. Variable Product-এ manual out-of-stock মানা হয়
+- **সমাধান:** `api/server.ts` order validation — variation-এর `manageStock=false` হলে এখন `stock <= 0` যাচাই করে order আটকায় (simple product-এর মতোই)।
+- **Verified:** variation (manageStock=false, stock=0) → order 409 out-of-stock।
 
 ---
 
@@ -237,9 +208,26 @@
 - [x] **P1-15** email retry + failed-email log
 - [x] **P1-28** newsletter unsubscribe flow
 
-## বাকি
-- [ ] **P2-29** database-aware readiness check
-- [ ] **P2-30** password reset CLI secret input
-- [ ] **P2-31** variable product manual stock check
-- [ ] **P2** পিক্সেল inject, Redis, CDN, pool tuning
-- [ ] **P3** error/404 পেজ, admin ভাগ করা, middleware/efficiency
+## P2 — ✅ সম্পন্ন (যেগুলো কোড-লেভেল)
+- [x] **P2-16** marketing pixels inject (GA/GTM/Meta/TikTok)
+- [x] **P2-19** Prisma pool env-configurable
+- [x] **P2-20** express.json 1mb limit
+- [x] **P2-21** trusted-proxy IP (x-forwarded-for spoof বন্ধ)
+- [x] **P2-22** coupon enumeration (uniform response + throttle)
+- [x] **P2-29** `/ready` DB-aware readiness check
+- [x] **P2-30** reset-password CLI secret input
+- [x] **P2-31** variable product manual out-of-stock
+- [ ] **P2-17** Redis (multi-instance cache) — infra/deferred
+- [ ] **P2-18** CDN + image variants — infra/deferred
+
+## P3 — ✅ সম্পন্ন (যেগুলো কোড-লেভেল)
+- [x] **P3-23** error/404/global-error পেজ
+- [x] **P3-25** middleware onboarded cache 10 মিনিট
+- [x] **P3-26** startup = `server.js` (bridge hop এড়ানো)
+- [x] **P3-27** STAFF sub-role permission matrix
+- [ ] **P3-24** admin-panel split/lazy-load — refactor/deferred
+
+## বাকি (ইনফ্রা/refactor — আলাদা কাজ)
+- [ ] **P2-17/18** Redis + CDN (scale-এ দরকার)
+- [ ] **P3-24** admin-panel ভাগ করা
+- [ ] Online payment gateway (SSLCommerz ইত্যাদি) — implement করা হয়নি

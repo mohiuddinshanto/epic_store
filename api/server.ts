@@ -11,7 +11,7 @@ import { cached, purgeCache, PUBLIC_CACHE_CONTROL } from "./lib/cache.js";
 import { apiCompression } from "./lib/compress.js";
 import { checkIpCooldown, restrictStaffOrderView, staffCanAccessOrderItems } from "./middleware/security.js";
 import { rateLimit } from "./lib/rate-limit.js";
-import { makeSessionToken, readSessionToken, requireAuth, requireRole, setSessionCookie, clearSessionCookie, SESSION_MAX_AGE_MS } from "./middleware/auth.js";
+import { makeSessionToken, readSessionToken, requireAuth, requireRole, requireStaffArea, setSessionCookie, clearSessionCookie, SESSION_MAX_AGE_MS } from "./middleware/auth.js";
 import { decrypt, encrypt } from "./lib/crypto.js";
 import { uploadImage, deleteImage, getLocalProductsDirectory } from "./lib/storage.js";
 import { baseSkuForParts, generateVariationsForProduct, makeUniqueSku, replaceProductVariations } from "./lib/product-variations.js";
@@ -37,7 +37,7 @@ app.use(
     credentials: true,
   })
 );
-app.use(express.json());
+app.use(express.json({ limit: "1mb" }));
 app.use((req, res, next) => {
   if (req.path.startsWith("/api/")) {
     res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0");
@@ -203,6 +203,17 @@ const variationSchema = z.object({
 });
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
+
+// Readiness probe: verifies the DB dependency so monitors can distinguish a
+// live process from a store that cannot actually serve requests.
+app.get("/ready", async (_req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ ok: true, db: "up" });
+  } catch {
+    res.status(503).json({ ok: false, db: "down" });
+  }
+});
 
 app.get("/api/store/status", async (_req, res) => {
   const payload = await cached("store:status", 30_000, async () => {
@@ -613,7 +624,9 @@ app.post("/api/coupons/validate", rateLimit({ windowMs: 5 * 60_000, max: 40, mes
     return res.status(404).json({ error: "Coupon is invalid or expired" });
 
   const permitted = !coupon.applicableCategoryIds || (coupon.applicableCategoryIds as string[]).some((id) => data.data.categoryIds.includes(id));
-  if (!permitted) return res.status(400).json({ error: "Coupon does not apply to items in your cart" });
+  // Same response as an invalid code so the endpoint cannot be used to tell a
+  // real-but-ineligible code apart from a non-existent one.
+  if (!permitted) return res.status(404).json({ error: "Coupon is invalid or expired" });
 
   const raw = coupon.type === "PERCENTAGE" ? (data.data.subtotal * Number(coupon.value)) / 100 : Number(coupon.value);
   const discount = Math.min(raw, coupon.maxDiscount ? Number(coupon.maxDiscount) : raw);
@@ -694,7 +707,7 @@ app.post("/api/orders", rateLimit({ windowMs: 10 * 60_000, max: 20, message: "To
     }
   }
 
-  const ipAddress = (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() || req.ip || "127.0.0.1";
+  const ipAddress = req.ip || "127.0.0.1";
   const requestedItems = new Map<string, { productId: string; variationId?: string; qty: number }>();
   for (const item of parsed.data.orderItems) {
     const key = `${item.productId}:${item.variationId ?? ""}`;
@@ -729,6 +742,8 @@ app.post("/api/orders", rateLimit({ windowMs: 10 * 60_000, max: 20, message: "To
           if (variation.manageStock) {
             const updated = await tx.productVariation.updateMany({ where: { id: variation.id, productId: product.id, status: "active", stock: { gte: item.qty } }, data: { stock: { decrement: item.qty } } });
             if (updated.count !== 1) throw new OrderRequestError(409, `${name} is out of stock.`);
+          } else if (variation.stock <= 0) {
+            throw new OrderRequestError(409, `${name} is out of stock.`);
           }
         } else {
           if (item.variationId) throw new OrderRequestError(400, `The selected option for ${product.name} is invalid.`);
@@ -854,7 +869,7 @@ app.get("/api/admin/products", requireAuth, requireRole("ADMIN", "STAFF"), async
   );
 });
 
-app.patch("/api/admin/products/:id", requireAuth, requireRole("ADMIN", "STAFF"), async (req, res) => {
+app.patch("/api/admin/products/:id", requireAuth, requireRole("ADMIN", "STAFF"), requireStaffArea("products"), async (req, res) => {
   const id = String(req.params.id);
   const data = z
     .object({
@@ -946,11 +961,11 @@ app.get("/api/admin/categories", requireAuth, requireRole("ADMIN", "STAFF"), asy
   )
 );
 
-app.get("/api/admin/orders", requireAuth, requireRole("ADMIN", "STAFF"), restrictStaffOrderView, async (_req, res) => {
+app.get("/api/admin/orders", requireAuth, requireRole("ADMIN", "STAFF"), requireStaffArea("orders"), restrictStaffOrderView, async (_req, res) => {
   res.json(await prisma.order.findMany({ orderBy: { createdAt: "desc" }, take: 100 }));
 });
 
-app.patch("/api/admin/orders/:id", requireAuth, requireRole("ADMIN", "STAFF"), async (req, res) => {
+app.patch("/api/admin/orders/:id", requireAuth, requireRole("ADMIN", "STAFF"), requireStaffArea("orders"), async (req, res) => {
   const data = z
     .object({
       status: z.enum(["PENDING", "CONFIRMED", "IN_COURIER", "SHIPPED", "DELIVERED", "CANCELLED"]).optional(),
@@ -979,7 +994,7 @@ app.patch("/api/admin/orders/:id", requireAuth, requireRole("ADMIN", "STAFF"), a
   res.json(updated);
 });
 
-app.post("/api/admin/orders/:id/send-steadfast", requireAuth, requireRole("ADMIN", "STAFF"), async (req, res) => {
+app.post("/api/admin/orders/:id/send-steadfast", requireAuth, requireRole("ADMIN", "STAFF"), requireStaffArea("orders"), async (req, res) => {
   const order = await prisma.order.findUnique({ where: { id: String(req.params.id) } });
   if (!order) return res.status(404).json({ error: "Order not found" });
   if (req.user && !staffCanAccessOrderItems(req.user, order.orderItems)) return res.status(403).json({ error: "Not authorized for this order" });
@@ -1061,7 +1076,7 @@ function decodeSteadfast(settings: { courierConfig: unknown } | null) {
   return sf as { apiKey: string; secretKey: string };
 }
 
-app.post("/api/admin/orders/:id/sync-steadfast", requireAuth, requireRole("ADMIN", "STAFF"), async (req, res) => {
+app.post("/api/admin/orders/:id/sync-steadfast", requireAuth, requireRole("ADMIN", "STAFF"), requireStaffArea("orders"), async (req, res) => {
   const order = await prisma.order.findUnique({ where: { id: String(req.params.id) } });
   if (!order) return res.status(404).json({ error: "Order not found" });
   if ((order.courierName ?? "").trim().toLowerCase() !== "steadfast" || !order.courierTrackingId)
@@ -1091,7 +1106,7 @@ app.post("/api/admin/orders/:id/sync-steadfast", requireAuth, requireRole("ADMIN
   res.json({ ok: true, delivery_status: body.delivery_status, sfSyncedAt: (updated.shippingDetails as Record<string, unknown>)?.sfSyncedAt });
 });
 
-app.post("/api/admin/orders/sync-all-steadfast", requireAuth, requireRole("ADMIN", "STAFF"), async (_req, res) => {
+app.post("/api/admin/orders/sync-all-steadfast", requireAuth, requireRole("ADMIN", "STAFF"), requireStaffArea("orders"), async (_req, res) => {
   const sf = await getSteadfastClient().then(decodeSteadfast);
   if (!sf) return res.status(400).json({ error: "Steadfast API credentials missing" });
 
@@ -1123,7 +1138,7 @@ app.post("/api/admin/orders/sync-all-steadfast", requireAuth, requireRole("ADMIN
   res.json({ ok: true, synced: parcels.length - failed, failed, statuses });
 });
 
-app.get("/api/admin/steadfast/balance", requireAuth, requireRole("ADMIN", "STAFF"), async (_req, res) => {
+app.get("/api/admin/steadfast/balance", requireAuth, requireRole("ADMIN", "STAFF"), requireStaffArea("orders"), async (_req, res) => {
   const sf = await getSteadfastClient().then(decodeSteadfast);
   if (!sf) return res.status(400).json({ error: "Steadfast API credentials missing" });
 
@@ -1191,7 +1206,7 @@ app.delete("/api/admin/categories/:id", requireAuth, requireRole("ADMIN"), async
   res.status(204).end();
 });
 
-app.post("/api/admin/products", requireAuth, requireRole("ADMIN", "STAFF"), async (req, res) => {
+app.post("/api/admin/products", requireAuth, requireRole("ADMIN", "STAFF"), requireStaffArea("products"), async (req, res) => {
   const data = z
     .object({
       categoryId: z.string(),
@@ -1257,7 +1272,7 @@ app.post("/api/admin/products", requireAuth, requireRole("ADMIN", "STAFF"), asyn
   }
 });
 
-app.post("/api/admin/upload", requireAuth, requireRole("ADMIN", "STAFF"), upload.single("image"), async (req, res) => {
+app.post("/api/admin/upload", requireAuth, requireRole("ADMIN", "STAFF"), requireStaffArea("products"), upload.single("image"), async (req, res) => {
   const file = req.file;
   if (!file) return res.status(400).json({ error: "No image file provided" });
   try {
@@ -1286,7 +1301,7 @@ async function syncProductImages(productId: string) {
   return rows;
 }
 
-app.get("/api/admin/products/:id/images", requireAuth, requireRole("ADMIN", "STAFF"), async (req, res) => {
+app.get("/api/admin/products/:id/images", requireAuth, requireRole("ADMIN", "STAFF"), requireStaffArea("products"), async (req, res) => {
   const images = await prisma.productImage.findMany({
     where: { productId: String(req.params.id) },
     orderBy: { sortOrder: "asc" },
@@ -1294,7 +1309,7 @@ app.get("/api/admin/products/:id/images", requireAuth, requireRole("ADMIN", "STA
   res.json(images);
 });
 
-app.post("/api/admin/products/:id/images", requireAuth, requireRole("ADMIN", "STAFF"), async (req, res) => {
+app.post("/api/admin/products/:id/images", requireAuth, requireRole("ADMIN", "STAFF"), requireStaffArea("products"), async (req, res) => {
   const data = z.object({ urls: z.array(z.string().url().or(z.string().regex(/^\//))).min(1) }).safeParse(req.body);
   if (!data.success) return res.status(400).json({ error: "Invalid image payload" });
   const productId = String(req.params.id);
@@ -1313,7 +1328,7 @@ app.post("/api/admin/products/:id/images", requireAuth, requireRole("ADMIN", "ST
   res.status(201).json(rows);
 });
 
-app.patch("/api/admin/products/images/:imgId", requireAuth, requireRole("ADMIN", "STAFF"), async (req, res) => {
+app.patch("/api/admin/products/images/:imgId", requireAuth, requireRole("ADMIN", "STAFF"), requireStaffArea("products"), async (req, res) => {
   const data = z
     .object({
       altText: z.string().nullable().optional(),
@@ -1331,7 +1346,7 @@ app.patch("/api/admin/products/images/:imgId", requireAuth, requireRole("ADMIN",
   res.json(await prisma.productImage.findMany({ where: { productId: img.productId }, orderBy: { sortOrder: "asc" } }));
 });
 
-app.post("/api/admin/products/images/:imgId/toggle-featured", requireAuth, requireRole("ADMIN", "STAFF"), async (req, res) => {
+app.post("/api/admin/products/images/:imgId/toggle-featured", requireAuth, requireRole("ADMIN", "STAFF"), requireStaffArea("products"), async (req, res) => {
   const img = await prisma.productImage.findUnique({ where: { id: String(req.params.imgId) } });
   if (!img) return res.status(404).json({ error: "Image not found" });
   await prisma.productImage.updateMany({ where: { productId: img.productId }, data: { isFeatured: false } });
@@ -1340,7 +1355,7 @@ app.post("/api/admin/products/images/:imgId/toggle-featured", requireAuth, requi
   res.json(await prisma.productImage.findMany({ where: { productId: img.productId }, orderBy: { sortOrder: "asc" } }));
 });
 
-app.delete("/api/admin/products/:id/images/:imgId", requireAuth, requireRole("ADMIN", "STAFF"), async (req, res) => {
+app.delete("/api/admin/products/:id/images/:imgId", requireAuth, requireRole("ADMIN", "STAFF"), requireStaffArea("products"), async (req, res) => {
   const img = await prisma.productImage.findUnique({ where: { id: String(req.params.imgId) } });
   if (!img || img.productId !== String(req.params.id)) return res.status(404).json({ error: "Image not found" });
   await prisma.productImage.delete({ where: { id: img.id } });
@@ -1359,7 +1374,7 @@ app.delete("/api/admin/products/:id/images/:imgId", requireAuth, requireRole("AD
 // Product Variations Management
 const variationInclude = { attributes: { include: { attribute: { select: { id: true, name: true } }, value: true } } } as const;
 
-app.post("/api/admin/products/:id/generate-variations", requireAuth, requireRole("ADMIN", "STAFF"), async (req, res) => {
+app.post("/api/admin/products/:id/generate-variations", requireAuth, requireRole("ADMIN", "STAFF"), requireStaffArea("products"), async (req, res) => {
   const id = String(req.params.id);
   const data = z
     .object({
@@ -1393,7 +1408,7 @@ app.post("/api/admin/products/:id/generate-variations", requireAuth, requireRole
   res.status(201).json({ created, variations: await prisma.productVariation.findMany({ where: { productId: id }, include: variationInclude, orderBy: { createdAt: "asc" } }) });
 });
 
-app.patch("/api/admin/products/variations/:vid", requireAuth, requireRole("ADMIN", "STAFF"), async (req, res) => {
+app.patch("/api/admin/products/variations/:vid", requireAuth, requireRole("ADMIN", "STAFF"), requireStaffArea("products"), async (req, res) => {
   const vid = String(req.params.vid);
   const data = z
     .object({
@@ -1440,7 +1455,7 @@ app.patch("/api/admin/products/variations/:vid", requireAuth, requireRole("ADMIN
   res.json(await prisma.productVariation.findUnique({ where: { id: vid }, include: variationInclude }));
 });
 
-app.post("/api/admin/products/variations/:vid/duplicate", requireAuth, requireRole("ADMIN", "STAFF"), async (req, res) => {
+app.post("/api/admin/products/variations/:vid/duplicate", requireAuth, requireRole("ADMIN", "STAFF"), requireStaffArea("products"), async (req, res) => {
   const vid = String(req.params.vid);
   const source = await prisma.productVariation.findUnique({ where: { id: vid }, include: { attributes: true } });
   if (!source) return res.status(404).json({ error: "Variation not found" });
@@ -1465,7 +1480,7 @@ app.post("/api/admin/products/variations/:vid/duplicate", requireAuth, requireRo
   res.status(201).json(created);
 });
 
-app.delete("/api/admin/products/variations/:vid", requireAuth, requireRole("ADMIN", "STAFF"), async (req, res) => {
+app.delete("/api/admin/products/variations/:vid", requireAuth, requireRole("ADMIN", "STAFF"), requireStaffArea("products"), async (req, res) => {
   const variation = await prisma.productVariation.findUnique({ where: { id: String(req.params.vid) }, select: { id: true, productId: true, image: true } });
   if (!variation) return res.status(404).json({ error: "Variation not found" });
   await prisma.productVariation.delete({ where: { id: variation.id } });
@@ -1478,7 +1493,7 @@ app.delete("/api/admin/products/variations/:vid", requireAuth, requireRole("ADMI
   res.status(204).end();
 });
 
-app.post("/api/admin/products/:id/variations/bulk", requireAuth, requireRole("ADMIN", "STAFF"), async (req, res) => {
+app.post("/api/admin/products/:id/variations/bulk", requireAuth, requireRole("ADMIN", "STAFF"), requireStaffArea("products"), async (req, res) => {
   const productId = String(req.params.id);
   const data = z
     .object({

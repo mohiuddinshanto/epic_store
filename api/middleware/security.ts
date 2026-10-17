@@ -2,8 +2,9 @@ import type { NextFunction, Request, Response } from "express";
 import { prisma } from "../lib/prisma.js";
 
 export async function checkIpCooldown(req: Request, res: Response, next: NextFunction) {
-  const forwarded = req.headers["x-forwarded-for"];
-  const ipAddress = (Array.isArray(forwarded) ? forwarded[0] : forwarded?.split(",")[0])?.trim() ?? req.ip ?? "127.0.0.1";
+  // `app.set("trust proxy", 1)` already resolves req.ip from the trusted proxy,
+  // so reading x-forwarded-for directly would let a client spoof/spam-bypass.
+  const ipAddress = req.ip || "127.0.0.1";
   try {
     const config = await prisma.storeConfig.findUnique({ where: { id: "store-config-singleton" } });
     if (!config?.enableIpLimit) return next();

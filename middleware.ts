@@ -38,10 +38,12 @@ async function checkStoreOnboarded(requestUrl: string, bustCache = false): Promi
       const data = (await response.json()) as { onboarded: boolean };
       const isOnboarded = Boolean(data.onboarded);
 
-      // Cache onboarded=true for 60s, onboarded=false for 3s
+      // Once onboarded, the store stays onboarded; cache that for 10 minutes to
+      // avoid an internal status fetch on every navigation. Unconfirmed/off
+      // states stay short so onboarding still reacts quickly.
       cachedOnboarded = {
         value: isOnboarded,
-        expiresAt: now + (isOnboarded ? 60_000 : 3_000),
+        expiresAt: now + (isOnboarded ? 600_000 : 3_000),
       };
       return { known: true, isOnboarded };
     } catch {

@@ -65,3 +65,20 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   next();
 }
 export function requireRole(...roles: AuthUser["role"][]) { return (req: Request, res: Response, next: NextFunction) => !req.user || !roles.includes(req.user.role) ? res.status(403).json({ error: "Insufficient permissions" }) : next(); }
+
+/**
+ * Enforce the STAFF sub-role split. ADMIN always passes; a STAFF whose
+ * `staffType` is set may only touch its own domain (orders vs products).
+ * Legacy staff with no staffType keep full staff access for backward compat.
+ */
+export function requireStaffArea(area: "orders" | "products") {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const user = req.user;
+    if (!user) return res.status(403).json({ error: "Insufficient permissions" });
+    if (user.role !== "ADMIN" && user.role === "STAFF") {
+      const blocked = area === "orders" ? user.staffType === "PRODUCT_MANAGER" : user.staffType === "ORDER_MANAGER";
+      if (blocked) return res.status(403).json({ error: "This section is not available for your staff role" });
+    }
+    next();
+  };
+}

@@ -2,7 +2,7 @@
 
 import { Button, Dropdown, DropdownItem, DropdownMenu, DropdownTrigger, Input, Select, SelectItem, Switch, Textarea } from "@heroui/react";
 import Link from "next/link";
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { AdminSkeleton } from "./skeletons";
 import { RichTextEditor } from "./rich-text";
@@ -305,6 +305,13 @@ const NAV: { key: Section; label: string; icon: string }[] = [
 
 const title = (section: Section) => NAV.find((n) => n.key === section)?.label ?? "";
 
+// STAFF sub-role split. ADMIN (or legacy staff with no staffType) sees every
+// section; each manager only sees the sections its API permissions allow.
+const STAFF_SECTIONS: Record<string, Section[]> = {
+  ORDER_MANAGER: ["overview", "orders", "delivery", "categories", "reviews"],
+  PRODUCT_MANAGER: ["overview", "products", "categories", "reviews", "home", "banner", "menu"],
+};
+
 const categoryOptions = (categories: Category[]) =>
   categories
     .filter((c) => !c.parentId)
@@ -332,6 +339,18 @@ export function AdminPanel() {
   const [mobileSidebar, setMobileSidebar] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [checking, setChecking] = useState(false);
+  const [staffScope, setStaffScope] = useState<{ role: string; staffType: string | null } | null>(null);
+
+  const visibleNav = useMemo(() => {
+    if (!staffScope || staffScope.role === "ADMIN") return NAV;
+    const allowed = staffScope.staffType ? STAFF_SECTIONS[staffScope.staffType] : null;
+    if (!allowed) return NAV;
+    return NAV.filter((n) => allowed.includes(n.key));
+  }, [staffScope]);
+
+  useEffect(() => {
+    if (staffScope && !visibleNav.some((n) => n.key === section)) setSection("overview");
+  }, [staffScope, visibleNav, section]);
 
   useEffect(() => {
     setChecking(true);
@@ -346,6 +365,15 @@ export function AdminPanel() {
     }
     setToken("session");
     setConfig(await response.json());
+    try {
+      const me = await api("/api/auth/me");
+      if (me.ok) {
+        const data = await me.json();
+        setStaffScope({ role: data.user?.role ?? "", staffType: data.user?.staffType ?? null });
+      }
+    } catch {
+      /* role scoping is best-effort; the API still enforces permissions */
+    }
   }
 
   async function login(event: FormEvent<HTMLFormElement>) {
@@ -454,7 +482,7 @@ export function AdminPanel() {
         </div>
 
         <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
-          {NAV.map((item) => (
+          {visibleNav.map((item) => (
             <Link
               key={item.key}
               href="#"
@@ -558,7 +586,9 @@ export function AdminPanel() {
             { key: "orders", label: "Orders", icon: "⊞" },
             { key: "products", label: "Products", icon: "▦" },
             { key: "home", label: "Layout", icon: "⌂" },
-          ].map((item) => (
+          ]
+            .filter((item) => visibleNav.some((n) => n.key === item.key))
+            .map((item) => (
             <button
               key={item.key}
               onClick={() => {

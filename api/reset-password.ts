@@ -1,24 +1,54 @@
 import { prisma } from "./lib/prisma.js";
 import bcrypt from "bcryptjs";
+import readline from "node:readline";
 
-const email = (process.argv[2] ?? "").trim().toLowerCase();
-const password = process.argv[3] ?? "";
-const name = (process.argv[4] ?? "Store Admin").trim();
+const args = process.argv.slice(2);
+const email = (args[0] && !args[0].startsWith("--") ? args[0] : "").trim().toLowerCase();
+const nameIndex = args.indexOf("--name");
+const name = (nameIndex !== -1 && args[nameIndex + 1] ? args[nameIndex + 1] : "Store Admin").trim();
+
+function promptHidden(query: string): Promise<string> {
+  return new Promise((resolve) => {
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout, terminal: true });
+    // Suppress the echoed characters while keeping the prompt itself visible.
+    (rl as unknown as { _writeToOutput: (s: string) => void })._writeToOutput = () => {};
+    process.stdout.write(query);
+    rl.question("", (answer) => {
+      rl.close();
+      process.stdout.write("\n");
+      resolve(answer);
+    });
+  });
+}
+
+async function resolvePassword(): Promise<string> {
+  if (process.env.ADMIN_RESET_PASSWORD) return process.env.ADMIN_RESET_PASSWORD;
+  if (!process.stdin.isTTY) return "";
+  return promptHidden("New password (hidden): ");
+}
 
 function usage() {
-  console.log("Usage: reset-password <email> <password> [name]");
-  console.log("  tsx api/reset-password.ts admin@shop.com 'MyPass123' 'Muhiuddin'");
-  console.log("  node dist/reset-password.js admin@shop.com 'MyPass123' 'Muhiuddin'");
+  console.log("Usage: reset-password <email> [--name \"Full Name\"]");
+  console.log("  Password is read from the ADMIN_RESET_PASSWORD env var or a hidden prompt.");
+  console.log("  It is intentionally NOT accepted as a command argument (shell history / process list leaks).");
+  console.log("  Example:  $env:ADMIN_RESET_PASSWORD='MyPass123'; tsx api/reset-password.ts admin@shop.com --name \"Muhiuddin\"");
 }
 
 async function main() {
-  if (!email || !password) {
+  if (!email) {
     usage();
     process.exitCode = 1;
     return;
   }
   if (!/^\S+@\S+\.\S+$/.test(email)) {
     console.error(`Invalid email: ${email}`);
+    process.exitCode = 1;
+    return;
+  }
+  const password = await resolvePassword();
+  if (!password) {
+    console.error("No password provided. Set ADMIN_RESET_PASSWORD or run interactively.");
+    usage();
     process.exitCode = 1;
     return;
   }

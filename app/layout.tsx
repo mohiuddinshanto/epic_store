@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { CSSProperties } from "react";
 import { Toaster } from "react-hot-toast";
+import { MarketingScripts, type MarketingPixels } from "../components/marketing-scripts";
 import { StoreBottomNav } from "../components/store-bottom-nav";
 import { StoreTheme } from "../components/store-theme";
 import { internalApiUrl } from "../lib/internal-api";
@@ -28,12 +29,15 @@ function shade(hex: string, amt: number): string {
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   let theme: ThemeSettings = {};
+  let pixels: MarketingPixels = {};
   try {
     const response = await fetch(internalApiUrl("/api/store/status"), {
       cache: "no-store",
       signal: AbortSignal.timeout(1_500),
     });
-    theme = ((await response.json()).config?.themeSettings ?? {}) as ThemeSettings;
+    const config = (await response.json()).config ?? {};
+    theme = (config.themeSettings ?? {}) as ThemeSettings;
+    pixels = (config.marketingPixels ?? {}) as MarketingPixels;
   } catch {
     /* The onboarding page remains usable before the API is available. */
   }
@@ -68,6 +72,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         <StoreTheme />
         {children}
         <StoreBottomNav />
+        <MarketingScripts pixels={pixels} />
       </body>
     </html>
   );
