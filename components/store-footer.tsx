@@ -92,22 +92,24 @@ const FOOTER_CSS = `
 .ft-bottom .ft-flinks a:hover{color:var(--text)}
 @media(max-width:860px){.ft-wrap,.ft-wrap.two{grid-template-columns:repeat(2,minmax(0,1fr));gap:44px}.ft-brand{grid-column:1/-1}}
 @media(max-width:600px){
-  .ft{padding:56px 20px 0;text-align:left}
-  .ft-wrap{grid-template-columns:1fr;gap:44px;justify-items:center}
+  .ft{padding:44px 20px 0;text-align:left}
+  .ft-wrap{width:min(100%,420px);grid-template-columns:1fr;gap:32px;margin-inline:auto;justify-items:stretch}
   .ft-wrap.two{grid-template-columns:1fr}
   .ft-wrap.one{justify-items:center;text-align:center}
   .ft-brand{display:flex;flex-direction:column;align-items:center}
   .ft-slogan{margin-left:auto;margin-right:auto}
   .ft-social{justify-content:center}
   .ft-brand .ft-social{padding-top:12px}
+  .ft-wrap>div:not(.ft-brand){width:100%;min-width:0;text-align:left}
+  .ft h4{margin-bottom:18px}
   .ft h4::after{left:0;transform:none}
   .ft-wrap.one h4::after{left:50%;transform:translateX(-50%)}
-  .ft-wrap:not(.one) h4::after{left:50%;transform:translateX(-50%)}
-  .ft-cats{justify-items:center}
+  .ft-cats{justify-items:start}
   .ft-cats a:hover{transform:none}
-  .ft-info{width:max-content;max-width:100%;margin-inline:auto;justify-items:stretch}
-  .ft-info li{flex-direction:row;justify-content:flex-start;gap:12px;text-align:left;align-items:center}
-  .ft-bottom{margin-top:44px}
+  .ft-info{width:100%;max-width:100%;margin-inline:0;justify-items:stretch}
+  .ft-info li{min-width:0;flex-direction:row;justify-content:flex-start;gap:12px;text-align:left;align-items:center}
+  .ft-info li>span,.ft-info li>a{min-width:0;overflow-wrap:anywhere}
+  .ft-bottom{margin-top:36px}
   .ft-bottom-row{justify-content:center;text-align:center}
   .ft-bottom .ft-flinks{gap:10px 16px}
 }
