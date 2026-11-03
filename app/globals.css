@@ -1338,28 +1338,25 @@ button[color="danger"]:not(:is([data-slot] *)):hover,
   margin-bottom: 30px;
 }
 
-.product-short-description {
-  position: sticky;
-  top: 88px;
-  z-index: 2;
-  margin-top: 24px;
-  padding: 16px 18px 1px;
+.product-long-description {
+  margin-top: 22px;
+  padding: 18px;
   border: 1px solid var(--border);
   border-radius: 14px;
   background: var(--surface);
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
-}
-
-.product-short-description .description {
-  margin-bottom: 16px;
+  color: var(--ink-secondary);
+  font-size: 0.92rem;
+  line-height: 1.7;
 }
 
 .product-reviews {
   scroll-margin-top: 88px;
 }
 
-.product-details-mobile {
-  display: none;
+.product-reviews .reviews-grid > form {
+  position: sticky;
+  top: 88px;
+  align-self: start;
 }
 
 .rt-editor:empty::before {
@@ -1848,20 +1845,12 @@ button[color="danger"]:not(:is([data-slot] *)):hover,
   .product-page {
     padding: 28px 22px;
   }
-  .product-short-description {
-    position: static;
-    margin-top: 20px;
-    box-shadow: none;
-  }
   .product-reviews {
-    margin-top: 44px !important;
-    padding-top: 28px !important;
+    margin-top: 34px !important;
+    padding-top: 24px !important;
   }
-  .product-details-desktop {
-    display: none;
-  }
-  .product-details-mobile {
-    display: block;
+  .product-reviews .reviews-grid > form {
+    position: static;
   }
   .reviews-grid {
     grid-template-columns: 1fr;
@@ -1949,8 +1938,9 @@ button[color="danger"]:not(:is([data-slot] *)):hover,
   .product-detail {
     gap: 24px;
   }
-  .product-short-description {
-    padding: 14px 14px 1px;
+  .product-long-description {
+    margin-top: 18px;
+    padding: 15px;
   }
   .product-reviews h2 {
     font-size: 1.45rem !important;
