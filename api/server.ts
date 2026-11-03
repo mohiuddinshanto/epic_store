@@ -1789,6 +1789,15 @@ app.patch("/api/admin/config", requireAuth, requireRole("ADMIN"), async (req, re
               countLabel: z.string().max(40).optional(),
             })
             .optional(),
+          popularProducts: z
+            .object({
+              eyebrow: z.string().max(80).optional(),
+              title: z.string().max(120).optional(),
+              limit: z.number().int().min(1).max(50).optional(),
+              mode: z.enum(["slider", "grid"]).optional(),
+              auto: z.boolean().optional(),
+            })
+            .optional(),
           sections: z
             .array(
               z.object({

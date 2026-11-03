@@ -338,6 +338,7 @@ export function CatalogHome({
   promoBanners,
   trustBadges,
   categoryShowcase,
+  popularProducts,
   homepageCategories,
   sectionVisibility,
 }: {
@@ -353,6 +354,7 @@ export function CatalogHome({
   promoBanners?: PromoBannerDef[];
   trustBadges?: TrustBadgeDef[];
   categoryShowcase?: CategoryShowcase;
+  popularProducts?: { eyebrow?: string; title?: string; limit?: number; mode?: "slider" | "grid"; auto?: boolean };
   homepageCategories?: HomepageCategoriesSettings;
   sectionVisibility?: Partial<Record<"hero" | "categories" | "products" | "collections" | "trust" | "promos" | "announcement", boolean>>;
 }) {
@@ -634,8 +636,8 @@ export function CatalogHome({
       {sectionVisibility?.products !== false && <section id="shop" className="mx-auto max-w-7xl px-4 py-8">
         <div className="mb-7 flex flex-col justify-between gap-4 md:flex-row md:items-end">
           <div>
-            <p className="mb-1 text-sm font-semibold text-amber-700">আমাদের জনপ্রিয় কালেকশন</p>
-            <h2 className="text-2xl font-extrabold tracking-tight text-gray-900 sm:text-3xl">স্টোরের সেরা পণ্য সমূহ</h2>
+            <p className="mb-1 text-sm font-semibold text-amber-700">{popularProducts?.eyebrow ?? "আমাদের জনপ্রিয় কালেকশন"}</p>
+            <h2 className="text-2xl font-extrabold tracking-tight text-gray-900 sm:text-3xl">{popularProducts?.title ?? "স্টোরের সেরা পণ্য সমূহ"}</h2>
           </div>
           <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar pb-1">
             <button
@@ -655,18 +657,26 @@ export function CatalogHome({
             ))}
           </div>
         </div>
-        <CarouselSlider
-          items={filteredProducts.slice(0, 8).map((p) => (
-            <CatalogCard key={p.id} p={p} add={add} buyNow={buyNow} allowAddToCart={allowAddToCart} whatsapp={whatsapp} fill />
-          ))}
-          seconds={5}
-          auto
-          loop
-          perView={{ mobile: 1.5, tablet: 2.5, desktop: 4 }}
-          pagination
-          spaceBetween={12}
-          ariaLabel="Popular products"
-        />
+        {popularProducts?.mode === "grid" ? (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {filteredProducts.slice(0, popularProducts.limit ?? 8).map((p) => (
+              <CatalogCard key={p.id} p={p} add={add} buyNow={buyNow} allowAddToCart={allowAddToCart} whatsapp={whatsapp} fill />
+            ))}
+          </div>
+        ) : (
+          <CarouselSlider
+            items={filteredProducts.slice(0, popularProducts?.limit ?? 8).map((p) => (
+              <CatalogCard key={p.id} p={p} add={add} buyNow={buyNow} allowAddToCart={allowAddToCart} whatsapp={whatsapp} fill />
+            ))}
+            seconds={5}
+            auto={popularProducts?.auto !== false}
+            loop
+            perView={{ mobile: 1.5, tablet: 2.5, desktop: 4 }}
+            pagination
+            spaceBetween={12}
+            ariaLabel="Popular products"
+          />
+        )}
       </section>}
 
       {/* CATEGORY SLIDERS */}

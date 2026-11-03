@@ -149,6 +149,7 @@ export type HomePageConfig = {
   layout?: "catalog";
   sectionVisibility?: Partial<Record<"hero" | "categories" | "products" | "collections" | "trust" | "promos" | "announcement", boolean>>;
   categories?: CategoryDisplayConfig & { eyebrow?: string; title?: string; accent?: string; countLabel?: string };
+  popularProducts?: { eyebrow?: string; title?: string; limit?: number; mode?: "slider" | "grid"; auto?: boolean };
   promoBanners?: PromoBannerConfig[];
   trustBadges?: TrustBadgeConfig[];
   testimonials?: {
@@ -827,6 +828,7 @@ export function Storefront({
           promoBanners={homeConfig?.promoBanners}
           trustBadges={homeConfig?.trustBadges}
           categoryShowcase={homeConfig?.categories}
+          popularProducts={homeConfig?.popularProducts}
           sectionVisibility={homeConfig?.sectionVisibility}
         />
       ) : (

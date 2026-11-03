@@ -34,6 +34,7 @@ type HomePageConfigShape = {
   layout?: "classic" | "catalog";
   sectionVisibility?: Partial<Record<"hero" | "categories" | "products" | "collections" | "trust" | "promos" | "announcement", boolean>>;
   categories?: CategoryDisplay & { eyebrow?: string; title?: string; accent?: string; countLabel?: string };
+  popularProducts?: { eyebrow?: string; title?: string; limit?: number; mode?: "slider" | "grid"; auto?: boolean };
   promoBanners?: PromoBannerDef[];
   trustBadges?: TrustBadgeDef[];
   testimonials?: {
@@ -3742,6 +3743,8 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
   const [trustDirty, setTrustDirty] = useState(false);
   const [catShow, setCatShow] = useState<CategoryDisplay & { eyebrow?: string; title?: string; accent?: string; countLabel?: string }>(config.homePageConfig?.categories ?? {});
   const [catShowDirty, setCatShowDirty] = useState(false);
+  const [popularProducts, setPopularProducts] = useState(config.homePageConfig?.popularProducts ?? {});
+  const [popularProductsDirty, setPopularProductsDirty] = useState(false);
   const [testimonials, setTestimonials] = useState(config.homePageConfig?.testimonials ?? {});
   const [testimonialsDirty, setTestimonialsDirty] = useState(false);
   const [footer, setFooter] = useState(config.homePageConfig?.footer ?? {});
@@ -3768,6 +3771,11 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
     setCatShow(config.homePageConfig?.categories ?? {});
     setCatShowDirty(false);
   }, [config.homePageConfig?.categories]);
+
+  useEffect(() => {
+    setPopularProducts(config.homePageConfig?.popularProducts ?? {});
+    setPopularProductsDirty(false);
+  }, [config.homePageConfig?.popularProducts]);
 
   useEffect(() => {
     setTestimonials(config.homePageConfig?.testimonials ?? {});
@@ -3954,6 +3962,21 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
     save({ homePageConfig: { ...(config.homePageConfig ?? {}), categories: clean } });
   }
 
+  function savePopularProducts() {
+    save({
+      homePageConfig: {
+        ...(config.homePageConfig ?? {}),
+        popularProducts: {
+          eyebrow: popularProducts.eyebrow?.trim() || undefined,
+          title: popularProducts.title?.trim() || undefined,
+          limit: Math.max(1, Math.min(50, Math.floor(Number(popularProducts.limit) || 8))),
+          mode: popularProducts.mode === "grid" ? "grid" : "slider",
+          auto: popularProducts.auto !== false,
+        },
+      },
+    });
+  }
+
   function saveTestimonials() {
     const items = (testimonials.items ?? [])
       .filter((t) => (t.name?.trim() || t.quote?.trim()))
@@ -4134,6 +4157,21 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
           <p className="mt-3 rounded-lg bg-slate-50 p-3 text-xs text-slate-500 dark:bg-white/5 dark:text-slate-400">Preview: {homepageCategories.mode === "automatic" ? "active categories with products" : "shown categories in the order above"} · {homepageCategories.defaultProductLimit === null ? "all products" : `up to ${homepageCategories.defaultProductLimit} products by default`} · {homepageCategories.defaultDisplayStyle}</p>
           {homepageCategoriesDirty && <div className="mt-4 flex justify-end"><button type="button" onClick={saveHomepageCategories} disabled={saving} className="h-10 rounded-xl bg-primary px-5 text-sm font-bold text-white shadow-sm transition hover:bg-primary-dark disabled:opacity-60">{saving ? "Saving…" : "Save changes"}</button></div>}
         </div>
+        <details className="border-t border-gray-100 dark:border-white/10">
+          <summary className="cursor-pointer px-5 py-4 text-sm font-semibold text-gray-800 dark:text-slate-200">Popular products section</summary>
+          <div className="space-y-4 px-5 pb-5 sm:px-6">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Input label="Eyebrow" placeholder="আমাদের জনপ্রিয় কালেকশন" value={popularProducts.eyebrow ?? ""} onValueChange={(value) => { setPopularProducts((current) => ({ ...current, eyebrow: value })); setPopularProductsDirty(true); }} />
+              <Input label="Heading" placeholder="স্টোরের সেরা পণ্য সমূহ" value={popularProducts.title ?? ""} onValueChange={(value) => { setPopularProducts((current) => ({ ...current, title: value })); setPopularProductsDirty(true); }} />
+              <Input type="number" label="Products to show" min={1} max={50} value={String(popularProducts.limit ?? 8)} onValueChange={(value) => { setPopularProducts((current) => ({ ...current, limit: Math.max(1, Math.min(50, Math.floor(Number(value) || 1))) })); setPopularProductsDirty(true); }} />
+              <Select label="Display style" selectedKeys={[popularProducts.mode ?? "slider"]} onSelectionChange={(keys) => { const mode = Array.from(keys as Set<string>)[0]; if (mode === "slider" || mode === "grid") { setPopularProducts((current) => ({ ...current, mode })); setPopularProductsDirty(true); } }}>
+                <SelectItem key="slider">Slider</SelectItem><SelectItem key="grid">Grid</SelectItem>
+              </Select>
+            </div>
+            {popularProducts.mode !== "grid" && <Switch isSelected={popularProducts.auto !== false} onValueChange={(auto) => { setPopularProducts((current) => ({ ...current, auto })); setPopularProductsDirty(true); }} color="primary">Auto-slide</Switch>}
+            {popularProductsDirty && <div className="flex justify-end"><button type="button" onClick={savePopularProducts} disabled={saving} className="h-10 rounded-xl bg-primary px-5 text-sm font-bold text-white shadow-sm transition hover:bg-primary-dark disabled:opacity-60">{saving ? "Saving…" : "Save changes"}</button></div>}
+          </div>
+        </details>
         <details className="border-t border-gray-100 dark:border-white/10">
           <summary className="cursor-pointer px-5 py-4 text-sm font-semibold text-gray-800 dark:text-slate-200">Shop by Category display</summary>
           <div className="px-5 pb-5 sm:px-6">
