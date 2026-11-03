@@ -99,12 +99,14 @@ const FOOTER_CSS = `
   .ft-brand{display:flex;flex-direction:column;align-items:center}
   .ft-slogan{margin-left:auto;margin-right:auto}
   .ft-social{justify-content:center}
+  .ft-brand .ft-social{padding-top:12px}
   .ft h4::after{left:0;transform:none}
   .ft-wrap.one h4::after{left:50%;transform:translateX(-50%)}
-  .ft-cats{justify-items:start}
+  .ft-wrap:not(.one) h4::after{left:50%;transform:translateX(-50%)}
+  .ft-cats{justify-items:center}
   .ft-cats a:hover{transform:none}
-  .ft-info{justify-items:stretch}
-  .ft-info li{flex-direction:row;gap:12px;text-align:left;align-items:center}
+  .ft-info{justify-items:center}
+  .ft-info li{flex-direction:row;justify-content:center;gap:12px;text-align:left;align-items:center}
   .ft-bottom{margin-top:44px}
   .ft-bottom-row{justify-content:center;text-align:center}
   .ft-bottom .ft-flinks{gap:10px 16px}
