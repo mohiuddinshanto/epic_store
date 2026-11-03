@@ -25,18 +25,10 @@ export function CarouselSlider({ items, seconds, auto, perView, pagination, loop
   const prevRef = useRef<HTMLButtonElement | null>(null);
   const nextRef = useRef<HTMLButtonElement | null>(null);
 
-  // Keep at least one item moving at every breakpoint. Using the largest
-  // configured perView here disabled autoplay on desktop whenever there were
-  // fewer categories than the desktop card count, even though mobile/tablet
-  // had room to slide.
-  const visibleCount = Math.max(1, items.length - 1);
-  const responsivePerView = {
-    mobile: Math.min(perView.mobile, visibleCount),
-    tablet: Math.min(perView.tablet, visibleCount),
-    desktop: Math.min(perView.desktop, visibleCount),
-  };
+  // Keep configured card widths even when a category has fewer products.
+  const responsivePerView = perView;
   const hasRoomToMove = items.length > 1;
-  const canLoop = loop && hasRoomToMove;
+  const canLoop = loop && items.length > Math.max(perView.mobile, perView.tablet, perView.desktop);
   const useAutoplay = auto && hasRoomToMove;
 
   const arrows = hasRoomToMove && (
