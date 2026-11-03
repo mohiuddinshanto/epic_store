@@ -1921,6 +1921,7 @@ app.patch("/api/admin/config", requireAuth, requireRole("ADMIN"), async (req, re
                 })
                 .optional(),
               copyright: z.string().max(200).optional(),
+              credit: z.string().max(120).optional(),
               links: z
                 .array(
                   z.object({

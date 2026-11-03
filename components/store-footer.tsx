@@ -33,6 +33,7 @@ export type FooterConfig = {
   contactTitle?: string;
   contact?: FooterContact;
   copyright?: string;
+  credit?: string;
   links?: { label?: string; url?: string }[];
 };
 
@@ -48,58 +49,65 @@ type Props = {
 };
 
 const FOOTER_CSS = `
-.ft{--bg:#0b1627;--bg2:#10213a;--card:rgba(255,255,255,.05);--line:rgba(255,255,255,.09);--text:#eef2f8;--muted:#a3b3ca;--accent:#f5b942;--accent2:#ff8a3d;
+.ft{--bg:#0b1428;--bg2:#101c38;--card:#16223f;--line:rgba(255,255,255,.09);--text:#fff;--muted:#9fb0cf;--accent:#ffa62b;--accent2:#ff7a1a;
   position:relative;overflow:hidden;color:var(--text);font-family:"Hind Siliguri",system-ui,-apple-system,"Segoe UI",sans-serif;
-  background:radial-gradient(900px 300px at 85% -10%,rgba(245,185,66,.14),transparent 70%),linear-gradient(180deg,var(--bg2),var(--bg));padding:72px 24px 0}
-.ft::before{content:"";position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,var(--accent),var(--accent2),var(--accent))}
+  background:radial-gradient(600px 300px at 90% -10%,rgba(255,166,43,.14),transparent 70%),linear-gradient(180deg,var(--bg2),var(--bg));padding:72px 24px 0}
+.ft::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,var(--accent),var(--accent2),transparent)}
 .ft *{box-sizing:border-box;margin:0;padding:0}
 .ft a{color:inherit;text-decoration:none}
-.ft-wrap{max-width:1160px;margin:0 auto;display:grid;grid-template-columns:1.5fr 1fr 1.1fr;gap:56px}
-.ft-wrap.two{grid-template-columns:1.6fr 1fr}
+.ft-wrap{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1.4fr) minmax(170px,1fr) minmax(220px,1.2fr);gap:56px}
+.ft-wrap.two{grid-template-columns:minmax(0,1.4fr) minmax(220px,1fr)}
 .ft-wrap.one{grid-template-columns:1fr;justify-items:center;text-align:center}
-.ft-logo{display:inline-flex;align-items:center;gap:14px;font-size:26px;font-weight:700;letter-spacing:.3px}
+.ft-logo{display:inline-flex;align-items:center;gap:14px;font-size:26px;font-weight:700;letter-spacing:.2px}
 .ft-logo img{width:56px;height:56px;border-radius:16px;object-fit:cover;background:var(--card);border:1px solid var(--line);padding:4px}
-.ft-logo .ft-badge{width:56px;height:56px;border-radius:16px;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#111;font-size:26px;font-weight:800}
-.ft-slogan{margin:18px 0 28px;color:var(--muted);line-height:1.8;font-size:15.5px;max-width:360px}
+.ft-logo .ft-badge{width:56px;height:56px;border-radius:16px;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 10px 24px rgba(255,138,26,.3);color:#111;font-size:26px;font-weight:800}
+.ft-slogan{margin:0 0 24px;color:var(--muted);line-height:1.8;font-size:15px;max-width:340px}
 .ft-social{display:flex;gap:12px;flex-wrap:wrap}
-.ft-social a{width:46px;height:46px;border-radius:14px;background:var(--card);border:1px solid var(--line);display:grid;place-items:center;transition:transform .25s,background .25s,border-color .25s,box-shadow .25s}
-.ft-social svg{width:21px;height:21px;fill:currentColor}
-.ft-social a:hover{transform:translateY(-4px);color:#fff;border-color:transparent;box-shadow:0 10px 22px rgba(0,0,0,.35)}
+.ft-social a{width:44px;height:44px;border-radius:12px;background:var(--card);border:1px solid var(--line);display:grid;place-items:center;transition:transform .25s,background .25s,border-color .25s,box-shadow .25s}
+.ft-social svg{width:19px;height:19px;fill:currentColor}
+.ft-social a:hover,.ft-social a:focus-visible{transform:translateY(-4px);background:linear-gradient(135deg,var(--accent),var(--accent2));color:#111;border-color:transparent;outline:none}
 .ft-social .fb:hover{background:#1877f2}
 .ft-social .yt:hover{background:#ff0000}
 .ft-social .ig:hover{background:linear-gradient(135deg,#f58529,#dd2a7b,#8134af,#515bd4)}
 .ft-social .wa:hover{background:#25d366}
 .ft-social .ph:hover{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#111}
-.ft h4{font-size:18px;font-weight:700;margin-bottom:24px;position:relative;padding-bottom:12px}
+.ft h4{font-size:19px;font-weight:600;margin-bottom:26px;position:relative;padding-bottom:12px}
 .ft h4::after{content:"";position:absolute;left:0;bottom:0;width:38px;height:3px;border-radius:3px;background:linear-gradient(90deg,var(--accent),var(--accent2))}
-.ft-cats{list-style:none;display:grid;grid-template-columns:1fr;gap:6px}
+.ft-cats{list-style:none;display:grid;grid-template-columns:1fr;gap:3px}
 .ft-cats a{display:inline-flex;align-items:center;gap:10px;padding:8px 0;color:var(--muted);transition:color .2s,transform .2s}
 .ft-cats a::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--accent);opacity:.45;transition:opacity .2s,transform .2s}
 .ft-cats a:hover{color:var(--text);transform:translateX(4px)}
 .ft-cats a:hover::before{opacity:1;transform:scale(1.3)}
-.ft-info{list-style:none;display:grid;gap:16px}
+.ft-info{list-style:none;display:grid;gap:12px}
 .ft-info li{display:flex;align-items:center;gap:14px;color:var(--muted);line-height:1.5}
-.ft-info i{flex:none;width:40px;height:40px;border-radius:12px;background:var(--card);border:1px solid var(--line);display:grid;place-items:center;color:var(--accent)}
+.ft-info i{flex:none;width:42px;height:42px;border-radius:12px;background:var(--card);border:1px solid var(--line);display:grid;place-items:center;color:var(--accent)}
 .ft-info svg{width:18px;height:18px;fill:currentColor}
 .ft-info a{color:var(--text);font-weight:600}
 .ft-info a:hover{color:var(--accent)}
-.ft-bottom{max-width:1160px;margin:56px auto 0;padding:22px 0;border-top:1px solid var(--line);text-align:center;color:var(--muted);font-size:14px}
-.ft-bottom .ft-flinks{display:flex;flex-wrap:wrap;justify-content:center;gap:18px;margin-bottom:10px}
+.ft-bottom{max-width:1100px;margin:64px auto 0;padding:22px 0;border-top:1px solid var(--line);color:var(--muted);font-size:14px}
+.ft-bottom-row{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.ft-credit{color:var(--muted)}
+.ft-bottom .ft-flinks{display:flex;flex-wrap:wrap;justify-content:center;gap:18px;margin-top:14px}
 .ft-bottom .ft-flinks a{transition:color .2s}
 .ft-bottom .ft-flinks a:hover{color:var(--text)}
-@media(max-width:900px){.ft-wrap{grid-template-columns:1fr 1fr;gap:44px}.ft-brand{grid-column:1/-1}}
+@media(max-width:860px){.ft-wrap,.ft-wrap.two{grid-template-columns:repeat(2,minmax(0,1fr));gap:44px}.ft-brand{grid-column:1/-1}}
 @media(max-width:600px){
-  .ft{padding-top:56px;text-align:center}
+  .ft{padding:56px 20px 0;text-align:left}
   .ft-wrap{grid-template-columns:1fr;gap:44px;justify-items:center}
+  .ft-wrap.two{grid-template-columns:1fr}
+  .ft-wrap.one{justify-items:center;text-align:center}
   .ft-brand{display:flex;flex-direction:column;align-items:center}
   .ft-slogan{margin-left:auto;margin-right:auto}
   .ft-social{justify-content:center}
-  .ft h4::after{left:50%;transform:translateX(-50%)}
-  .ft-cats{justify-items:center}
+  .ft h4::after{left:0;transform:none}
+  .ft-wrap.one h4::after{left:50%;transform:translateX(-50%)}
+  .ft-cats{justify-items:start}
   .ft-cats a:hover{transform:none}
-  .ft-info{justify-items:center}
-  .ft-info li{flex-direction:column;gap:8px;text-align:center}
+  .ft-info{justify-items:stretch}
+  .ft-info li{flex-direction:row;gap:12px;text-align:left;align-items:center}
   .ft-bottom{margin-top:44px}
+  .ft-bottom-row{justify-content:center;text-align:center}
+  .ft-bottom .ft-flinks{gap:10px 16px}
 }
 `;
 
@@ -158,9 +166,10 @@ export function StoreFooter({ config, storeName, storeLogo, whatsappUrl, phone, 
 
   const links = (cfg.links ?? []).filter((l) => l.label?.trim());
   const copyright = cfg.copyright?.trim() || `© ${new Date().getFullYear()} ${brand}. All rights reserved.`;
+  const credit = cfg.credit?.trim() || "Designed by Epic Optimize";
 
   const colCount = (showCategories ? 1 : 0) + (showContact ? 1 : 0);
-  const wrapClass = `ft-wrap${colCount === 2 ? " two" : colCount === 1 ? " one" : ""}`;
+  const wrapClass = `ft-wrap${colCount === 1 ? " two" : colCount === 0 ? " one" : ""}`;
 
   const isExternal = (u: string) => /^(https?:)?\/\//.test(u) || u.startsWith("mailto:") || u.startsWith("tel:");
 
@@ -235,6 +244,10 @@ export function StoreFooter({ config, storeName, storeLogo, whatsappUrl, phone, 
       </div>
 
       <div className="ft-bottom">
+        <div className="ft-bottom-row">
+          <span>{copyright}</span>
+          <span className="ft-credit">{credit}</span>
+        </div>
         {links.length > 0 && (
           <div className="ft-flinks">
             {links.map((l, i) =>
@@ -246,7 +259,6 @@ export function StoreFooter({ config, storeName, storeLogo, whatsappUrl, phone, 
             )}
           </div>
         )}
-        {copyright}
       </div>
     </footer>
   );

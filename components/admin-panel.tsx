@@ -58,6 +58,7 @@ type HomePageConfigShape = {
     contactTitle?: string;
     contact?: { address?: string; phone?: string; email?: string };
     copyright?: string;
+    credit?: string;
     links?: { label?: string; url?: string }[];
   };
 };
@@ -4093,6 +4094,7 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
           contactTitle: footer.contactTitle?.trim() || undefined,
           contact: hasContact ? contact : undefined,
           copyright: footer.copyright?.trim() || undefined,
+          credit: footer.credit?.trim() || undefined,
           links: links.length ? links : undefined,
         },
       },
@@ -4674,6 +4676,7 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
         {/* Bottom */}
         <p className="text-xs font-bold uppercase tracking-wide text-gray-400 pt-1">Bottom bar</p>
         <Input label="Copyright text" placeholder="© 2026 EPIC Store. All rights reserved." value={footer.copyright ?? ""} onValueChange={(v) => { setFooter((f) => ({ ...f, copyright: v })); setFooterDirty(true); }} />
+        <Input label="Design credit" placeholder="Designed by Epic Optimize" value={footer.credit ?? ""} onValueChange={(v) => { setFooter((f) => ({ ...f, credit: v })); setFooterDirty(true); }} />
         {(footer.links ?? []).map((l, i) => (
           <div key={i} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-3">
             <Input label="Label" placeholder="Privacy Notice" value={l.label ?? ""} onValueChange={(v) => { setFooter((f) => ({ ...f, links: (f.links ?? []).map((x, xi) => (xi === i ? { ...x, label: v } : x)) })); setFooterDirty(true); }} />
