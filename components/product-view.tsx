@@ -467,7 +467,9 @@ export function ProductView({ slug, initialProduct }: { slug: string; initialPro
             </div>
           )}
 
-          <RichContent className="description" value={selectedVariation?.description || product.description} />
+          <div className="product-short-description">
+            <RichContent className="description" value={selectedVariation?.description || product.description} />
+          </div>
 
           {isVariable && product.attributes && product.attributes.length > 0 && (
             <div style={{ marginTop: "18px", display: "flex", flexDirection: "column", gap: "14px" }}>
@@ -631,7 +633,7 @@ export function ProductView({ slug, initialProduct }: { slug: string; initialPro
       </div>
 
       {/* Customer Reviews Section */}
-      <section style={{ marginTop: "60px", paddingTop: "40px", borderTop: "1px solid var(--border)" }}>
+      <section className="product-reviews" style={{ marginTop: "60px", paddingTop: "40px", borderTop: "1px solid var(--border)" }}>
         <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: "1.8rem", marginBottom: "24px" }}>
           ক্রেতাদের রিভিউ ({product.reviews?.length ?? 0})
         </h2>
