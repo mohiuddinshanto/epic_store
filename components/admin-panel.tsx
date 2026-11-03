@@ -5151,6 +5151,7 @@ function MediaLibrary({ token }: { token: string }) {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const refresh = async () => {
     const response = await api("/api/admin/media", token);
     if (!response.ok) throw new Error((await response.json()).error ?? "Could not load media");
@@ -5191,7 +5192,7 @@ function MediaLibrary({ token }: { token: string }) {
     try {
       const response = await api(`/api/admin/media/${item.id}`, token, { method: "DELETE" });
       if (!response.ok) { const data = await response.json(); throw new Error(data.error ?? "Could not delete image"); }
-      setItems((all) => all.filter((entry) => entry.id !== item.id)); toast.success("Image and its store references deleted");
+      setItems((all) => all.filter((entry) => entry.id !== item.id)); setSelectedId(null); toast.success("Image and its store references deleted");
     } catch (error) { toast.error(error instanceof Error ? error.message : "Could not delete image"); }
     finally { setBusy(""); }
   }
@@ -5202,15 +5203,15 @@ function MediaLibrary({ token }: { token: string }) {
   }
 
   return <section className="space-y-5">
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-100 dark:border-white/6 bg-white dark:bg-white/4 p-5">
-      <div><h2 className="font-display text-xl font-bold text-gray-900 dark:text-white">Media Library</h2><p className="mt-1 text-sm text-gray-500 dark:text-slate-400">Upload and manage store images. Deleting an image also removes its references across the store.</p></div>
-      <label className={`inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-white ${uploading ? "pointer-events-none opacity-60" : ""}`}><FiUpload />{uploading ? "Uploading…" : "Upload images"}<input type="file" accept="image/*" multiple className="hidden" onChange={upload} disabled={uploading} /></label>
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-100 bg-white p-4 dark:border-white/6 dark:bg-white/4 sm:p-5">
+      <div><h2 className="font-display text-xl font-bold text-gray-900 dark:text-white">Media Library</h2><p className="mt-1 text-sm text-gray-500 dark:text-slate-400">{selectedId ? "Image details" : `${items.length} images`}</p></div>
+      <div className="flex items-center gap-2">{selectedId && <button type="button" onClick={() => setSelectedId(null)} className="h-10 rounded-xl border border-gray-200 px-3 text-sm font-semibold dark:border-white/10">← All images</button>}<label className={`inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl bg-primary px-3 text-sm font-bold text-white sm:px-4 ${uploading ? "pointer-events-none opacity-60" : ""}`}><FiUpload />{uploading ? "Uploading…" : "Upload"}<input type="file" accept="image/*" multiple className="hidden" onChange={upload} disabled={uploading} /></label></div>
     </div>
     {loading ? <p className="p-8 text-center text-sm text-gray-500">Loading media…</p> : !items.length ? <div className="rounded-2xl border border-dashed border-gray-300 p-12 text-center text-sm text-gray-500 dark:border-white/10">No images yet. Upload an image here or add one while editing a product.</div> :
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">{items.map((item) => <article key={item.id} className="overflow-hidden rounded-2xl border border-gray-100 bg-white dark:border-white/6 dark:bg-white/4">
-        <div className="grid sm:grid-cols-[190px_1fr]">
-          <div className="flex min-h-48 items-center justify-center bg-gray-50 p-3 dark:bg-black/20"><img src={item.url} alt={item.altText || item.filename} className="max-h-56 max-w-full rounded-lg object-contain" /></div>
-          <div className="space-y-3 p-4">
+      <div className={selectedId ? "grid grid-cols-1 gap-4" : "grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6"}>{items.filter((item) => !selectedId || item.id === selectedId).map((item) => <article key={item.id} onClick={() => !selectedId && setSelectedId(item.id)} onKeyDown={(event) => { if (!selectedId && (event.key === "Enter" || event.key === " ")) setSelectedId(item.id); }} role="button" tabIndex={0} className={`overflow-hidden border border-gray-100 bg-white dark:border-white/6 dark:bg-white/4 ${selectedId ? "rounded-2xl" : "aspect-square cursor-pointer rounded-xl p-1.5 transition hover:border-primary hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary sm:rounded-2xl sm:p-2"}`}>
+        <div className={selectedId ? "grid min-w-0 grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(280px,0.9fr)]" : "h-full w-full"}>
+          <div className={`flex items-center justify-center bg-gray-50 dark:bg-black/20 ${selectedId ? "min-h-56 p-4 sm:min-h-80" : "h-full w-full rounded-lg p-1"}`}><img src={item.url} alt={selectedId ? item.altText || item.filename : ""} loading="lazy" className={selectedId ? "max-h-[55vh] max-w-full rounded-lg object-contain" : "h-full w-full rounded-lg object-contain"} /></div>
+          <div className={`${selectedId ? "space-y-3 p-4 sm:p-6" : "hidden"}`}>
             <div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="truncate text-sm font-bold text-gray-800 dark:text-slate-100" title={item.filename}>{item.filename}</p><p className="text-xs text-gray-400">{(item.size / 1024).toFixed(1)} KB · {new Date(item.modifiedAt).toLocaleDateString()}</p></div><button type="button" onClick={() => remove(item)} disabled={busy === item.id} aria-label="Delete image" className="rounded-lg p-2 text-rose-500 hover:bg-rose-50 disabled:opacity-50"><FiTrash2 /></button></div>
             <div className="flex gap-2"><input readOnly value={item.url} className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-gray-50 px-2 py-2 text-xs text-gray-600 dark:border-white/10 dark:bg-black/20 dark:text-slate-300" /><button type="button" onClick={() => copy(item.url)} title="Copy image URL" className="rounded-lg border border-gray-200 px-3 text-primary hover:bg-primary/5 dark:border-white/10"><FiCopy /></button></div>
             <Input size="sm" label="Title" value={item.title ?? ""} onValueChange={(value) => setItems((all) => all.map((entry) => entry.id === item.id ? { ...entry, title: value } : entry))} />
