@@ -6,7 +6,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { AdminSkeleton } from "./skeletons";
 import { RichTextEditor } from "./rich-text";
-import { FiArrowDown, FiArrowUp, FiBox, FiCheck, FiChevronDown, FiCopy, FiEdit2, FiEye, FiEyeOff, FiImage, FiLayers, FiLoader, FiMail, FiMenu, FiPhone, FiPlus, FiPrinter, FiRefreshCw, FiSend, FiShuffle, FiStar, FiTag, FiTrash2, FiTruck, FiUpload, FiUser, FiX } from "react-icons/fi";
+import { FiArrowDown, FiArrowUp, FiBox, FiCheck, FiChevronDown, FiCopy, FiEdit2, FiEye, FiEyeOff, FiExternalLink, FiImage, FiLayers, FiLoader, FiMail, FiMenu, FiPhone, FiPlus, FiPrinter, FiRefreshCw, FiSend, FiShuffle, FiStar, FiTag, FiTrash2, FiTruck, FiUpload, FiUser, FiX } from "react-icons/fi";
 
 const apiUrl = "";
 
@@ -2152,6 +2152,16 @@ function AdminProducts({ token }: { token: string }) {
                         >
                           <FiEdit2 size={14} />
                         </button>
+                        <Link
+                          href={`/products/${encodeURIComponent(p.slug)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="icon-square-btn w-7 h-7 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-slate-400 hover:bg-primary/10 hover:text-primary transition-colors flex items-center justify-center text-xs"
+                          title="View product page"
+                          aria-label={`View ${p.name} product page`}
+                        >
+                          <FiExternalLink size={14} />
+                        </Link>
                         <button
                           onClick={() => deleteProduct(p)}
                           className="icon-square-btn w-7 h-7 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-slate-400 hover:bg-rose-100 dark:hover:bg-rose-500/10 hover:text-rose-500 transition-colors flex items-center justify-center text-xs"
