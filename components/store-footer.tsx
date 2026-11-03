@@ -105,8 +105,8 @@ const FOOTER_CSS = `
   .ft-wrap:not(.one) h4::after{left:50%;transform:translateX(-50%)}
   .ft-cats{justify-items:center}
   .ft-cats a:hover{transform:none}
-  .ft-info{justify-items:center}
-  .ft-info li{flex-direction:row;justify-content:center;gap:12px;text-align:left;align-items:center}
+  .ft-info{width:max-content;max-width:100%;margin-inline:auto;justify-items:stretch}
+  .ft-info li{flex-direction:row;justify-content:flex-start;gap:12px;text-align:left;align-items:center}
   .ft-bottom{margin-top:44px}
   .ft-bottom-row{justify-content:center;text-align:center}
   .ft-bottom .ft-flinks{gap:10px 16px}
