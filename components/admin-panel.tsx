@@ -4076,7 +4076,7 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
 
   return (
     <div className="space-y-6 max-w-4xl">
-      <section className="overflow-hidden rounded-2xl border border-primary/15 bg-white shadow-sm dark:bg-white/4">
+      <section className="admin-homepage-settings overflow-hidden rounded-2xl border border-primary/15 bg-white shadow-sm dark:bg-white/4">
         <div className="border-b border-gray-100 p-5 dark:border-white/10 sm:p-6">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -4087,16 +4087,20 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
           </div>
           <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
             {([ ["manual", "Manual setup", "Choose categories, order and display for each one."], ["automatic", "Automatic setup", "Show every category that has active products. New categories join automatically."] ] as const).map(([mode, title, description]) => (
-              <button key={mode} type="button" onClick={() => changeHomepageMode(mode)} aria-pressed={homepageCategories.mode === mode} className={`rounded-xl border p-4 text-left transition ${homepageCategories.mode === mode ? "border-primary bg-primary/5 ring-1 ring-primary/20" : "border-gray-200 hover:border-primary/40 dark:border-white/10"}`}>
-                <span className="flex items-center gap-2 text-sm font-bold text-gray-900 dark:text-white"><span className={`grid h-5 w-5 place-items-center rounded-full border ${homepageCategories.mode === mode ? "border-primary bg-primary text-white" : "border-gray-300"}`}>{homepageCategories.mode === mode ? "✓" : ""}</span>{title}</span>
-                <span className="mt-2 block pl-7 text-xs leading-relaxed text-gray-500 dark:text-slate-400">{description}</span>
+              <button key={mode} type="button" onClick={() => changeHomepageMode(mode)} aria-pressed={homepageCategories.mode === mode} className={`homepage-mode-card rounded-xl border p-4 text-left transition ${homepageCategories.mode === mode ? "border-primary bg-primary/5 ring-1 ring-primary/20" : "border-gray-200 hover:border-primary/40 dark:border-white/10"}`}>
+                <span className="homepage-mode-card-content">
+                  <span className={`homepage-mode-radio ${homepageCategories.mode === mode ? "is-selected" : ""}`} aria-hidden="true" />
+                  <span className="homepage-mode-copy"><span className="homepage-mode-title">{title}</span><span className="homepage-mode-description">{description}</span></span>
+                </span>
               </button>
             ))}
           </div>
         </div>
 
         {homepageCategories.mode === "automatic" && (
-          <div className="grid grid-cols-1 gap-4 border-b border-gray-100 p-5 dark:border-white/10 sm:grid-cols-3 sm:p-6">
+          <details className="homepage-settings-details border-b border-gray-100 p-5 dark:border-white/10 sm:px-6">
+            <summary><span>Automatic defaults</span><span className="homepage-settings-summary-value">{homepageCategories.defaultProductLimit === null ? "All products" : `${homepageCategories.defaultProductLimit} products`} · {homepageCategories.defaultDisplayStyle} · {homepageCategories.defaultOrder === "alphabetical" ? "A-Z" : "Newest first"}</span></summary>
+          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
               <Input type="number" min={1} max={50} label="Default products per category" value={String(homepageCategories.defaultProductLimit ?? 8)} isDisabled={homepageCategories.defaultProductLimit === null} onValueChange={(value) => { setHomepageCategories((current) => ({ ...current, defaultProductLimit: Math.max(1, Math.min(50, Math.floor(Number(value) || 1))) })); setHomepageCategoriesDirty(true); }} />
               <Switch className="mt-2" size="sm" isSelected={homepageCategories.defaultProductLimit === null} onValueChange={(unlimited) => { setHomepageCategories((current) => ({ ...current, defaultProductLimit: unlimited ? null : 8 })); setHomepageCategoriesDirty(true); }} color="primary">Show all products</Switch>
@@ -4108,6 +4112,7 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
               <SelectItem key="alphabetical">Name (A–Z)</SelectItem><SelectItem key="newest">Newest categories first</SelectItem>
             </Select>
           </div>
+          </details>
         )}
 
         <div className="p-5 sm:p-6">
@@ -4140,7 +4145,9 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
                       <Switch size="sm" isSelected={visible} onValueChange={(checked) => updateHomepageCategory(category.id, { visible: checked })} color="primary">Show</Switch>
                       {homepageCategories.mode === "manual" && <div className="flex gap-1"><button type="button" aria-label={`Move ${category.name} up`} disabled={index === 0} onClick={() => moveHomepageCategory(category.id, -1)} className="grid h-8 w-8 place-items-center rounded-lg border text-gray-600 disabled:opacity-30 dark:border-white/10 dark:text-slate-300"><FiArrowUp /></button><button type="button" aria-label={`Move ${category.name} down`} disabled={index === orderedHomepageCategories.length - 1} onClick={() => moveHomepageCategory(category.id, 1)} className="grid h-8 w-8 place-items-center rounded-lg border text-gray-600 disabled:opacity-30 dark:border-white/10 dark:text-slate-300"><FiArrowDown /></button></div>}
                     </div>
-                    <div className="mt-3 grid grid-cols-1 gap-3 border-t border-gray-100 pt-3 sm:grid-cols-2 dark:border-white/10">
+                    <details className="homepage-category-details mt-3 border-t border-gray-100 pt-3 dark:border-white/10">
+                      <summary>Section settings</summary>
+                      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <div>
                         <Input type="number" min={1} max={50} label="Products to show" value={String(limit ?? homepageCategories.defaultProductLimit ?? 8)} isDisabled={limit === null} onValueChange={(value) => updateHomepageCategory(category.id, { productLimit: Math.max(1, Math.min(50, Math.floor(Number(value) || 1))) })} />
                         <div className="mt-2 flex flex-wrap items-center gap-3">
@@ -4151,7 +4158,8 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
                       <Select label="Display style" selectedKeys={[style]} onSelectionChange={(keys) => { const value = Array.from(keys as Set<string>)[0]; if (value === "grid" || value === "slider") updateHomepageCategory(category.id, { displayStyle: value }); }}>
                         <SelectItem key="grid">Grid</SelectItem><SelectItem key="slider">Slider</SelectItem>
                       </Select>
-                    </div>
+                      </div>
+                    </details>
                   </div>
                 );
               })}

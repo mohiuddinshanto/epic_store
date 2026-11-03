@@ -2055,6 +2055,44 @@ button[color="danger"]:not(:is([data-slot] *)):hover,
 .os-contact{display:grid;gap:8px;font-size:.88rem;color:var(--ink,#0f172a)}
 .os-contact span{display:flex;align-items:center;gap:8px;word-break:break-word}
 .os-contact svg{color:var(--color-primary,#4f46e5);flex-shrink:0}
+
+/* Keep the homepage settings controls readable despite the global button defaults. */
+.admin-homepage-settings button.homepage-mode-card{
+  display:block!important;
+  width:100%;
+  min-width:0;
+  padding:16px!important;
+  border-radius:14px!important;
+  text-align:left!important;
+  white-space:normal!important;
+}
+.admin-homepage-settings .homepage-mode-card-content{
+  display:grid;
+  grid-template-columns:20px minmax(0,1fr);
+  align-items:start;
+  gap:12px;
+  width:100%;
+  min-width:0;
+}
+.admin-homepage-settings .homepage-mode-copy{display:block;min-width:0}
+.admin-homepage-settings .homepage-mode-title{display:block;font-size:.9rem;font-weight:700;line-height:1.4;color:var(--ink,#0f172a)}
+.admin-homepage-settings .homepage-mode-description{display:block;margin-top:5px;color:var(--muted,#64748b);font-size:.78rem;font-weight:400;line-height:1.5;white-space:normal!important;overflow-wrap:anywhere}
+.admin-homepage-settings .homepage-mode-radio{display:grid;width:20px;height:20px;place-items:center;border:1px solid #cbd5e1;border-radius:50%;background:white}
+.admin-homepage-settings .homepage-mode-radio.is-selected{border-color:var(--color-primary,#4f46e5);background:var(--color-primary,#4f46e5)}
+.admin-homepage-settings .homepage-mode-radio.is-selected::after{content:"";width:8px;height:8px;border-radius:50%;background:white}
+.admin-homepage-settings details>summary{cursor:pointer;list-style:none}
+.admin-homepage-settings details>summary::-webkit-details-marker{display:none}
+.admin-homepage-settings .homepage-settings-details>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:.9rem;font-weight:700;color:var(--ink,#0f172a)}
+.admin-homepage-settings .homepage-settings-summary-value{color:var(--muted,#64748b);font-size:.78rem;font-weight:400;text-align:right}
+.admin-homepage-settings .homepage-category-details>summary{display:inline-flex;align-items:center;gap:6px;color:var(--color-primary,#4f46e5);font-size:.78rem;font-weight:600}
+.admin-homepage-settings .homepage-category-details>summary::after{content:"⌄";font-size:1rem;line-height:1;transition:transform .15s ease}
+.admin-homepage-settings .homepage-category-details[open]>summary::after{transform:rotate(180deg)}
+.admin-homepage-settings button:not(:is([data-slot] *)){min-width:0;white-space:normal}
+.admin-homepage-settings button.homepage-mode-card{white-space:normal!important}
+@media(max-width:600px){
+  .admin-homepage-settings .homepage-settings-details>summary{align-items:flex-start;flex-direction:column}
+  .admin-homepage-settings .homepage-settings-summary-value{text-align:left}
+}
 @media (max-width:600px){
   .order-success-card{padding:32px 22px}
   .order-success-meta{grid-template-columns:1fr}
