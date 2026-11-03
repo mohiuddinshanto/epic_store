@@ -13,7 +13,7 @@ import { checkIpCooldown, restrictStaffOrderView, staffCanAccessOrderItems } fro
 import { rateLimit } from "./lib/rate-limit.js";
 import { makeSessionToken, readSessionToken, requireAuth, requireRole, requireStaffArea, setSessionCookie, clearSessionCookie, SESSION_MAX_AGE_MS } from "./middleware/auth.js";
 import { decrypt, encrypt } from "./lib/crypto.js";
-import { uploadImage, deleteImage, getLocalProductsDirectory } from "./lib/storage.js";
+import { uploadImage, deleteImage, getLocalProductsDirectory, listImages } from "./lib/storage.js";
 import { baseSkuForParts, generateVariationsForProduct, makeUniqueSku, replaceProductVariations } from "./lib/product-variations.js";
 import { resendStoredEmail, sendEmailVerification, sendNewOrderToOwner, sendNewsletterWelcome, sendOrderConfirmation, sendOrderStatusEmail, sendPasswordReset, sendTestMail } from "./lib/mailer.js";
 
@@ -1277,11 +1277,107 @@ app.post("/api/admin/upload", requireAuth, requireRole("ADMIN", "STAFF"), requir
   if (!file) return res.status(400).json({ error: "No image file provided" });
   try {
     const url = await uploadImage(file);
+    await prisma.mediaAsset.upsert({ where: { url }, create: { url }, update: {} });
     res.status(201).json({ url });
   } catch (error) {
     console.error("Upload failed:", error);
     res.status(502).json({ error: error instanceof Error ? error.message : "Failed to upload image" });
   }
+});
+
+// Media library: files and metadata managed independently from product forms.
+app.get("/api/admin/media", requireAuth, requireRole("ADMIN", "STAFF"), requireStaffArea("products"), async (_req, res) => {
+  const files = await listImages();
+  await prisma.mediaAsset.createMany({ data: files.map((file) => ({ url: file.url })), skipDuplicates: true });
+  const [assets, productImages] = await Promise.all([
+    prisma.mediaAsset.findMany({ where: { url: { in: files.map((file) => file.url) } } }),
+    prisma.productImage.findMany({ where: { url: { in: files.map((file) => file.url) } }, select: { url: true, altText: true, title: true } }),
+  ]);
+  const metadata = new Map(assets.map((asset) => [asset.url, asset]));
+  for (const image of productImages) {
+    const asset = metadata.get(image.url);
+    if (!asset) continue;
+    asset.altText ??= image.altText;
+    asset.title ??= image.title;
+  }
+  res.json(files.map((file) => ({ ...file, ...(metadata.get(file.url) ?? {}) })));
+});
+
+app.post("/api/admin/media", requireAuth, requireRole("ADMIN", "STAFF"), requireStaffArea("products"), upload.single("image"), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: "No image file provided" });
+  const url = await uploadImage(req.file);
+  const asset = await prisma.mediaAsset.upsert({ where: { url }, create: { url }, update: {} });
+  res.status(201).json(asset);
+});
+
+app.patch("/api/admin/media/:id", requireAuth, requireRole("ADMIN", "STAFF"), requireStaffArea("products"), async (req, res) => {
+  const parsed = z.object({ altText: z.string().max(500).nullable().optional(), title: z.string().max(500).nullable().optional(), description: z.string().max(10000).nullable().optional() }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid media details" });
+  const asset = await prisma.mediaAsset.findUnique({ where: { id: String(req.params.id) } });
+  if (!asset) return res.status(404).json({ error: "Image not found" });
+  const updated = await prisma.mediaAsset.update({ where: { id: asset.id }, data: parsed.data });
+  await prisma.productImage.updateMany({ where: { url: asset.url }, data: { altText: parsed.data.altText, title: parsed.data.title } });
+  res.json(updated);
+});
+
+function removeMediaUrl(value: unknown, url: string): unknown {
+  if (value === url) return undefined;
+  if (Array.isArray(value)) return value.filter((item) => item !== url).map((item) => removeMediaUrl(item, url));
+  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).flatMap(([key, item]) => item === url ? [] : [[key, removeMediaUrl(item, url)]]));
+  return value;
+}
+
+app.delete("/api/admin/media/:id", requireAuth, requireRole("ADMIN", "STAFF"), requireStaffArea("products"), async (req, res) => {
+  const asset = await prisma.mediaAsset.findUnique({ where: { id: String(req.params.id) } });
+  if (!asset) return res.status(404).json({ error: "Image not found" });
+  await deleteImage(asset.url);
+  const [products, variations, attributes, configs] = await Promise.all([
+    prisma.product.findMany({ select: { id: true, images: true, productAttributes: true, variants: true, variationImages: true } }),
+    prisma.productVariation.findMany({ select: { id: true, image: true, gallery: true } }),
+    prisma.attributeValue.findMany({ select: { id: true, image: true } }),
+    prisma.storeConfig.findMany({ select: { id: true, logoUrl: true, marketingPixels: true, chatConfig: true, themeSettings: true, homePageConfig: true, heroBannerConfig: true, navigationConfig: true } }),
+  ]);
+  await prisma.$transaction(async (tx) => {
+    await tx.productImage.deleteMany({ where: { url: asset.url } });
+    for (const product of products) {
+      const images = (Array.isArray(product.images) ? product.images : []).filter((image) => image !== asset.url);
+      const productAttributes = removeMediaUrl(product.productAttributes, asset.url) as Prisma.InputJsonValue | undefined;
+      const variants = removeMediaUrl(product.variants, asset.url) as Prisma.InputJsonValue | undefined;
+      const variationImages = removeMediaUrl(product.variationImages, asset.url) as Prisma.InputJsonValue | undefined;
+      const changed = images.length !== (Array.isArray(product.images) ? product.images.length : 0)
+        || JSON.stringify(productAttributes) !== JSON.stringify(product.productAttributes)
+        || JSON.stringify(variants) !== JSON.stringify(product.variants)
+        || JSON.stringify(variationImages) !== JSON.stringify(product.variationImages);
+      if (changed) await tx.product.update({ where: { id: product.id }, data: {
+        ...(images.length !== (Array.isArray(product.images) ? product.images.length : 0) ? { images: images as Prisma.InputJsonValue } : {}),
+        ...(productAttributes !== undefined ? { productAttributes } : {}),
+        ...(variants !== undefined ? { variants } : {}),
+        ...(variationImages !== undefined ? { variationImages } : {}),
+      } });
+    }
+    await tx.category.updateMany({ where: { image: asset.url }, data: { image: null } });
+    for (const variation of variations) {
+      const gallery = removeMediaUrl(variation.gallery, asset.url) as Prisma.InputJsonValue | undefined;
+      if (variation.image === asset.url || JSON.stringify(gallery) !== JSON.stringify(variation.gallery)) {
+        await tx.productVariation.update({ where: { id: variation.id }, data: { ...(variation.image === asset.url ? { image: null } : {}), ...(gallery !== undefined ? { gallery } : {}) } });
+      }
+    }
+    await tx.attributeValue.updateMany({ where: { image: asset.url }, data: { image: null } });
+    for (const config of configs) {
+      const update = {
+        ...(config.logoUrl === asset.url ? { logoUrl: null } : {}),
+        ...(config.marketingPixels ? { marketingPixels: removeMediaUrl(config.marketingPixels, asset.url) as Prisma.InputJsonValue } : {}),
+        ...(config.chatConfig ? { chatConfig: removeMediaUrl(config.chatConfig, asset.url) as Prisma.InputJsonValue } : {}),
+        ...(config.themeSettings ? { themeSettings: removeMediaUrl(config.themeSettings, asset.url) as Prisma.InputJsonValue } : {}),
+        ...(config.homePageConfig ? { homePageConfig: removeMediaUrl(config.homePageConfig, asset.url) as Prisma.InputJsonValue } : {}),
+        ...(config.heroBannerConfig ? { heroBannerConfig: removeMediaUrl(config.heroBannerConfig, asset.url) as Prisma.InputJsonValue } : {}),
+        ...(config.navigationConfig ? { navigationConfig: removeMediaUrl(config.navigationConfig, asset.url) as Prisma.InputJsonValue } : {}),
+      };
+      if (Object.keys(update).length) await tx.storeConfig.update({ where: { id: config.id }, data: update });
+    }
+    await tx.mediaAsset.delete({ where: { id: asset.id } });
+  });
+  res.status(204).end();
 });
 
 // Product image management (gallery CRUD)
@@ -1359,7 +1455,6 @@ app.delete("/api/admin/products/:id/images/:imgId", requireAuth, requireRole("AD
   const img = await prisma.productImage.findUnique({ where: { id: String(req.params.imgId) } });
   if (!img || img.productId !== String(req.params.id)) return res.status(404).json({ error: "Image not found" });
   await prisma.productImage.delete({ where: { id: img.id } });
-  await deleteImage(img.url);
   const remaining = await syncProductImages(img.productId);
   if (remaining.length > 0) {
     const hasFeatured = remaining.some((r) => r.isFeatured);
@@ -1481,10 +1576,9 @@ app.post("/api/admin/products/variations/:vid/duplicate", requireAuth, requireRo
 });
 
 app.delete("/api/admin/products/variations/:vid", requireAuth, requireRole("ADMIN", "STAFF"), requireStaffArea("products"), async (req, res) => {
-  const variation = await prisma.productVariation.findUnique({ where: { id: String(req.params.vid) }, select: { id: true, productId: true, image: true } });
+  const variation = await prisma.productVariation.findUnique({ where: { id: String(req.params.vid) }, select: { id: true, productId: true } });
   if (!variation) return res.status(404).json({ error: "Variation not found" });
   await prisma.productVariation.delete({ where: { id: variation.id } });
-  if (variation.image) await deleteImage(variation.image);
   const prod = await prisma.product.findUnique({ where: { id: variation.productId }, select: { defaultVariationId: true } });
   if (prod?.defaultVariationId === variation.id) {
     const first = await prisma.productVariation.findFirst({ where: { productId: variation.productId }, orderBy: { createdAt: "asc" } });
@@ -1507,9 +1601,7 @@ app.post("/api/admin/products/:id/variations/bulk", requireAuth, requireRole("AD
   const { ids, action, value } = data.data;
 
   if (action === "delete") {
-    const rows = await prisma.productVariation.findMany({ where: { id: { in: ids }, productId }, select: { id: true, image: true } });
     await prisma.productVariation.deleteMany({ where: { id: { in: ids }, productId } });
-    for (const row of rows) if (row.image) await deleteImage(row.image);
   } else if (action === "setPrice") {
     await prisma.productVariation.updateMany({ where: { id: { in: ids }, productId }, data: { price: value as number } });
   } else if (action === "setSalePrice") {

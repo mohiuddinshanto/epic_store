@@ -282,11 +282,12 @@ const STATUS_LABEL: Record<string, string> = {
   CANCELLED: "Cancelled",
 };
 
-type Section = "overview" | "products" | "categories" | "orders" | "coupons" | "reviews" | "staff" | "home" | "banner" | "menu" | "marketing" | "features" | "payments" | "delivery" | "checkout" | "storage";
+type Section = "overview" | "products" | "media" | "categories" | "orders" | "coupons" | "reviews" | "staff" | "home" | "banner" | "menu" | "marketing" | "features" | "payments" | "delivery" | "checkout" | "storage";
 
 const NAV: { key: Section; label: string; icon: string }[] = [
   { key: "overview", label: "Overview", icon: "◈" },
   { key: "products", label: "Products", icon: "▦" },
+  { key: "media", label: "Media Library", icon: "▧" },
   { key: "categories", label: "Categories", icon: "▤" },
   { key: "orders", label: "Orders", icon: "⊞" },
   { key: "coupons", label: "Coupons", icon: "℅" },
@@ -309,7 +310,7 @@ const title = (section: Section) => NAV.find((n) => n.key === section)?.label ??
 // section; each manager only sees the sections its API permissions allow.
 const STAFF_SECTIONS: Record<string, Section[]> = {
   ORDER_MANAGER: ["overview", "orders", "delivery", "categories", "reviews"],
-  PRODUCT_MANAGER: ["overview", "products", "categories", "reviews", "home", "banner", "menu"],
+  PRODUCT_MANAGER: ["overview", "products", "media", "categories", "reviews", "home", "banner", "menu"],
 };
 
 const categoryOptions = (categories: Category[]) =>
@@ -561,6 +562,7 @@ export function AdminPanel() {
         <div className="flex-1 overflow-y-auto p-4 pb-20 sm:p-6 sm:pb-6">
           {section === "overview" && <AdminOverview token={token} />}
           {section === "products" && <AdminProducts token={token} />}
+          {section === "media" && <MediaLibrary token={token} />}
           {section === "categories" && <AdminCategories token={token} config={config} save={save} saving={saving} />}
           {section === "orders" && <AdminOrders token={token} config={config} />}
           {section === "coupons" && <AdminCoupons token={token} />}
@@ -5139,6 +5141,86 @@ function FailedEmails({ token }: { token: string }) {
       )}
     </div>
   );
+}
+
+/* ==================== MEDIA LIBRARY ==================== */
+type MediaItem = { id: string; url: string; filename: string; size: number; modifiedAt: string; altText?: string | null; title?: string | null; description?: string | null };
+
+function MediaLibrary({ token }: { token: string }) {
+  const [items, setItems] = useState<MediaItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [busy, setBusy] = useState("");
+  const refresh = async () => {
+    const response = await api("/api/admin/media", token);
+    if (!response.ok) throw new Error((await response.json()).error ?? "Could not load media");
+    setItems(await response.json());
+  };
+  useEffect(() => { refresh().catch((error) => toast.error(error.message)).finally(() => setLoading(false)); }, []);
+
+  async function upload(event: FormEvent<HTMLInputElement>) {
+    const input = event.currentTarget;
+    const files = Array.from(input.files ?? []);
+    if (!files.length) return;
+    setUploading(true);
+    try {
+      for (const file of files) {
+        const body = new FormData(); body.append("image", file);
+        const response = await fetch(`${apiUrl}/api/admin/media`, { method: "POST", body, credentials: "same-origin" });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error ?? `Could not upload ${file.name}`);
+      }
+      await refresh(); toast.success(files.length === 1 ? "Image uploaded" : `${files.length} images uploaded`);
+    } catch (error) { toast.error(error instanceof Error ? error.message : "Upload failed"); }
+    finally { setUploading(false); input.value = ""; }
+  }
+
+  async function save(item: MediaItem) {
+    setBusy(item.id);
+    try {
+      const response = await api(`/api/admin/media/${item.id}`, token, { method: "PATCH", body: JSON.stringify({ altText: item.altText || null, title: item.title || null, description: item.description || null }) });
+      const data = await response.json(); if (!response.ok) throw new Error(data.error ?? "Could not save image details");
+      setItems((all) => all.map((entry) => entry.id === item.id ? { ...entry, ...data } : entry)); toast.success("Image details saved");
+    } catch (error) { toast.error(error instanceof Error ? error.message : "Could not save image details"); }
+    finally { setBusy(""); }
+  }
+
+  async function remove(item: MediaItem) {
+    if (!window.confirm(`Permanently delete ${item.filename}? Any store content using this image will have its reference removed.`)) return;
+    setBusy(item.id);
+    try {
+      const response = await api(`/api/admin/media/${item.id}`, token, { method: "DELETE" });
+      if (!response.ok) { const data = await response.json(); throw new Error(data.error ?? "Could not delete image"); }
+      setItems((all) => all.filter((entry) => entry.id !== item.id)); toast.success("Image and its store references deleted");
+    } catch (error) { toast.error(error instanceof Error ? error.message : "Could not delete image"); }
+    finally { setBusy(""); }
+  }
+
+  async function copy(url: string) {
+    try { await navigator.clipboard.writeText(url); toast.success("Image URL copied"); }
+    catch { toast.error("Could not copy URL"); }
+  }
+
+  return <section className="space-y-5">
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-100 dark:border-white/6 bg-white dark:bg-white/4 p-5">
+      <div><h2 className="font-display text-xl font-bold text-gray-900 dark:text-white">Media Library</h2><p className="mt-1 text-sm text-gray-500 dark:text-slate-400">Upload and manage store images. Deleting an image also removes its references across the store.</p></div>
+      <label className={`inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-white ${uploading ? "pointer-events-none opacity-60" : ""}`}><FiUpload />{uploading ? "Uploading…" : "Upload images"}<input type="file" accept="image/*" multiple className="hidden" onChange={upload} disabled={uploading} /></label>
+    </div>
+    {loading ? <p className="p-8 text-center text-sm text-gray-500">Loading media…</p> : !items.length ? <div className="rounded-2xl border border-dashed border-gray-300 p-12 text-center text-sm text-gray-500 dark:border-white/10">No images yet. Upload an image here or add one while editing a product.</div> :
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">{items.map((item) => <article key={item.id} className="overflow-hidden rounded-2xl border border-gray-100 bg-white dark:border-white/6 dark:bg-white/4">
+        <div className="grid sm:grid-cols-[190px_1fr]">
+          <div className="flex min-h-48 items-center justify-center bg-gray-50 p-3 dark:bg-black/20"><img src={item.url} alt={item.altText || item.filename} className="max-h-56 max-w-full rounded-lg object-contain" /></div>
+          <div className="space-y-3 p-4">
+            <div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="truncate text-sm font-bold text-gray-800 dark:text-slate-100" title={item.filename}>{item.filename}</p><p className="text-xs text-gray-400">{(item.size / 1024).toFixed(1)} KB · {new Date(item.modifiedAt).toLocaleDateString()}</p></div><button type="button" onClick={() => remove(item)} disabled={busy === item.id} aria-label="Delete image" className="rounded-lg p-2 text-rose-500 hover:bg-rose-50 disabled:opacity-50"><FiTrash2 /></button></div>
+            <div className="flex gap-2"><input readOnly value={item.url} className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-gray-50 px-2 py-2 text-xs text-gray-600 dark:border-white/10 dark:bg-black/20 dark:text-slate-300" /><button type="button" onClick={() => copy(item.url)} title="Copy image URL" className="rounded-lg border border-gray-200 px-3 text-primary hover:bg-primary/5 dark:border-white/10"><FiCopy /></button></div>
+            <Input size="sm" label="Title" value={item.title ?? ""} onValueChange={(value) => setItems((all) => all.map((entry) => entry.id === item.id ? { ...entry, title: value } : entry))} />
+            <Input size="sm" label="Alt text" value={item.altText ?? ""} onValueChange={(value) => setItems((all) => all.map((entry) => entry.id === item.id ? { ...entry, altText: value } : entry))} />
+            <Textarea size="sm" label="Description" minRows={2} value={item.description ?? ""} onValueChange={(value) => setItems((all) => all.map((entry) => entry.id === item.id ? { ...entry, description: value } : entry))} />
+            <button type="button" onClick={() => save(item)} disabled={busy === item.id} className="h-9 rounded-lg bg-primary px-4 text-xs font-bold text-white disabled:opacity-50">{busy === item.id ? "Saving…" : "Save details"}</button>
+          </div>
+        </div>
+      </article>)}</div>}
+  </section>;
 }
 
 /* ==================== STORAGE ==================== */

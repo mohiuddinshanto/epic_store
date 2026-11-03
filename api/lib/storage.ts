@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdirSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { extname, join, resolve } from "node:path";
 import { prisma } from "./prisma.js";
 import { decrypt } from "./crypto.js";
@@ -61,14 +61,56 @@ export async function uploadImage(file: { buffer: Buffer; mimetype: string; orig
   return `${base}/${key}`;
 }
 
+export async function listImages(): Promise<Array<{ url: string; filename: string; size: number; modifiedAt: Date }>> {
+  const config = await loadStorageConfig();
+  if (!config) throw new Error("Storage is not configured.");
+  if (config.provider === "local") {
+    const directory = resolve(config.folderPath);
+    mkdirSync(directory, { recursive: true });
+    const base = config.publicBaseUrl.replace(/\/+$/, "");
+    return readdirSync(directory).flatMap((filename) => {
+      try {
+        const info = statSync(join(directory, filename));
+        if (!info.isFile() || !/^\.(png|jpe?g|gif|webp|avif|svg|bmp)$/i.test(extname(filename))) return [];
+        return [{ url: `${base}/${encodeURIComponent(filename)}`, filename, size: info.size, modifiedAt: info.mtime }];
+      } catch { return []; }
+    }).sort((a, b) => b.modifiedAt.getTime() - a.modifiedAt.getTime());
+  }
+  const { ListObjectsV2Command, S3Client } = await import("@aws-sdk/client-s3");
+  const client = new S3Client({ region: config.region, endpoint: config.endpoint, forcePathStyle: true, credentials: { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey } });
+  const contents = [] as Array<{ Key?: string; Size?: number; LastModified?: Date }>;
+  let continuationToken: string | undefined;
+  do {
+    const objects = await client.send(new ListObjectsV2Command({ Bucket: config.bucket, Prefix: "uploads/products/", ContinuationToken: continuationToken }));
+    contents.push(...(objects.Contents ?? []));
+    continuationToken = objects.IsTruncated ? objects.NextContinuationToken : undefined;
+  } while (continuationToken);
+  const base = config.publicBaseUrl?.replace(/[\\/]+$/, "") ?? `${config.endpoint.replace(/[\\/]+$/, "")}/${config.bucket}`;
+  return contents.flatMap((object) => {
+    const filename = object.Key?.slice("uploads/products/".length);
+    if (!filename || filename.includes("/")) return [];
+    return [{ url: `${base}/uploads/products/${encodeURIComponent(filename)}`, filename, size: object.Size ?? 0, modifiedAt: object.LastModified ?? new Date(0) }];
+  }).sort((a, b) => b.modifiedAt.getTime() - a.modifiedAt.getTime());
+}
+
 export async function deleteImage(url: string): Promise<void> {
   const storageConfig = await loadStorageConfig();
   if (!storageConfig) return;
-  const pathname = new URL(url, "http://localhost").pathname;
-  const match = /^\/uploads\/products\/([^/]+)$/.exec(pathname);
-  if (!match) return;
+  let parsed: URL;
+  try { parsed = new URL(url, storageConfig.provider === "local" ? storageConfig.publicBaseUrl : storageConfig.publicBaseUrl ?? storageConfig.endpoint); }
+  catch { throw new Error("Invalid media URL"); }
+  const baseUrl = storageConfig.provider === "local"
+    ? new URL(storageConfig.publicBaseUrl)
+    : new URL(storageConfig.publicBaseUrl ?? `${storageConfig.endpoint.replace(/\/+$/, "")}/${storageConfig.bucket}/uploads/products`);
+  const basePath = baseUrl.pathname.replace(/\/+$/, "");
+  if (parsed.host !== baseUrl.host || !parsed.pathname.startsWith(`${basePath}/`)) throw new Error("Image is outside the configured storage folder");
+  const filename = decodeURIComponent(parsed.pathname.slice(basePath.length + 1));
+  const expectedName = storageConfig.provider === "local" ? filename : filename.replace(/^uploads\/products\//, "");
+  if (!expectedName || expectedName.includes("/") || expectedName.includes("\\") || expectedName === "." || expectedName === "..") throw new Error("Invalid image path");
   if (storageConfig.provider === "local") {
-    const file = join(resolve(storageConfig.folderPath), match[1]);
+    const root = resolve(storageConfig.folderPath);
+    const file = resolve(root, expectedName);
+    if (!file.startsWith(`${root}${process.platform === "win32" ? "\\" : "/"}`)) throw new Error("Invalid image path");
     try {
       unlinkSync(file);
     } catch {
@@ -78,5 +120,5 @@ export async function deleteImage(url: string): Promise<void> {
   }
   const { DeleteObjectCommand, S3Client } = await import("@aws-sdk/client-s3");
   const client = new S3Client({ region: storageConfig.region, endpoint: storageConfig.endpoint, forcePathStyle: true, credentials: { accessKeyId: storageConfig.accessKeyId, secretAccessKey: storageConfig.secretAccessKey } });
-  await client.send(new DeleteObjectCommand({ Bucket: storageConfig.bucket, Key: pathname.slice(1) }));
+  await client.send(new DeleteObjectCommand({ Bucket: storageConfig.bucket, Key: `uploads/products/${expectedName}` }));
 }
