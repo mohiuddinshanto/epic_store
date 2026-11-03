@@ -25,14 +25,9 @@ export function CarouselSlider({ items, seconds, auto, perView, pagination, loop
   const prevRef = useRef<HTMLButtonElement | null>(null);
   const nextRef = useRef<HTMLButtonElement | null>(null);
 
-  // Keep the saved setting unchanged, but let the available cards fill the row
-  // when a section has fewer products than the configured per-view count.
-  const availableSlides = Math.max(1, items.length);
-  const responsivePerView = {
-    mobile: Math.min(perView.mobile, availableSlides),
-    tablet: Math.min(perView.tablet, availableSlides),
-    desktop: Math.min(perView.desktop, availableSlides),
-  };
+  // Preserve the configured card width when there are fewer products, leaving
+  // the remaining per-view slots empty as configured.
+  const responsivePerView = perView;
   const hasRoomToMove = items.length > 1;
   const canLoop = loop && items.length > Math.max(perView.mobile, perView.tablet, perView.desktop);
   const useAutoplay = auto && hasRoomToMove;
