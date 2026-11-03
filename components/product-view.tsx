@@ -498,33 +498,7 @@ export function ProductView({ slug, initialProduct }: { slug: string; initialPro
             </div>
           )}
 
-          {product.longDescription && (
-            <div
-              className="product-long-description"
-              style={{
-                marginTop: "18px",
-                paddingTop: "16px",
-                borderTop: "1px dashed var(--border)",
-                fontSize: "0.92rem",
-                lineHeight: 1.7,
-                color: "var(--ink-secondary)",
-              }}
-            >
-              <span
-                style={{
-                  fontFamily: "'Outfit', sans-serif",
-                  fontWeight: 800,
-                  fontSize: "0.95rem",
-                  color: "var(--ink)",
-                  display: "block",
-                  marginBottom: "8px",
-                }}
-              >
-                Product Details
-              </span>
-              <RichContent value={product.longDescription} />
-            </div>
-          )}
+
 
           {/* Quantity Selector */}
           <div style={{ marginBottom: "28px" }}>
@@ -598,8 +572,29 @@ export function ProductView({ slug, initialProduct }: { slug: string; initialPro
               <span>ক্যাশ অন ডেলিভারি সুবিধা উপলব্ধ</span>
             </div>
           </div>
+
+        </div>
+      </div>
+
+      {product.longDescription && (
+            <div className="product-long-description">
+              <span
+                style={{
+                  fontFamily: "'Outfit', sans-serif",
+                  fontWeight: 800,
+                  fontSize: "0.95rem",
+                  color: "var(--ink)",
+                  display: "block",
+                  marginBottom: "8px",
+                }}
+              >
+                Product Details
+              </span>
+              <RichContent value={product.longDescription} />
+            </div>
+          )}
       {/* Customer Reviews Section */}
-      <section className="product-reviews" style={{ marginTop: "34px", paddingTop: "26px", borderTop: "1px solid var(--border)" }}>
+      <section className="product-reviews" style={{ marginTop: "22px", paddingTop: "18px", borderTop: "1px solid var(--border)" }}>
         <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: "1.8rem", marginBottom: "24px" }}>
           ক্রেতাদের রিভিউ ({product.reviews?.length ?? 0})
         </h2>
@@ -688,8 +683,6 @@ export function ProductView({ slug, initialProduct }: { slug: string; initialPro
           </form>
         </div>
       </section>
-        </div>
-      </div>
 
       <RelatedProducts productId={product.id} categorySlug={product.category.slug} />
     </main>

@@ -1339,6 +1339,7 @@ button[color="danger"]:not(:is([data-slot] *)):hover,
 }
 
 .product-long-description {
+  grid-column: 1;
   margin-top: 22px;
   padding: 18px;
   border: 1px solid var(--border);
@@ -1350,10 +1351,18 @@ button[color="danger"]:not(:is([data-slot] *)):hover,
 }
 
 .product-reviews {
+  grid-column: 2;
   scroll-margin-top: 88px;
 }
 
+.product-reviews .reviews-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
 .product-reviews .reviews-grid > form {
+  order: -1;
   position: sticky;
   top: 88px;
   align-self: start;
@@ -1846,6 +1855,7 @@ button[color="danger"]:not(:is([data-slot] *)):hover,
     padding: 28px 22px;
   }
   .product-reviews {
+    grid-column: 1;
     margin-top: 34px !important;
     padding-top: 24px !important;
   }
