@@ -1836,6 +1836,18 @@ app.patch("/api/admin/config", requireAuth, requireRole("ADMIN"), async (req, re
               })
             )
             .optional(),
+          homepageCategories: z.object({
+            mode: z.enum(["manual", "automatic"]),
+            defaultProductLimit: z.number().int().min(1).max(50).nullable(),
+            defaultDisplayStyle: z.enum(["grid", "slider"]),
+            defaultOrder: z.enum(["alphabetical", "newest"]),
+            categories: z.array(z.object({
+              categoryId: z.string().min(1),
+              visible: z.boolean(),
+              productLimit: z.number().int().min(1).max(50).nullable().optional(),
+              displayStyle: z.enum(["grid", "slider"]).optional(),
+            })).max(300),
+          }).optional(),
           promoBanners: z
             .array(
               z.object({

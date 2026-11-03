@@ -10,7 +10,7 @@ import { getStoreStatus, type StoreStatusResult } from "../lib/store-status";
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { CarouselSlider } from "./carousel-slider";
-import { CatalogHome } from "./catalog-home";
+import { CatalogHome, type HomepageCategoriesSettings } from "./catalog-home";
 import { StoreFooter } from "./store-footer";
 import { HomeSkeleton } from "./skeletons";
 import { ProductImage } from "./product-image";
@@ -147,6 +147,7 @@ type TrustBadgeConfig = {
 
 export type HomePageConfig = {
   sections?: HomeSection[];
+  homepageCategories?: HomepageCategoriesSettings;
   layout?: "catalog";
   sectionVisibility?: Partial<Record<"hero" | "categories" | "products" | "collections" | "trust" | "promos" | "announcement", boolean>>;
   categories?: CategoryDisplayConfig & { eyebrow?: string; title?: string; accent?: string; countLabel?: string };
@@ -834,6 +835,7 @@ export function Storefront({
           add={add}
           buyNow={buyNow}
           sections={homeConfig?.sections}
+          homepageCategories={homeConfig?.homepageCategories}
           promoBanners={homeConfig?.promoBanners}
           trustBadges={homeConfig?.trustBadges}
           categoryShowcase={homeConfig?.categories}

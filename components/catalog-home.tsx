@@ -51,7 +51,7 @@ type Product = {
 
 type Variation = NonNullable<Product["variations"]>[number];
 
-type Category = { id: string; name: string; slug: string; image?: string | null; parentId?: string | null; subCategories?: Category[] };
+type Category = { id: string; name: string; slug: string; image?: string | null; parentId?: string | null; createdAt?: string; subCategories?: Category[] };
 
 type HeroSlide = {
   id: string;
@@ -276,13 +276,21 @@ type HomeSectionDef = {
   title?: string;
   categoryIds: string[];
   mode: "carousel" | "grid" | "responsive" | "infinite";
-  productLimit?: number;
+  productLimit?: number | null;
   auto: boolean;
   seconds: number;
   perView: PerView;
   pagination: boolean;
   loop: boolean;
   showViewAll: boolean;
+};
+
+export type HomepageCategoriesSettings = {
+  mode: "manual" | "automatic";
+  defaultProductLimit: number | null;
+  defaultDisplayStyle: "grid" | "slider";
+  defaultOrder: "alphabetical" | "newest";
+  categories: { categoryId: string; visible: boolean; productLimit?: number | null; displayStyle?: "grid" | "slider" }[];
 };
 
 export type PromoBannerDef = {
@@ -330,6 +338,7 @@ export function CatalogHome({
   promoBanners,
   trustBadges,
   categoryShowcase,
+  homepageCategories,
   sectionVisibility,
 }: {
   products: Product[];
@@ -344,6 +353,7 @@ export function CatalogHome({
   promoBanners?: PromoBannerDef[];
   trustBadges?: TrustBadgeDef[];
   categoryShowcase?: CategoryShowcase;
+  homepageCategories?: HomepageCategoriesSettings;
   sectionVisibility?: Partial<Record<"hero" | "categories" | "products" | "collections" | "trust" | "promos" | "announcement", boolean>>;
 }) {
   const [activeTab, setActiveTab] = useState<string>("all");
@@ -363,18 +373,64 @@ export function CatalogHome({
     items: products.filter((p) => p.categoryId === c.id),
   }));
 
+  const effectiveHomepageCategories = homepageCategories ?? (!sections?.length ? {
+    mode: "automatic" as const,
+    defaultProductLimit: 8,
+    defaultDisplayStyle: "slider" as const,
+    defaultOrder: "alphabetical" as const,
+    categories: [],
+  } : null);
+
+  const managedSections = effectiveHomepageCategories ? (() => {
+    const settings = effectiveHomepageCategories;
+    const entries = new Map(settings.categories.map((entry) => [entry.categoryId, entry]));
+    const ordered = [...categories].sort((a, b) => settings.mode === "manual"
+      ? (settings.categories.findIndex((entry) => entry.categoryId === a.id) < 0 ? Number.MAX_SAFE_INTEGER : settings.categories.findIndex((entry) => entry.categoryId === a.id))
+        - (settings.categories.findIndex((entry) => entry.categoryId === b.id) < 0 ? Number.MAX_SAFE_INTEGER : settings.categories.findIndex((entry) => entry.categoryId === b.id))
+        || a.name.localeCompare(b.name)
+      : settings.defaultOrder === "newest"
+        ? Date.parse(b.createdAt ?? "") - Date.parse(a.createdAt ?? "")
+        : a.name.localeCompare(b.name));
+    return ordered.flatMap((category) => {
+      const categoryProducts = products.filter((product) => product.categoryId === category.id);
+      const entry = entries.get(category.id);
+      const visible = entry?.visible ?? settings.mode === "automatic";
+      if (!visible || categoryProducts.length === 0) return [];
+      const limit = entry?.productLimit === undefined ? settings.defaultProductLimit : entry.productLimit;
+      const items = limit === null ? categoryProducts : categoryProducts.slice(0, Math.max(1, Math.min(50, Math.floor(limit ?? 8))));
+      const displayStyle = entry?.displayStyle ?? settings.defaultDisplayStyle;
+      return [{
+        id: `home-category-${category.id}`,
+        title: category.name,
+        categoryIds: [category.id],
+        mode: displayStyle === "grid" ? "grid" as const : "carousel" as const,
+        productLimit: limit,
+        auto: false,
+        seconds: 4,
+        perView: { mobile: 1.5, tablet: 2.5, desktop: 3 },
+        pagination: false,
+        loop: false,
+        showViewAll: true,
+        items,
+        slug: category.slug,
+        displayName: category.name,
+      }];
+    });
+  })() : null;
+
   const configuredSections = (sections ?? [])
     .map((s) => {
       if (!s.categoryIds.length) return null;
-      const limit = Math.max(1, Math.min(50, Math.floor(s.productLimit ?? 8)));
-      const items = s.categoryIds.flatMap((cid) => products.filter((p) => p.categoryId === cid)).slice(0, limit);
+      const allItems = s.categoryIds.flatMap((cid) => products.filter((p) => p.categoryId === cid));
+      const limit = s.productLimit === null ? null : Math.max(1, Math.min(50, Math.floor(s.productLimit ?? 8)));
+      const items = limit === null ? allItems : allItems.slice(0, limit);
       if (!items.length) return null;
       const cat = categories.find((c) => c.id === s.categoryIds[0]);
       return { ...s, items, slug: cat?.slug ?? null, displayName: cat?.name ?? s.title ?? "কালেকশন" };
     })
     .filter(Boolean) as (HomeSectionDef & { items: Product[]; slug: string | null; displayName: string })[];
 
-  const sectionList = configuredSections.length
+  const sectionList = managedSections ?? (configuredSections.length
     ? configuredSections
     : categorySliders.map((c) => ({
         id: c.id,
@@ -391,7 +447,7 @@ export function CatalogHome({
         items: c.items,
         slug: c.slug,
         displayName: c.name,
-      }));
+      })));
 
   const img = (p: Product) => p.images?.[0] || FALLBACK;
 

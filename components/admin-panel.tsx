@@ -30,6 +30,7 @@ type TrustBadgeDef = {
 
 type HomePageConfigShape = {
   sections: HomeSectionDef[];
+  homepageCategories?: HomepageCategoriesSettings;
   layout?: "classic" | "catalog";
   sectionVisibility?: Partial<Record<"hero" | "categories" | "products" | "collections" | "trust" | "promos" | "announcement", boolean>>;
   categories?: CategoryDisplay & { eyebrow?: string; title?: string; accent?: string; countLabel?: string };
@@ -68,6 +69,21 @@ type HomePageConfigShape = {
     copyright?: string;
     links?: { label?: string; url?: string }[];
   };
+};
+
+type HomepageCategoryEntry = {
+  categoryId: string;
+  visible: boolean;
+  productLimit?: number | null;
+  displayStyle?: "grid" | "slider";
+};
+
+type HomepageCategoriesSettings = {
+  mode: "manual" | "automatic";
+  defaultProductLimit: number | null;
+  defaultDisplayStyle: "grid" | "slider";
+  defaultOrder: "alphabetical" | "newest";
+  categories: HomepageCategoryEntry[];
 };
 
 type Config = {
@@ -294,7 +310,7 @@ const NAV: { key: Section; label: string; icon: string }[] = [
   { key: "coupons", label: "Coupons", icon: "℅" },
   { key: "reviews", label: "Reviews", icon: "★" },
   { key: "staff", label: "Staff Team", icon: "◉" },
-  { key: "home", label: "Home Layout", icon: "⌂" },
+  { key: "home", label: "Homepage Settings", icon: "⌂" },
   { key: "banner", label: "Hero Banner", icon: "▰" },
   { key: "menu", label: "Menu Builder", icon: "☰" },
   { key: "marketing", label: "Pixels & Chat", icon: "⬡" },
@@ -2369,7 +2385,7 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
   return (
     <div className="space-y-5 max-w-3xl">
       <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-5 sm:p-6">
-        <h3 className="font-display font-bold text-gray-900 dark:text-white">Category Showcase (Shop by Category)</h3>
+        <h3 className="font-display font-bold text-gray-900 dark:text-white">Category tiles on the home page</h3>
         <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
           Configure the home page &quot;Shop by Category&quot; heading, grid/carousel layout and auto-slide from the{" "}
           <span className="font-semibold text-primary">Home Layout</span> tab.
@@ -3710,10 +3726,21 @@ function FeatureSettings({ config, save, saving }: { config: Config; save: (payl
 }
 
 /* ==================== HOME LAYOUT ==================== */
-type SmallCategory = { id: string; name: string; _count?: { products?: number } };
+type SmallCategory = { id: string; name: string; slug?: string; createdAt?: string; _count?: { products?: number } };
+
+const defaultHomepageCategories: HomepageCategoriesSettings = {
+  mode: "automatic",
+  defaultProductLimit: 8,
+  defaultDisplayStyle: "slider",
+  defaultOrder: "alphabetical",
+  categories: [],
+};
 
 function HomeLayoutSettings({ config, save, saving, token }: { config: Config; save: (payload: object) => Promise<void>; saving: boolean; token: string }) {
   const [cats, setCats] = useState<SmallCategory[]>([]);
+  const [homepageCategories, setHomepageCategories] = useState<HomepageCategoriesSettings>(config.homePageConfig?.homepageCategories ?? defaultHomepageCategories);
+  const [homepageCategoriesDirty, setHomepageCategoriesDirty] = useState(false);
+  const [draggedCategoryId, setDraggedCategoryId] = useState<string | null>(null);
   const [sections, setSections] = useState<HomeSectionDef[]>(
     config.homePageConfig?.sections?.length
       ? config.homePageConfig.sections
@@ -3768,6 +3795,89 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
     setFooter(config.homePageConfig?.footer ?? {});
     setFooterDirty(false);
   }, [config.homePageConfig?.footer]);
+
+  useEffect(() => {
+    setHomepageCategories(config.homePageConfig?.homepageCategories ?? defaultHomepageCategories);
+    setHomepageCategoriesDirty(false);
+  }, [config.homePageConfig?.homepageCategories]);
+
+  const orderedHomepageCategories = [...cats].sort((a, b) => {
+    if (homepageCategories.mode === "automatic") {
+      if (homepageCategories.defaultOrder === "newest") return Date.parse(b.createdAt ?? "") - Date.parse(a.createdAt ?? "");
+      return a.name.localeCompare(b.name);
+    }
+    const order = new Map(homepageCategories.categories.map((entry, index) => [entry.categoryId, index]));
+    return (order.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (order.get(b.id) ?? Number.MAX_SAFE_INTEGER) || a.name.localeCompare(b.name);
+  });
+
+  function updateHomepageCategory(categoryId: string, patch: Partial<HomepageCategoryEntry>) {
+    setHomepageCategories((current) => {
+      const existing = current.categories.find((entry) => entry.categoryId === categoryId);
+      const nextEntry: HomepageCategoryEntry = { categoryId, visible: existing?.visible ?? current.mode === "automatic", ...existing, ...patch };
+      return {
+        ...current,
+        categories: existing
+          ? current.categories.map((entry) => entry.categoryId === categoryId ? nextEntry : entry)
+          : [...current.categories, nextEntry],
+      };
+    });
+    setHomepageCategoriesDirty(true);
+  }
+
+  function changeHomepageMode(mode: "manual" | "automatic") {
+    setHomepageCategories((current) => {
+      if (mode === "manual") {
+        const saved = new Map(current.categories.map((entry) => [entry.categoryId, entry]));
+        return {
+          ...current,
+          mode,
+          categories: orderedHomepageCategories.map((category) => saved.get(category.id) ?? { categoryId: category.id, visible: true }),
+        };
+      }
+      return { ...current, mode };
+    });
+    setHomepageCategoriesDirty(true);
+  }
+
+  function moveHomepageCategory(categoryId: string, direction: -1 | 1) {
+    const index = orderedHomepageCategories.findIndex((category) => category.id === categoryId);
+    const target = orderedHomepageCategories[index + direction];
+    if (target) reorderHomepageCategory(categoryId, target.id);
+  }
+
+  function reorderHomepageCategory(sourceId: string, targetId: string) {
+    if (!sourceId || sourceId === targetId) return;
+    const reordered = [...orderedHomepageCategories];
+    const from = reordered.findIndex((category) => category.id === sourceId);
+    const to = reordered.findIndex((category) => category.id === targetId);
+    if (from < 0 || to < 0) return;
+    const [moved] = reordered.splice(from, 1);
+    reordered.splice(to, 0, moved);
+    setHomepageCategories((current) => {
+      const entries = new Map(current.categories.map((entry) => [entry.categoryId, entry]));
+      const orderedEntries = reordered.map((category) => entries.get(category.id) ?? { categoryId: category.id, visible: true });
+      const known = new Set(reordered.map((category) => category.id));
+      return { ...current, categories: [...orderedEntries, ...current.categories.filter((entry) => !known.has(entry.categoryId))] };
+    });
+    setHomepageCategoriesDirty(true);
+  }
+
+  async function saveHomepageCategories() {
+    const clean: HomepageCategoriesSettings = {
+      ...homepageCategories,
+      defaultProductLimit: homepageCategories.defaultProductLimit === null
+        ? null
+        : Math.max(1, Math.min(50, Math.floor(Number(homepageCategories.defaultProductLimit) || 8))),
+      categories: homepageCategories.categories.map((entry) => ({
+        ...entry,
+        productLimit: entry.productLimit === undefined || entry.productLimit === null
+          ? entry.productLimit
+          : Math.max(1, Math.min(50, Math.floor(Number(entry.productLimit) || 1))),
+      })),
+    };
+    await save({ homePageConfig: { ...(config.homePageConfig ?? {}), homepageCategories: clean } });
+    setHomepageCategories(clean);
+  }
 
   function update(id: string, patch: Partial<HomeSectionDef>) {
     setSections((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
@@ -3966,6 +4076,92 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
 
   return (
     <div className="space-y-6 max-w-4xl">
+      <section className="overflow-hidden rounded-2xl border border-primary/15 bg-white shadow-sm dark:bg-white/4">
+        <div className="border-b border-gray-100 p-5 dark:border-white/10 sm:p-6">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="font-display text-lg font-bold text-gray-900 dark:text-white">Homepage category & product display</h2>
+              <p className="mt-1 max-w-2xl text-sm text-gray-500 dark:text-slate-400">Choose how category product sections appear. Your saved settings stay in the database across redeploys.</p>
+            </div>
+            {homepageCategoriesDirty && <button type="button" onClick={saveHomepageCategories} disabled={saving} className="h-10 rounded-xl bg-primary px-5 text-sm font-bold text-white shadow-sm transition hover:bg-primary-dark disabled:opacity-60">{saving ? "Saving…" : "Save changes"}</button>}
+          </div>
+          <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {([ ["manual", "Manual setup", "Choose categories, order and display for each one."], ["automatic", "Automatic setup", "Show every category that has active products. New categories join automatically."] ] as const).map(([mode, title, description]) => (
+              <button key={mode} type="button" onClick={() => changeHomepageMode(mode)} aria-pressed={homepageCategories.mode === mode} className={`rounded-xl border p-4 text-left transition ${homepageCategories.mode === mode ? "border-primary bg-primary/5 ring-1 ring-primary/20" : "border-gray-200 hover:border-primary/40 dark:border-white/10"}`}>
+                <span className="flex items-center gap-2 text-sm font-bold text-gray-900 dark:text-white"><span className={`grid h-5 w-5 place-items-center rounded-full border ${homepageCategories.mode === mode ? "border-primary bg-primary text-white" : "border-gray-300"}`}>{homepageCategories.mode === mode ? "✓" : ""}</span>{title}</span>
+                <span className="mt-2 block pl-7 text-xs leading-relaxed text-gray-500 dark:text-slate-400">{description}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {homepageCategories.mode === "automatic" && (
+          <div className="grid grid-cols-1 gap-4 border-b border-gray-100 p-5 dark:border-white/10 sm:grid-cols-3 sm:p-6">
+            <div>
+              <Input type="number" min={1} max={50} label="Default products per category" value={String(homepageCategories.defaultProductLimit ?? 8)} isDisabled={homepageCategories.defaultProductLimit === null} onValueChange={(value) => { setHomepageCategories((current) => ({ ...current, defaultProductLimit: Math.max(1, Math.min(50, Math.floor(Number(value) || 1))) })); setHomepageCategoriesDirty(true); }} />
+              <Switch className="mt-2" size="sm" isSelected={homepageCategories.defaultProductLimit === null} onValueChange={(unlimited) => { setHomepageCategories((current) => ({ ...current, defaultProductLimit: unlimited ? null : 8 })); setHomepageCategoriesDirty(true); }} color="primary">Show all products</Switch>
+            </div>
+            <Select label="Default display" selectedKeys={[homepageCategories.defaultDisplayStyle]} onSelectionChange={(keys) => { const value = Array.from(keys as Set<string>)[0]; if (value === "grid" || value === "slider") { setHomepageCategories((current) => ({ ...current, defaultDisplayStyle: value })); setHomepageCategoriesDirty(true); } }}>
+              <SelectItem key="grid">Grid</SelectItem><SelectItem key="slider">Slider</SelectItem>
+            </Select>
+            <Select label="Default category order" selectedKeys={[homepageCategories.defaultOrder]} onSelectionChange={(keys) => { const value = Array.from(keys as Set<string>)[0]; if (value === "alphabetical" || value === "newest") { setHomepageCategories((current) => ({ ...current, defaultOrder: value })); setHomepageCategoriesDirty(true); } }}>
+              <SelectItem key="alphabetical">Name (A–Z)</SelectItem><SelectItem key="newest">Newest categories first</SelectItem>
+            </Select>
+          </div>
+        )}
+
+        <div className="p-5 sm:p-6">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 className="text-sm font-bold text-gray-900 dark:text-white">Categories</h3>
+              <p className="text-xs text-gray-500 dark:text-slate-400">{homepageCategories.mode === "manual" ? "Turn categories on or off. Drag a row or use the arrows to change its position." : "Only categories with active products appear. You can hide individual categories below."}</p>
+            </div>
+            <span className="rounded-full bg-primary/5 px-3 py-1 text-xs font-semibold text-primary">
+              {orderedHomepageCategories.filter((category) => (homepageCategories.categories.find((entry) => entry.categoryId === category.id)?.visible ?? homepageCategories.mode === "automatic") && (category._count?.products ?? 0) > 0).length} categories visible
+            </span>
+          </div>
+          {orderedHomepageCategories.length === 0 ? (
+            <p className="rounded-xl bg-gray-50 p-5 text-center text-sm text-gray-500 dark:bg-white/5 dark:text-slate-400">No categories yet. Add a category and products first.</p>
+          ) : (
+            <div className="space-y-2">
+              {orderedHomepageCategories.map((category, index) => {
+                const entry = homepageCategories.categories.find((item) => item.categoryId === category.id);
+                const visible = entry?.visible ?? homepageCategories.mode === "automatic";
+                const limit = entry?.productLimit === undefined ? homepageCategories.defaultProductLimit : entry.productLimit;
+                const style = entry?.displayStyle ?? homepageCategories.defaultDisplayStyle;
+                return (
+                  <div key={category.id} draggable={homepageCategories.mode === "manual"} onDragStart={() => setDraggedCategoryId(category.id)} onDragOver={(event) => { if (homepageCategories.mode === "manual") event.preventDefault(); }} onDrop={(event) => { event.preventDefault(); if (draggedCategoryId) reorderHomepageCategory(draggedCategoryId, category.id); setDraggedCategoryId(null); }} onDragEnd={() => setDraggedCategoryId(null)} className={`rounded-xl border p-3 transition sm:p-4 ${visible ? "border-gray-200 dark:border-white/10" : "border-dashed border-gray-200 opacity-70 dark:border-white/10"} ${draggedCategoryId === category.id ? "opacity-40" : ""}`}>
+                    <div className="flex flex-wrap items-center gap-3">
+                      {homepageCategories.mode === "manual" && <span aria-hidden="true" className="hidden cursor-grab text-gray-400 sm:inline">⠿</span>}
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-gray-900 dark:text-white">{category.name}</p>
+                        <p className="text-xs text-gray-500 dark:text-slate-400">{category._count?.products ?? 0} active products{homepageCategories.mode === "automatic" && (category._count?.products ?? 0) === 0 ? " · hidden until products are added" : ""}</p>
+                      </div>
+                      <Switch size="sm" isSelected={visible} onValueChange={(checked) => updateHomepageCategory(category.id, { visible: checked })} color="primary">Show</Switch>
+                      {homepageCategories.mode === "manual" && <div className="flex gap-1"><button type="button" aria-label={`Move ${category.name} up`} disabled={index === 0} onClick={() => moveHomepageCategory(category.id, -1)} className="grid h-8 w-8 place-items-center rounded-lg border text-gray-600 disabled:opacity-30 dark:border-white/10 dark:text-slate-300"><FiArrowUp /></button><button type="button" aria-label={`Move ${category.name} down`} disabled={index === orderedHomepageCategories.length - 1} onClick={() => moveHomepageCategory(category.id, 1)} className="grid h-8 w-8 place-items-center rounded-lg border text-gray-600 disabled:opacity-30 dark:border-white/10 dark:text-slate-300"><FiArrowDown /></button></div>}
+                    </div>
+                    <div className="mt-3 grid grid-cols-1 gap-3 border-t border-gray-100 pt-3 sm:grid-cols-2 dark:border-white/10">
+                      <div>
+                        <Input type="number" min={1} max={50} label="Products to show" value={String(limit ?? homepageCategories.defaultProductLimit ?? 8)} isDisabled={limit === null} onValueChange={(value) => updateHomepageCategory(category.id, { productLimit: Math.max(1, Math.min(50, Math.floor(Number(value) || 1))) })} />
+                        <div className="mt-2 flex flex-wrap items-center gap-3">
+                          <Switch size="sm" isSelected={limit === null} onValueChange={(unlimited) => updateHomepageCategory(category.id, { productLimit: unlimited ? null : homepageCategories.defaultProductLimit ?? 8 })} color="primary">Show all</Switch>
+                          {entry?.productLimit !== undefined && <button type="button" onClick={() => updateHomepageCategory(category.id, { productLimit: undefined })} className="text-xs font-semibold text-primary hover:underline">Use default</button>}
+                        </div>
+                      </div>
+                      <Select label="Display style" selectedKeys={[style]} onSelectionChange={(keys) => { const value = Array.from(keys as Set<string>)[0]; if (value === "grid" || value === "slider") updateHomepageCategory(category.id, { displayStyle: value }); }}>
+                        <SelectItem key="grid">Grid</SelectItem><SelectItem key="slider">Slider</SelectItem>
+                      </Select>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <p className="mt-3 rounded-lg bg-slate-50 p-3 text-xs text-slate-500 dark:bg-white/5 dark:text-slate-400">Preview: {homepageCategories.mode === "automatic" ? "active categories with products" : "shown categories in the order above"} · {homepageCategories.defaultProductLimit === null ? "all products" : `up to ${homepageCategories.defaultProductLimit} products by default`} · {homepageCategories.defaultDisplayStyle}</p>
+          {homepageCategoriesDirty && <div className="mt-4 flex justify-end"><button type="button" onClick={saveHomepageCategories} disabled={saving} className="h-10 rounded-xl bg-primary px-5 text-sm font-bold text-white shadow-sm transition hover:bg-primary-dark disabled:opacity-60">{saving ? "Saving…" : "Save changes"}</button></div>}
+        </div>
+      </section>
+
       <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-6">
         <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
           <div>
@@ -4112,7 +4308,7 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
       <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-5 sm:p-6 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h3 className="font-display font-bold text-gray-900 dark:text-white">Shop by Category Showcase</h3>
+            <h3 className="font-display font-bold text-gray-900 dark:text-white">Category tiles (Shop by Category)</h3>
             <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
               The "SHOP BY CATEGORY" grid/carousel on the home page. Edits both heading and display mode.
             </p>
@@ -4462,7 +4658,7 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
         </button>
       </div>
 
-      <div>
+      <div hidden>
         <button
           type="button"
           onClick={add}
@@ -4473,6 +4669,7 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
         <p className="mt-2 text-xs text-gray-400">Each section shows products from the categories you choose below.</p>
       </div>
 
+      <div hidden>
       {sections.length === 0 && (
         <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-8 text-center text-sm text-gray-400">
           No custom sections yet. Click “Add Section” — otherwise the storefront shows one carousel per category.
@@ -4567,6 +4764,7 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
       >
         {saving ? "Saving…" : "Save Home Layout"}
       </button>
+      </div>
     </div>
   );
 }
