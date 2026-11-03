@@ -1028,6 +1028,7 @@ function AdminProducts({ token }: { token: string }) {
   const [uploading, setUploading] = useState(false);
   const [gallery, setGallery] = useState<{ id?: string; url: string; preview?: string; altText?: string; title?: string; isFeatured: boolean }[]>([]);
   const [productType, setProductType] = useState<"SIMPLE" | "VARIABLE">("SIMPLE");
+  const [sameVariationPrice, setSameVariationPrice] = useState(false);
   const [manageStockQty, setManageStockQty] = useState(true);
   const [manualOutOfStock, setManualOutOfStock] = useState(false);
   const [sku, setSku] = useState("");
@@ -1072,6 +1073,7 @@ function AdminProducts({ token }: { token: string }) {
     setEditingProduct(null);
     setGallery([]);
     setProductType("SIMPLE");
+    setSameVariationPrice(false);
     setManageStockQty(true);
     setManualOutOfStock(false);
     setSku("");
@@ -1101,6 +1103,7 @@ function AdminProducts({ token }: { token: string }) {
       }))
     );
     setProductType(p.productType ?? "SIMPLE");
+    setSameVariationPrice(Boolean(p.productType === "VARIABLE" && p.variations?.length && p.variations.every((v) => Math.abs(Number(v.price) - Number(p.price)) < 0.001)));
     setManageStockQty(p.manageStock !== false);
     setManualOutOfStock(p.manageStock === false && p.stock <= 0);
     setSku(p.sku ?? "");
@@ -1561,9 +1564,9 @@ function AdminProducts({ token }: { token: string }) {
                   <SelectItem key={category.id}>{category.parentId ? `↳  ${category.name}` : category.name}</SelectItem>
                 ))}
               </Select>
-              <Input label="Regular Price (BDT)" name="price" type="text" inputMode="decimal" isRequired placeholder="1500" defaultValue={editingProduct ? String(editingProduct.price) : ""} />
+              <Input label="Regular Price (BDT)" name="price" type="text" inputMode="decimal" isRequired placeholder="1500" value={basePrice} onValueChange={(value) => { setBasePrice(value); if (sameVariationPrice) setVariations((current) => current.map((variation) => ({ ...variation, price: value || "0" }))); }} />
               <Input label="Sale Price (BDT)" name="salePrice" type="text" inputMode="decimal" placeholder="1200 (Optional)" defaultValue={editingProduct?.salePrice != null ? String(editingProduct.salePrice) : ""} />
-              <div className="flex flex-col justify-center gap-3">
+              {productType === "SIMPLE" ? <div className="flex flex-col justify-center gap-3">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-sm font-semibold text-gray-700 dark:text-slate-200">Track stock quantity</p>
@@ -1579,7 +1582,7 @@ function AdminProducts({ token }: { token: string }) {
                     <Switch size="sm" isSelected={manualOutOfStock} onValueChange={setManualOutOfStock} />
                   </div>
                 )}
-              </div>
+              </div> : <div className="flex items-center rounded-xl border border-gray-100 p-3 text-xs text-gray-500 dark:border-white/8 dark:text-slate-400">Stock is controlled per variation below.</div>}
             </div>
 
             <RichTextEditor name="description" label="Short Description" placeholder="One or two crisp sentences for cards, search and quick glance…" defaultValue={editingProduct?.description ?? ""} />
@@ -1683,6 +1686,20 @@ function AdminProducts({ token }: { token: string }) {
 
               {productType === "VARIABLE" && (
                 <div className="space-y-4">
+                  <div className="flex flex-col gap-3 rounded-xl border border-gray-100 p-3 dark:border-white/8 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-xs font-semibold text-gray-700 dark:text-slate-200">Use product price for every variation</p>
+                      <p className="mt-1 text-[11px] text-gray-400 dark:text-slate-500">On: all variations follow Regular Price above. Off: set a separate price for each variation.</p>
+                    </div>
+                    <Switch
+                      size="sm"
+                      isSelected={sameVariationPrice}
+                      onValueChange={(enabled) => {
+                        setSameVariationPrice(enabled);
+                        if (enabled) setVariations((current) => current.map((variation) => ({ ...variation, price: basePrice || "0" })));
+                      }}
+                    />
+                  </div>
                   {/* Attributes */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
@@ -1887,7 +1904,7 @@ function AdminProducts({ token }: { token: string }) {
                                       <span className="text-[10px] text-rose-500 line-through">৳ {Number(v.salePrice).toLocaleString("en-BD")}</span>
                                     ) : null}
                                     <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-semibold ${Number(v.stock) > 0 ? "bg-emerald-100/70 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-rose-100/70 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400"}`}>
-                                      {Number(v.stock) > 0 ? `${v.stock} in stock` : v.manageStock ? "Out of stock" : "Stock not managed"}
+                                      {Number(v.stock) > 0 ? v.manageStock ? `${v.stock} in stock` : "Unlimited stock" : "Out of stock"}
                                     </span>
                                     <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-semibold ${v.status === "active" ? "bg-emerald-100/70 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-amber-100/70 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400"}`}>
                                       {v.status}
@@ -1952,8 +1969,9 @@ function AdminProducts({ token }: { token: string }) {
                                       <input
                                         value={v.price}
                                         onChange={(e) => updateVariation(v.id, { price: e.target.value })}
-                                        placeholder="0"
-                                        className="w-full text-xs bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-2.5 py-1.5 outline-none text-gray-700 dark:text-slate-200 placeholder-gray-400"
+                                        placeholder={sameVariationPrice ? "Uses product price" : "0"}
+                                        disabled={sameVariationPrice}
+                                        className="w-full text-xs bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-2.5 py-1.5 outline-none text-gray-700 dark:text-slate-200 placeholder-gray-400 disabled:opacity-60"
                                       />
                                     </div>
                                     <div>
@@ -1986,28 +2004,30 @@ function AdminProducts({ token }: { token: string }) {
                                       </select>
                                     </div>
                                   </div>
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                    <div>
-                                      <label className="text-[10px] text-gray-400 dark:text-slate-500 mb-1 block">Stock</label>
-                                      <input
-                                        type="number"
-                                        min={0}
-                                        value={v.stock}
-                                        onChange={(e) => updateVariation(v.id, { stock: Number(e.target.value) })}
-                                        className="w-full text-xs bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-2.5 py-1.5 outline-none text-gray-700 dark:text-slate-200 placeholder-gray-400"
-                                      />
-                                    </div>
-                                    <div className="flex items-end gap-2 pb-1">
-                                      <label className="flex items-center gap-1.5 cursor-pointer text-xs text-gray-600 dark:text-slate-300">
+                                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 p-3 dark:border-white/10">
+                                    <div className="min-w-0">
+                                      <label className="flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-gray-700 dark:text-slate-200">
                                         <input
                                           type="checkbox"
                                           checked={v.manageStock}
-                                          onChange={(e) => updateVariation(v.id, { manageStock: e.target.checked })}
+                                          onChange={(e) => updateVariation(v.id, { manageStock: e.target.checked, ...(!e.target.checked ? { stock: Math.max(1, v.stock) } : {}) })}
                                           className="accent-primary"
                                         />
-                                        Manage stock
+                                        Track stock quantity
                                       </label>
+                                      <p className="mt-1 text-[10px] text-gray-400 dark:text-slate-500">{v.manageStock ? "Orders reduce this variation’s stock." : "Off = unlimited stock while available."}</p>
                                     </div>
+                                    {v.manageStock ? (
+                                      <div className="w-full sm:w-32">
+                                        <label className="mb-1 block text-[10px] text-gray-400 dark:text-slate-500">Quantity</label>
+                                        <input type="number" min={0} value={v.stock} onChange={(e) => updateVariation(v.id, { stock: Number(e.target.value) })} className="w-full text-xs bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-2.5 py-1.5 outline-none text-gray-700 dark:text-slate-200" />
+                                      </div>
+                                    ) : (
+                                      <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-slate-300">
+                                        <input type="checkbox" checked={v.stock > 0} onChange={(e) => updateVariation(v.id, { stock: e.target.checked ? 1 : 0 })} className="accent-primary" />
+                                        Available for orders
+                                      </label>
+                                    )}
                                   </div>
                                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                     <div>

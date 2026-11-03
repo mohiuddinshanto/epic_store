@@ -211,7 +211,7 @@ export function ProductView({ slug, initialProduct }: { slug: string; initialPro
 
   const variationInStock =
     isVariable && selectedVariation
-      ? selectedVariation.manageStock === false || Number(selectedVariation.stock) > 0
+      ? Number(selectedVariation.stock) > 0
       : product.stock > 0;
 
   const displayImages = (() => {
@@ -230,7 +230,7 @@ export function ProductView({ slug, initialProduct }: { slug: string; initialPro
   function isValueAvailable(attrId: string, valueId: string): boolean {
     if (!isVariable) return true;
     const trial = { ...selected, [attrId]: valueId };
-    return activeVariations.some((v) => variationMatches(v, trial));
+    return activeVariations.some((v) => Number(v.stock) > 0 && variationMatches(v, trial));
   }
 
   function choose(attrId: string, valueId: string, image?: string) {
@@ -416,7 +416,7 @@ export function ProductView({ slug, initialProduct }: { slug: string; initialPro
               variationInStock ? (
                 <div className="stock-badge">
                   <span className="dot" />{" "}
-                  {selectedVariation.manageStock === false ? "In Stock" : `In Stock (${selectedVariation.stock} items available)`}
+                  {selectedVariation.manageStock === false ? "In Stock (unlimited)" : `In Stock (${selectedVariation.stock} items available)`}
                 </div>
               ) : (
                 <div className="stock-badge" style={{ color: "#ef4444", background: "#fef2f2" }}>
@@ -430,7 +430,7 @@ export function ProductView({ slug, initialProduct }: { slug: string; initialPro
             )
           ) : product.stock > 0 ? (
             <div className="stock-badge">
-              <span className="dot" /> {product.manageStock === false ? "In Stock" : `In Stock (${product.stock} items available)`}
+              <span className="dot" /> {product.manageStock === false ? "In Stock (unlimited)" : `In Stock (${product.stock} items available)`}
             </div>
           ) : (
             <div className="stock-badge" style={{ color: "#ef4444", background: "#fef2f2" }}>

@@ -712,7 +712,7 @@ app.post("/api/orders", rateLimit({ windowMs: 10 * 60_000, max: 20, message: "To
   for (const item of parsed.data.orderItems) {
     const key = `${item.productId}:${item.variationId ?? ""}`;
     const qty = (requestedItems.get(key)?.qty ?? 0) + item.qty;
-    if (qty > 99) return res.status(400).json({ error: "A maximum of 99 units per item can be ordered." });
+    if (!Number.isSafeInteger(qty)) return res.status(400).json({ error: "Invalid item quantity." });
     requestedItems.set(key, { productId: item.productId, variationId: item.variationId, qty });
   }
 
@@ -756,7 +756,11 @@ app.post("/api/orders", rateLimit({ windowMs: 10 * 60_000, max: 20, message: "To
           }
         }
 
-        subtotalCents += unitPrice * item.qty;
+        const lineTotalCents = unitPrice * item.qty;
+        if (!Number.isSafeInteger(lineTotalCents) || !Number.isSafeInteger(subtotalCents + lineTotalCents)) {
+          throw new OrderRequestError(400, "Order total exceeds the supported amount.");
+        }
+        subtotalCents += lineTotalCents;
         normalizedItems.push({ productId: product.id, variationId: item.variationId, name, qty: item.qty, price: asMoney(unitPrice), categoryId: product.categoryId, sku });
       }
 
