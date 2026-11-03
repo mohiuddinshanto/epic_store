@@ -15,7 +15,7 @@ import { makeSessionToken, readSessionToken, requireAuth, requireRole, requireSt
 import { decrypt, encrypt } from "./lib/crypto.js";
 import { uploadImage, deleteImage, getLocalProductsDirectory, imageContentType, isPersistentLocalStoragePath, listImages } from "./lib/storage.js";
 import { baseSkuForParts, generateVariationsForProduct, makeUniqueSku, replaceProductVariations } from "./lib/product-variations.js";
-import { resendStoredEmail, sendEmailVerification, sendNewOrderToOwner, sendNewsletterWelcome, sendOrderConfirmation, sendOrderStatusEmail, sendPasswordReset, sendTestMail } from "./lib/mailer.js";
+import { resendStoredEmail, sendEmailVerification, sendNewOrderToOwner, sendOrderConfirmation, sendOrderStatusEmail, sendPasswordReset, sendTestMail } from "./lib/mailer.js";
 
 const app = express();
 app.set("trust proxy", 1);
@@ -247,36 +247,6 @@ app.get("/api/store/status", async (_req, res) => {
   });
   applyPublicCache(res);
   res.json(payload);
-});
-
-app.post("/api/newsletter/subscribe", rateLimit({ windowMs: 60 * 60_000, max: 10, message: "Too many subscription attempts. Please try again later." }), async (req, res) => {
-  const parsed = z.object({ email: z.string().email().max(200) }).safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "Invalid email address" });
-  const { email } = parsed.data;
-  try {
-    await prisma.newsletterSubscriber.upsert({
-      where: { email },
-      create: { email, unsubscribeToken: makeSessionToken() },
-      update: { unsubscribedAt: null },
-    });
-    const subscriber = await prisma.newsletterSubscriber.findUnique({ where: { email }, select: { unsubscribeToken: true } });
-    const unsubscribeUrl = subscriber ? `${appBaseUrl()}/unsubscribe?token=${subscriber.unsubscribeToken}` : undefined;
-    sendNewsletterWelcome(email, unsubscribeUrl).catch((err) => console.error("newsletter welcome mail failed:", err.message));
-    res.json({ ok: true });
-  } catch {
-    res.status(500).json({ error: "Could not save subscription" });
-  }
-});
-
-app.post("/api/newsletter/unsubscribe", rateLimit({ windowMs: 15 * 60_000, max: 20 }), async (req, res) => {
-  const parsed = z.object({ token: z.string().min(10).max(200) }).safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "Invalid unsubscribe link" });
-  const subscriber = await prisma.newsletterSubscriber.findUnique({ where: { unsubscribeToken: parsed.data.token } });
-  if (!subscriber) return res.status(404).json({ error: "This unsubscribe link is invalid or has already been used." });
-  if (!subscriber.unsubscribedAt) {
-    await prisma.newsletterSubscriber.update({ where: { id: subscriber.id }, data: { unsubscribedAt: new Date() } });
-  }
-  res.json({ ok: true, email: subscriber.email });
 });
 
 app.get("/api/store/checkout-options", async (_req, res) => {
@@ -1894,18 +1864,6 @@ app.patch("/api/admin/config", requireAuth, requireRole("ADMIN"), async (req, re
                 )
                 .max(12)
                 .optional(),
-            })
-            .optional(),
-          newsletter: z
-            .object({
-              enabled: z.boolean().optional(),
-              badge: z.string().max(60).optional(),
-              title: z.string().max(120).optional(),
-              accent: z.string().max(120).optional(),
-              subtitle: z.string().max(300).optional(),
-              placeholder: z.string().max(100).optional(),
-              button: z.string().max(60).optional(),
-              note: z.string().max(200).optional(),
             })
             .optional(),
           footer: z

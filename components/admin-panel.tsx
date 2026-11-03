@@ -44,16 +44,6 @@ type HomePageConfigShape = {
     subtitle?: string;
     items?: { init?: string; image?: string; name?: string; role?: string; quote?: string; rating?: number }[];
   };
-  newsletter?: {
-    enabled?: boolean;
-    badge?: string;
-    title?: string;
-    accent?: string;
-    subtitle?: string;
-    placeholder?: string;
-    button?: string;
-    note?: string;
-  };
   footer?: {
     enabled?: boolean;
     brand?: string;
@@ -2385,10 +2375,10 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
   return (
     <div className="space-y-5 max-w-3xl">
       <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-5 sm:p-6">
-        <h3 className="font-display font-bold text-gray-900 dark:text-white">Category tiles on the home page</h3>
+        <h3 className="font-display font-bold text-gray-900 dark:text-white">Homepage category display</h3>
         <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
-          Configure the home page &quot;Shop by Category&quot; heading, grid/carousel layout and auto-slide from the{" "}
-          <span className="font-semibold text-primary">Home Layout</span> tab.
+          Configure the home page &quot;Shop by Category&quot; display in{" "}
+          <span className="font-semibold text-primary">Homepage Settings</span>.
         </p>
       </div>
 
@@ -3754,8 +3744,6 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
   const [catShowDirty, setCatShowDirty] = useState(false);
   const [testimonials, setTestimonials] = useState(config.homePageConfig?.testimonials ?? {});
   const [testimonialsDirty, setTestimonialsDirty] = useState(false);
-  const [newsletter, setNewsletter] = useState(config.homePageConfig?.newsletter ?? {});
-  const [newsletterDirty, setNewsletterDirty] = useState(false);
   const [footer, setFooter] = useState(config.homePageConfig?.footer ?? {});
   const [footerDirty, setFooterDirty] = useState(false);
   useEffect(() => {
@@ -3786,10 +3774,6 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
     setTestimonialsDirty(false);
   }, [config.homePageConfig?.testimonials]);
 
-  useEffect(() => {
-    setNewsletter(config.homePageConfig?.newsletter ?? {});
-    setNewsletterDirty(false);
-  }, [config.homePageConfig?.newsletter]);
 
   useEffect(() => {
     setFooter(config.homePageConfig?.footer ?? {});
@@ -4011,24 +3995,6 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
     }
   }
 
-  function saveNewsletter() {
-    save({
-      homePageConfig: {
-        ...(config.homePageConfig ?? {}),
-        newsletter: {
-          enabled: newsletter.enabled !== false,
-          badge: newsletter.badge?.trim() || undefined,
-          title: newsletter.title?.trim() || undefined,
-          accent: newsletter.accent?.trim() || undefined,
-          subtitle: newsletter.subtitle?.trim() || undefined,
-          placeholder: newsletter.placeholder?.trim() || undefined,
-          button: newsletter.button?.trim() || undefined,
-          note: newsletter.note?.trim() || undefined,
-        },
-      },
-    });
-  }
-
   function saveFooter() {
     const links = (footer.links ?? [])
       .filter((l) => l.label?.trim())
@@ -4080,8 +4046,8 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
         <div className="border-b border-gray-100 p-5 dark:border-white/10 sm:p-6">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h2 className="font-display text-lg font-bold text-gray-900 dark:text-white">Homepage category & product display</h2>
-              <p className="mt-1 max-w-2xl text-sm text-gray-500 dark:text-slate-400">Choose how category product sections appear. Your saved settings stay in the database across redeploys.</p>
+              <h2 className="font-display text-lg font-bold text-gray-900 dark:text-white">Homepage Settings</h2>
+              <p className="mt-1 max-w-2xl text-sm text-gray-500 dark:text-slate-400">Control which categories appear and how their products are displayed.</p>
             </div>
             {homepageCategoriesDirty && <button type="button" onClick={saveHomepageCategories} disabled={saving} className="h-10 rounded-xl bg-primary px-5 text-sm font-bold text-white shadow-sm transition hover:bg-primary-dark disabled:opacity-60">{saving ? "Saving…" : "Save changes"}</button>}
           </div>
@@ -4168,6 +4134,102 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
           <p className="mt-3 rounded-lg bg-slate-50 p-3 text-xs text-slate-500 dark:bg-white/5 dark:text-slate-400">Preview: {homepageCategories.mode === "automatic" ? "active categories with products" : "shown categories in the order above"} · {homepageCategories.defaultProductLimit === null ? "all products" : `up to ${homepageCategories.defaultProductLimit} products by default`} · {homepageCategories.defaultDisplayStyle}</p>
           {homepageCategoriesDirty && <div className="mt-4 flex justify-end"><button type="button" onClick={saveHomepageCategories} disabled={saving} className="h-10 rounded-xl bg-primary px-5 text-sm font-bold text-white shadow-sm transition hover:bg-primary-dark disabled:opacity-60">{saving ? "Saving…" : "Save changes"}</button></div>}
         </div>
+        <details className="border-t border-gray-100 dark:border-white/10">
+          <summary className="cursor-pointer px-5 py-4 text-sm font-semibold text-gray-800 dark:text-slate-200">Shop by Category display</summary>
+          <div className="px-5 pb-5 sm:px-6">
+
+      <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-5 sm:p-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="font-display font-bold text-gray-900 dark:text-white">Shop by Category</h3>
+            <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
+              The "SHOP BY CATEGORY" grid/carousel on the home page. Edits both heading and display mode.
+            </p>
+          </div>
+          {catShowDirty && (
+            <button
+              type="button"
+              onClick={saveCatShow}
+              disabled={saving}
+              className="flex items-center gap-2 px-4 h-9 bg-gradient-to-r from-primary to-indigo-500 text-white text-sm font-bold rounded-xl hover:shadow-lg hover:shadow-primary/30 transition-all disabled:opacity-60"
+            >
+              {saving ? <FiUpload className="animate-pulse" /> : <FiCheck />} Save Showcase
+            </button>
+          )}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Input type="number" label="Categories to show on home page" min={1} max={50} value={String(catShow.maxCategories ?? 8)} onValueChange={(v) => { setCatShow((s) => ({ ...s, maxCategories: Math.max(1, Math.min(50, Math.floor(Number(v) || 1))) })); setCatShowDirty(true); }} />
+          <Input label="Eyebrow" placeholder="SHOP BY CATEGORY" value={catShow.eyebrow ?? ""} onValueChange={(v) => { setCatShow((s) => ({ ...s, eyebrow: v })); setCatShowDirty(true); }} />
+          <Input label="Title" placeholder="Curated collections," value={catShow.title ?? ""} onValueChange={(v) => { setCatShow((s) => ({ ...s, title: v })); setCatShowDirty(true); }} />
+          <Input label="Accent (highlighted)" placeholder="organized for you." value={catShow.accent ?? ""} onValueChange={(v) => { setCatShow((s) => ({ ...s, accent: v })); setCatShowDirty(true); }} />
+          <Select
+            label="Display mode"
+            selectedKeys={[catShow.mode ?? "grid"]}
+            onSelectionChange={(keys) => { setCatShow((s) => ({ ...s, mode: (Array.from(keys as Set<string>)[0] as CategoryDisplay["mode"]) ?? "grid" })); setCatShowDirty(true); }}
+          >
+            <SelectItem key="grid">Grid — static cards</SelectItem>
+            <SelectItem key="carousel">Carousel — swipeable</SelectItem>
+            <SelectItem key="loop">Loop — auto-sliding carousel</SelectItem>
+          </Select>
+          {(catShow.mode === "carousel" || catShow.mode === "loop") && (
+            <Input
+              type="number"
+              label="Auto-slide seconds"
+              min={1}
+              max={60}
+              value={String(catShow.seconds ?? 3)}
+              onValueChange={(v) => { setCatShow((s) => ({ ...s, seconds: Math.max(1, Math.min(60, Number(v) || 3)) })); setCatShowDirty(true); }}
+            />
+          )}
+        </div>
+        {(catShow.mode === "carousel" || catShow.mode === "loop") && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Input
+              type="number"
+              label="Per view — mobile"
+              min={1}
+              max={4}
+              value={String(catShow.perView?.mobile ?? 2)}
+              onValueChange={(v) => { setCatShow((s) => ({ ...s, perView: { ...(s.perView ?? { mobile: 2, tablet: 4, desktop: 6 }), mobile: Number(v) || 2 } })); setCatShowDirty(true); }}
+            />
+            <Input
+              type="number"
+              label="Per view — tablet"
+              min={1}
+              max={5}
+              value={String(catShow.perView?.tablet ?? 4)}
+              onValueChange={(v) => { setCatShow((s) => ({ ...s, perView: { ...(s.perView ?? { mobile: 2, tablet: 4, desktop: 6 }), tablet: Number(v) || 4 } })); setCatShowDirty(true); }}
+            />
+            <Input
+              type="number"
+              label="Per view — desktop"
+              min={1}
+              max={6}
+              value={String(catShow.perView?.desktop ?? 6)}
+              onValueChange={(v) => { setCatShow((s) => ({ ...s, perView: { ...(s.perView ?? { mobile: 2, tablet: 4, desktop: 6 }), desktop: Number(v) || 6 } })); setCatShowDirty(true); }}
+            />
+          </div>
+        )}
+        {catShow.mode === "carousel" && (
+          <div className="flex flex-wrap items-center gap-6">
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300">
+              <Switch isSelected={catShow.auto ?? false} onValueChange={(v) => { setCatShow((s) => ({ ...s, auto: v })); setCatShowDirty(true); }} color="primary" />
+              Auto-slide
+            </label>
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300">
+              <Switch isSelected={catShow.loop ?? false} onValueChange={(v) => { setCatShow((s) => ({ ...s, loop: v })); setCatShowDirty(true); }} color="primary" />
+              Loop
+            </label>
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300">
+              <Switch isSelected={catShow.pagination ?? false} onValueChange={(v) => { setCatShow((s) => ({ ...s, pagination: v })); setCatShowDirty(true); }} color="primary" />
+              Dots
+            </label>
+          </div>
+        )}
+      </div>
+
+          </div>
+        </details>
       </section>
 
       <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-6">
@@ -4312,97 +4374,6 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
         )}
       </div>
 
-      {/* CATEGORY SHOWCASE */}
-      <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-5 sm:p-6 space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h3 className="font-display font-bold text-gray-900 dark:text-white">Category tiles (Shop by Category)</h3>
-            <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
-              The "SHOP BY CATEGORY" grid/carousel on the home page. Edits both heading and display mode.
-            </p>
-          </div>
-          {catShowDirty && (
-            <button
-              type="button"
-              onClick={saveCatShow}
-              disabled={saving}
-              className="flex items-center gap-2 px-4 h-9 bg-gradient-to-r from-primary to-indigo-500 text-white text-sm font-bold rounded-xl hover:shadow-lg hover:shadow-primary/30 transition-all disabled:opacity-60"
-            >
-              {saving ? <FiUpload className="animate-pulse" /> : <FiCheck />} Save Showcase
-            </button>
-          )}
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Input type="number" label="Categories to show on home page" min={1} max={50} value={String(catShow.maxCategories ?? 8)} onValueChange={(v) => { setCatShow((s) => ({ ...s, maxCategories: Math.max(1, Math.min(50, Math.floor(Number(v) || 1))) })); setCatShowDirty(true); }} />
-          <Input label="Eyebrow" placeholder="SHOP BY CATEGORY" value={catShow.eyebrow ?? ""} onValueChange={(v) => { setCatShow((s) => ({ ...s, eyebrow: v })); setCatShowDirty(true); }} />
-          <Input label="Title" placeholder="Curated collections," value={catShow.title ?? ""} onValueChange={(v) => { setCatShow((s) => ({ ...s, title: v })); setCatShowDirty(true); }} />
-          <Input label="Accent (highlighted)" placeholder="organized for you." value={catShow.accent ?? ""} onValueChange={(v) => { setCatShow((s) => ({ ...s, accent: v })); setCatShowDirty(true); }} />
-          <Select
-            label="Display mode"
-            selectedKeys={[catShow.mode ?? "grid"]}
-            onSelectionChange={(keys) => { setCatShow((s) => ({ ...s, mode: (Array.from(keys as Set<string>)[0] as CategoryDisplay["mode"]) ?? "grid" })); setCatShowDirty(true); }}
-          >
-            <SelectItem key="grid">Grid — static cards</SelectItem>
-            <SelectItem key="carousel">Carousel — swipeable</SelectItem>
-            <SelectItem key="loop">Loop — auto-sliding carousel</SelectItem>
-          </Select>
-          {(catShow.mode === "carousel" || catShow.mode === "loop") && (
-            <Input
-              type="number"
-              label="Auto-slide seconds"
-              min={1}
-              max={60}
-              value={String(catShow.seconds ?? 3)}
-              onValueChange={(v) => { setCatShow((s) => ({ ...s, seconds: Math.max(1, Math.min(60, Number(v) || 3)) })); setCatShowDirty(true); }}
-            />
-          )}
-        </div>
-        {(catShow.mode === "carousel" || catShow.mode === "loop") && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Input
-              type="number"
-              label="Per view — mobile"
-              min={1}
-              max={4}
-              value={String(catShow.perView?.mobile ?? 2)}
-              onValueChange={(v) => { setCatShow((s) => ({ ...s, perView: { ...(s.perView ?? { mobile: 2, tablet: 4, desktop: 6 }), mobile: Number(v) || 2 } })); setCatShowDirty(true); }}
-            />
-            <Input
-              type="number"
-              label="Per view — tablet"
-              min={1}
-              max={5}
-              value={String(catShow.perView?.tablet ?? 4)}
-              onValueChange={(v) => { setCatShow((s) => ({ ...s, perView: { ...(s.perView ?? { mobile: 2, tablet: 4, desktop: 6 }), tablet: Number(v) || 4 } })); setCatShowDirty(true); }}
-            />
-            <Input
-              type="number"
-              label="Per view — desktop"
-              min={1}
-              max={6}
-              value={String(catShow.perView?.desktop ?? 6)}
-              onValueChange={(v) => { setCatShow((s) => ({ ...s, perView: { ...(s.perView ?? { mobile: 2, tablet: 4, desktop: 6 }), desktop: Number(v) || 6 } })); setCatShowDirty(true); }}
-            />
-          </div>
-        )}
-        {catShow.mode === "carousel" && (
-          <div className="flex flex-wrap items-center gap-6">
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300">
-              <Switch isSelected={catShow.auto ?? false} onValueChange={(v) => { setCatShow((s) => ({ ...s, auto: v })); setCatShowDirty(true); }} color="primary" />
-              Auto-slide
-            </label>
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300">
-              <Switch isSelected={catShow.loop ?? false} onValueChange={(v) => { setCatShow((s) => ({ ...s, loop: v })); setCatShowDirty(true); }} color="primary" />
-              Loop
-            </label>
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300">
-              <Switch isSelected={catShow.pagination ?? false} onValueChange={(v) => { setCatShow((s) => ({ ...s, pagination: v })); setCatShowDirty(true); }} color="primary" />
-              Dots
-            </label>
-          </div>
-        )}
-      </div>
-
       {/* TESTIMONIALS */}
       <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-5 sm:p-6 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -4512,43 +4483,6 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
             <FiPlus /> Add Review
           </button>
         )}
-      </div>
-
-      {/* NEWSLETTER */}
-      <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-5 sm:p-6 space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h3 className="font-display font-bold text-gray-900 dark:text-white">Newsletter Signup</h3>
-            <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
-              The email signup section above the footer. Subscriptions are stored on the server.
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300">
-              <Switch isSelected={newsletter.enabled !== false} onValueChange={(v) => { setNewsletter((n) => ({ ...n, enabled: v })); setNewsletterDirty(true); }} color="primary" />
-              Show section
-            </label>
-            {newsletterDirty && (
-              <button
-                type="button"
-                onClick={saveNewsletter}
-                disabled={saving}
-                className="flex items-center gap-2 px-4 h-9 bg-gradient-to-r from-primary to-indigo-500 text-white text-sm font-bold rounded-xl hover:shadow-lg hover:shadow-primary/30 transition-all disabled:opacity-60"
-              >
-                {saving ? <FiUpload className="animate-pulse" /> : <FiCheck />} Save Newsletter
-              </button>
-            )}
-          </div>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input label="Badge pill" placeholder="Exclusive drops" value={newsletter.badge ?? ""} onValueChange={(v) => { setNewsletter((n) => ({ ...n, badge: v })); setNewsletterDirty(true); }} />
-          <Input label="Title" placeholder="Private sale" value={newsletter.title ?? ""} onValueChange={(v) => { setNewsletter((n) => ({ ...n, title: v })); setNewsletterDirty(true); }} />
-          <Input label="Accent (highlighted)" placeholder="alerts & offers." value={newsletter.accent ?? ""} onValueChange={(v) => { setNewsletter((n) => ({ ...n, accent: v })); setNewsletterDirty(true); }} />
-          <Input label="Placeholder" placeholder="Enter your email…" value={newsletter.placeholder ?? ""} onValueChange={(v) => { setNewsletter((n) => ({ ...n, placeholder: v })); setNewsletterDirty(true); }} />
-          <Input label="Button text" placeholder="Subscribe" value={newsletter.button ?? ""} onValueChange={(v) => { setNewsletter((n) => ({ ...n, button: v })); setNewsletterDirty(true); }} />
-          <Input label="Note (below form)" placeholder="No spam. One-click unsubscribe anytime." value={newsletter.note ?? ""} onValueChange={(v) => { setNewsletter((n) => ({ ...n, note: v })); setNewsletterDirty(true); }} />
-          <Textarea label="Subtitle" placeholder="Early access to limited drops…" value={newsletter.subtitle ?? ""} onValueChange={(v) => { setNewsletter((n) => ({ ...n, subtitle: v })); setNewsletterDirty(true); }} className="sm:col-span-2" />
-        </div>
       </div>
 
       {/* FOOTER */}

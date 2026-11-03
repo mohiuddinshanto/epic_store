@@ -16,7 +16,6 @@ import { HomeSkeleton } from "./skeletons";
 import { ProductImage } from "./product-image";
 import {
   FiArrowRight,
-  FiCheckCircle,
   FiChevronDown,
   FiChevronRight,
   FiClock,
@@ -32,7 +31,6 @@ import {
   FiPlus,
   FiRefreshCw,
   FiSearch,
-  FiSend,
   FiShield,
   FiShoppingBag,
   FiStar,
@@ -160,16 +158,6 @@ export type HomePageConfig = {
     accent?: string;
     subtitle?: string;
     items?: { init?: string; image?: string; name?: string; role?: string; quote?: string; rating?: number }[];
-  };
-  newsletter?: {
-    enabled?: boolean;
-    badge?: string;
-    title?: string;
-    accent?: string;
-    subtitle?: string;
-    placeholder?: string;
-    button?: string;
-    note?: string;
   };
   footer?: {
     enabled?: boolean;
@@ -1136,33 +1124,6 @@ export function Storefront({
         );
       })()}
 
-      {/* Newsletter */}
-      {(() => {
-        const cfg = homeConfig?.newsletter ?? {};
-        if (cfg.enabled === false) return null;
-        return (
-          <section className="border-t border-slate-100 bg-white py-16">
-            <div className="mx-auto max-w-2xl space-y-5 px-[6vw] text-center">
-              <span className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-primary">
-                <FiCheckCircle size={13} /> {cfg.badge ?? "Exclusive drops"}
-              </span>
-              <h2 className="font-display text-4xl font-extrabold tracking-tight text-slate-900">
-                {cfg.title ?? "Private sale"} <span className="gradient-text">{cfg.accent ?? "alerts & offers."}</span>
-              </h2>
-              <p className="muted mx-auto max-w-lg">
-                {cfg.subtitle ?? "Early access to limited drops, restocks, and members-only discounts — straight to your inbox."}
-              </p>
-              <NewsletterForm config={cfg} />
-              <p className="text-xs text-slate-500">
-                {cfg.note ?? "No spam. One-click unsubscribe anytime."}
-              </p>
-            </div>
-          </section>
-        );
-      })()}
-        </>
-      )}
-
       {/* Footer */}
       <StoreFooter
         config={homeConfig?.footer}
@@ -1565,54 +1526,5 @@ export function MiniProductCard({
         </div>
       </div>
     </article>
-  );
-}
-
-function NewsletterForm({ config }: { config: NonNullable<HomePageConfig["newsletter"]> }) {
-  const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!email.includes("@")) return;
-    setStatus("loading");
-    try {
-      const res = await fetch(`${apiUrl}/api/newsletter/subscribe`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
-      if (!res.ok) throw new Error();
-      setStatus("done");
-      setEmail("");
-      toast.success("ধন্যবাদ! VIP তালিকায় আপনার ইমেইল যুক্ত হয়েছে।");
-    } catch {
-      setStatus("error");
-      toast.error("সাবস্ক্রিপশন ব্যর্থ হয়েছে। আবার চেষ্টা করুন।");
-    }
-  }
-  return (
-    <form
-      onSubmit={submit}
-      className="mx-auto flex max-w-md flex-col items-center justify-center gap-3 sm:flex-row"
-    >
-      <div className="relative w-full">
-        <FiSend className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-        <input
-          type="email"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder={config.placeholder ?? "আপনার ইমেইল দিন (Enter your email)..."}
-          className="w-full rounded-full border border-slate-200 bg-slate-50 py-3 pl-11 pr-4 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
-        />
-      </div>
-      <button
-        type="submit"
-        disabled={status === "loading"}
-        className="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-full bg-gradient-to-r from-primary to-indigo-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-indigo-500/30 transition-all hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-60 sm:w-auto"
-      >
-        {config.button ?? "Subscribe"} <FiArrowRight size={16} />
-      </button>
-    </form>
   );
 }

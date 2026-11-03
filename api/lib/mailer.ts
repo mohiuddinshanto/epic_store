@@ -219,25 +219,6 @@ export async function resendStoredEmail(to: string, subject: string, html: strin
   await transporter.sendMail({ from, to, subject, html });
 }
 
-export async function sendNewsletterWelcome(email: string, unsubscribeUrl?: string): Promise<void> {
-  const brand = await getBrand();
-  if (!brand) return;
-  const unsubscribe = unsubscribeUrl
-    ? `<a href="${unsubscribeUrl}" style="color:${brand.primary};font-weight:700;">Unsubscribe</a> anytime.`
-    : "one-click unsubscribe anytime.";
-  const html = layout(
-    brand,
-    heroCard(
-      `Welcome to ${escapeHtml(brand.storeName)}! 🎉`,
-      "You have subscribed to our newsletter. You will be the first to hear about new drops, restocks and exclusive offers.",
-      brand.primaryLight
-    ) +
-      `<p style="font-size:14px;color:#475569;line-height:1.7;margin:20px 0 0;text-align:center;">No spam — ${unsubscribe} We are glad to have you on board.</p>`,
-    unsubscribeUrl ? `<a href="${unsubscribeUrl}" style="color:#94a3b8;">Unsubscribe from newsletter</a>` : ""
-  );
-  await deliver(email, `Welcome to ${brand.storeName}!`, html);
-}
-
 export async function sendOrderConfirmation(order: {
   orderId: string;
   customerEmail: string;
