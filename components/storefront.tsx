@@ -1124,6 +1124,9 @@ export function Storefront({
         );
       })()}
 
+        </>
+      )}
+
       {/* Footer */}
       <StoreFooter
         config={homeConfig?.footer}
