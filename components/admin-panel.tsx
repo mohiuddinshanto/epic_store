@@ -118,7 +118,8 @@ type HomeSectionDef = {
   id: string;
   title?: string;
   categoryIds: string[];
-  mode: "carousel" | "grid" | "responsive";
+  mode: "carousel" | "grid" | "responsive" | "infinite";
+  productLimit?: number;
   auto: boolean;
   seconds: number;
   perView: { mobile: number; tablet: number; desktop: number };
@@ -2210,6 +2211,7 @@ function AdminProducts({ token }: { token: string }) {
 
 /* ==================== CATEGORIES ==================== */
 type CategoryDisplay = {
+  maxCategories?: number;
   mode?: "grid" | "carousel" | "loop";
   auto?: boolean;
   loop?: boolean;
@@ -3791,6 +3793,7 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
         title: "",
         categoryIds: [],
         mode: "carousel",
+        productLimit: 8,
         auto: true,
         seconds: 3,
         perView: { mobile: 1, tablet: 2, desktop: 4 },
@@ -3838,6 +3841,7 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
   function saveCatShow() {
     const mode: CategoryDisplay["mode"] = catShow.mode === "carousel" || catShow.mode === "loop" ? catShow.mode : "grid";
     const clean: typeof catShow = { mode };
+    clean.maxCategories = Math.max(1, Math.min(50, Math.floor(Number(catShow.maxCategories) || 8)));
     clean.eyebrow = catShow.eyebrow?.trim() || undefined;
     clean.title = catShow.title?.trim() || undefined;
     clean.accent = catShow.accent?.trim() || undefined;
@@ -4125,6 +4129,7 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
           )}
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Input type="number" label="Categories to show on home page" min={1} max={50} value={String(catShow.maxCategories ?? 8)} onValueChange={(v) => { setCatShow((s) => ({ ...s, maxCategories: Math.max(1, Math.min(50, Math.floor(Number(v) || 1))) })); setCatShowDirty(true); }} />
           <Input label="Eyebrow" placeholder="SHOP BY CATEGORY" value={catShow.eyebrow ?? ""} onValueChange={(v) => { setCatShow((s) => ({ ...s, eyebrow: v })); setCatShowDirty(true); }} />
           <Input label="Title" placeholder="Curated collections," value={catShow.title ?? ""} onValueChange={(v) => { setCatShow((s) => ({ ...s, title: v })); setCatShowDirty(true); }} />
           <Input label="Accent (highlighted)" placeholder="organized for you." value={catShow.accent ?? ""} onValueChange={(v) => { setCatShow((s) => ({ ...s, accent: v })); setCatShowDirty(true); }} />
@@ -4497,7 +4502,9 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
               <SelectItem key="carousel">Carousel</SelectItem>
               <SelectItem key="grid">Grid</SelectItem>
               <SelectItem key="responsive">Responsive (mobile grid, PC carousel)</SelectItem>
+              <SelectItem key="infinite">Infinite carousel (auto-loop)</SelectItem>
             </Select>
+            <Input type="number" min={1} max={50} label="Products in this section" value={String(s.productLimit ?? 8)} onValueChange={(v) => update(s.id, { productLimit: Math.max(1, Math.min(50, Math.floor(Number(v) || 8))) })} />
           </div>
 
           <div>

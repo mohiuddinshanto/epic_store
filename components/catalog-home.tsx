@@ -275,7 +275,8 @@ type HomeSectionDef = {
   id: string;
   title?: string;
   categoryIds: string[];
-  mode: "carousel" | "grid" | "responsive";
+  mode: "carousel" | "grid" | "responsive" | "infinite";
+  productLimit?: number;
   auto: boolean;
   seconds: number;
   perView: PerView;
@@ -303,6 +304,7 @@ export type TrustBadgeDef = {
 };
 
 export type CategoryShowcase = {
+  maxCategories?: number;
   mode?: "grid" | "carousel" | "loop";
   auto?: boolean;
   loop?: boolean;
@@ -345,6 +347,7 @@ export function CatalogHome({
   sectionVisibility?: Partial<Record<"hero" | "categories" | "products" | "collections" | "trust" | "promos" | "announcement", boolean>>;
 }) {
   const [activeTab, setActiveTab] = useState<string>("all");
+  const maxCategories = Math.max(1, Math.min(50, Math.floor(categoryShowcase?.maxCategories ?? 8)));
 
   const rootCats = categories.filter((c) => !c.parentId);
   const catCounts = rootCats.map((c) => ({
@@ -355,7 +358,7 @@ export function CatalogHome({
   const filteredProducts =
     activeTab === "all" ? products : products.filter((p) => p.categoryId === activeTab);
 
-  const categorySliders = tabCats.slice(0, 4).map((c) => ({
+  const categorySliders = tabCats.slice(0, maxCategories).map((c) => ({
     ...c,
     items: products.filter((p) => p.categoryId === c.id),
   }));
@@ -363,7 +366,8 @@ export function CatalogHome({
   const configuredSections = (sections ?? [])
     .map((s) => {
       if (!s.categoryIds.length) return null;
-      const items = s.categoryIds.flatMap((cid) => products.filter((p) => p.categoryId === cid));
+      const limit = Math.max(1, Math.min(50, Math.floor(s.productLimit ?? 8)));
+      const items = s.categoryIds.flatMap((cid) => products.filter((p) => p.categoryId === cid)).slice(0, limit);
       if (!items.length) return null;
       const cat = categories.find((c) => c.id === s.categoryIds[0]);
       return { ...s, items, slug: cat?.slug ?? null, displayName: cat?.name ?? s.title ?? "কালেকশন" };
@@ -377,6 +381,7 @@ export function CatalogHome({
         title: c.name,
         categoryIds: [c.id],
         mode: "carousel" as const,
+        productLimit: 8,
         auto: true,
         seconds: 4,
         perView: { mobile: 1.5, tablet: 2.5, desktop: 3 },
@@ -550,7 +555,7 @@ export function CatalogHome({
             </div>
             {mode === "grid" ? (
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 md:grid-cols-7">
-                {catCounts.map(card)}
+                {catCounts.slice(0, maxCategories).map(card)}
               </div>
             ) : (
               <CarouselSlider
@@ -625,18 +630,30 @@ export function CatalogHome({
               </Link>
             )}
           </div>
-          <CarouselSlider
-            items={c.items.map((p) => (
-              <CatalogCard key={p.id} p={p} add={add} buyNow={buyNow} allowAddToCart={allowAddToCart} whatsapp={whatsapp} fill />
-            ))}
-            seconds={c.seconds ?? 4}
-            auto={c.auto ?? true}
-            loop={c.loop ?? true}
-            perView={c.perView ?? { mobile: 1.5, tablet: 2.5, desktop: 3 }}
-            pagination={c.pagination ?? true}
-            spaceBetween={12}
-            ariaLabel={`${c.displayName} collection`}
-          />
+          {c.mode === "grid" ? (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+              {c.items.map((p) => <CatalogCard key={p.id} p={p} add={add} buyNow={buyNow} allowAddToCart={allowAddToCart} whatsapp={whatsapp} fill />)}
+            </div>
+          ) : c.mode === "responsive" ? (
+            <>
+              <div className="grid grid-cols-2 gap-3 md:hidden">{c.items.map((p) => <CatalogCard key={p.id} p={p} add={add} buyNow={buyNow} allowAddToCart={allowAddToCart} whatsapp={whatsapp} fill />)}</div>
+              <div className="hidden md:block"><CarouselSlider
+                items={c.items.map((p) => <CatalogCard key={p.id} p={p} add={add} buyNow={buyNow} allowAddToCart={allowAddToCart} whatsapp={whatsapp} fill />)}
+                seconds={c.seconds ?? 4} auto={c.auto ?? true} loop={c.loop ?? true} perView={c.perView ?? { mobile: 1.5, tablet: 2.5, desktop: 3 }} pagination={c.pagination ?? true} spaceBetween={12} ariaLabel={`${c.displayName} collection`}
+              /></div>
+            </>
+          ) : (
+            <CarouselSlider
+              items={c.items.map((p) => <CatalogCard key={p.id} p={p} add={add} buyNow={buyNow} allowAddToCart={allowAddToCart} whatsapp={whatsapp} fill />)}
+              seconds={c.seconds ?? 4}
+              auto={c.mode === "infinite" ? true : c.auto ?? true}
+              loop={c.mode === "infinite" ? true : c.loop ?? true}
+              perView={c.perView ?? { mobile: 1.5, tablet: 2.5, desktop: 3 }}
+              pagination={c.pagination ?? true}
+              spaceBetween={12}
+              ariaLabel={`${c.displayName} collection`}
+            />
+          )}
         </section>
       ))}
 

@@ -107,7 +107,8 @@ type HomeSection = {
   id: string;
   title?: string;
   categoryIds: string[];
-  mode: "carousel" | "grid" | "responsive";
+  mode: "carousel" | "grid" | "responsive" | "infinite";
+  productLimit?: number;
   auto: boolean;
   seconds: number;
   perView: { mobile: number; tablet: number; desktop: number };
@@ -117,6 +118,7 @@ type HomeSection = {
 };
 
 type CategoryDisplayConfig = {
+  maxCategories?: number;
   mode?: "grid" | "carousel" | "loop";
   auto?: boolean;
   loop?: boolean;
@@ -457,16 +459,21 @@ export function Storefront({
         })),
     [categories, products]
   );
+  const visibleCategorySections = useMemo(
+    () => categorySections.slice(0, Math.max(1, Math.min(50, homeConfig?.categories?.maxCategories ?? 8))),
+    [categorySections, homeConfig?.categories?.maxCategories]
+  );
 
   type GroupedSection = HomeSection & { items: Product[]; name: string; slug: string | null };
 
   const defaultSections = useMemo<GroupedSection[]>(
     () =>
-      categorySections.map((c) => ({
+      visibleCategorySections.map((c) => ({
         id: `cat-${c.slug}`,
         title: "",
         categoryIds: [c.id],
         mode: "carousel" as const,
+        productLimit: 8,
         auto: true,
         seconds: 3,
         perView: { mobile: 1, tablet: 2, desktop: 4 },
@@ -477,7 +484,7 @@ export function Storefront({
         name: c.name,
         slug: c.slug,
       })),
-    [categorySections]
+    [visibleCategorySections]
   );
 
   const homeSections = useMemo<GroupedSection[]>(() => {
@@ -485,7 +492,7 @@ export function Storefront({
     return homeConfig.sections
       .map((s) => {
         const cats = categories.filter((c) => s.categoryIds.includes(c.id));
-        const items = products.filter((p) => s.categoryIds.includes(p.categoryId));
+        const items = products.filter((p) => s.categoryIds.includes(p.categoryId)).slice(0, Math.max(1, Math.min(50, s.productLimit ?? 8)));
         return {
           ...s,
           items,
@@ -936,13 +943,13 @@ export function Storefront({
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-400">
-              {categorySections.length} {categoryConfig.countLabel ?? "CATEGORIES"}
+              {visibleCategorySections.length} {categoryConfig.countLabel ?? "CATEGORIES"}
             </span>
           </div>
         </div>
                 {categoryMode === "grid" ? (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-[repeat(auto-fill,minmax(200px,1fr))]">
-            {categorySections.map((c) => (
+            {visibleCategorySections.map((c) => (
               <Link
                 key={c.id}
                 href={`/categories/${c.slug}`}
@@ -969,7 +976,7 @@ export function Storefront({
           <CarouselSlider
             key={`cat-${categoryMode}`}
             ariaLabel="Shop by category"
-            items={categorySections.map((c) => (
+            items={visibleCategorySections.map((c) => (
               <Link
                 key={c.id}
                 href={`/categories/${c.slug}`}
@@ -1020,10 +1027,10 @@ export function Storefront({
             ariaLabel={`${s.name} products`}
             items={cards}
             seconds={s.seconds}
-            auto={s.auto}
+            auto={s.mode === "infinite" ? true : s.auto}
             perView={s.perView}
             pagination={s.pagination}
-            loop={s.loop}
+            loop={s.mode === "infinite" ? true : s.loop}
           />
         );
         return (

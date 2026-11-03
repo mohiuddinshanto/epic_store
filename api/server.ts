@@ -1806,6 +1806,7 @@ app.patch("/api/admin/config", requireAuth, requireRole("ADMIN"), async (req, re
             .optional(),
           categories: z
             .object({
+              maxCategories: z.number().int().min(1).max(50).optional(),
               mode: z.enum(["grid", "carousel", "loop"]).optional(),
               auto: z.boolean().optional(),
               loop: z.boolean().optional(),
@@ -1824,7 +1825,8 @@ app.patch("/api/admin/config", requireAuth, requireRole("ADMIN"), async (req, re
                 id: z.string().min(1),
                 title: z.string().optional(),
                 categoryIds: z.array(z.string()).min(1),
-                mode: z.enum(["carousel", "grid", "responsive"]),
+                mode: z.enum(["carousel", "grid", "responsive", "infinite"]),
+                productLimit: z.number().int().min(1).max(50).optional(),
                 auto: z.boolean(),
                 seconds: z.number().int().min(1).max(60),
                 perView: z.object({ mobile: z.number().min(0.5).max(10), tablet: z.number().min(0.5).max(12), desktop: z.number().min(0.5).max(16) }),
