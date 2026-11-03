@@ -1356,13 +1356,13 @@ button[color="danger"]:not(:is([data-slot] *)):hover,
 }
 
 .product-reviews .reviews-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+  gap: clamp(16px, 2vw, 28px);
 }
 
 .product-reviews .reviews-grid > form {
-  order: -1;
   position: sticky;
   top: 88px;
   align-self: start;
@@ -1861,6 +1861,9 @@ button[color="danger"]:not(:is([data-slot] *)):hover,
   }
   .product-reviews .reviews-grid > form {
     position: static;
+  }
+  .product-reviews .reviews-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
   .reviews-grid {
     grid-template-columns: 1fr;
