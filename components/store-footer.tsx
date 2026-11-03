@@ -63,6 +63,7 @@ const FOOTER_CSS = `
 .ft-logo .ft-badge{width:56px;height:56px;border-radius:16px;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 10px 24px rgba(255,138,26,.3);color:#111;font-size:26px;font-weight:800}
 .ft-slogan{margin:0 0 24px;color:var(--muted);line-height:1.8;font-size:15px;max-width:340px}
 .ft-social{display:flex;gap:12px;flex-wrap:wrap}
+.ft-brand .ft-social{padding-top:12px}
 .ft-social a{width:44px;height:44px;border-radius:12px;background:var(--card);border:1px solid var(--line);display:grid;place-items:center;transition:transform .25s,background .25s,border-color .25s,box-shadow .25s}
 .ft-social svg{width:19px;height:19px;fill:currentColor}
 .ft-social a:hover,.ft-social a:focus-visible{transform:translateY(-4px);background:linear-gradient(135deg,var(--accent),var(--accent2));color:#111;border-color:transparent;outline:none}
@@ -99,7 +100,6 @@ const FOOTER_CSS = `
   .ft-brand{display:flex;flex-direction:column;align-items:center}
   .ft-slogan{margin-left:auto;margin-right:auto}
   .ft-social{justify-content:center}
-  .ft-brand .ft-social{padding-top:12px}
   .ft-wrap>div:not(.ft-brand){width:100%;min-width:0;text-align:left}
   .ft h4{margin-bottom:18px}
   .ft h4::after{left:0;transform:none}

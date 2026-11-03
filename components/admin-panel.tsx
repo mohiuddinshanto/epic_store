@@ -2615,9 +2615,9 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [view, setView] = useState<"kanban" | "table">(() => {
     try {
-      return localStorage.getItem("epic-orders-view") === "table" ? "table" : "kanban";
+      return localStorage.getItem("epic-orders-view") === "kanban" ? "kanban" : "table";
     } catch {
-      return "kanban";
+      return "table";
     }
   });
   const [showInfo, setShowInfo] = useState<boolean>(() => typeof window === "undefined" || window.innerWidth >= 1024);
@@ -2821,7 +2821,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex gap-1 bg-gray-100 dark:bg-white/5 p-1 rounded-xl">
-          {(["kanban", "table"] as const).map((v) => (
+          {(["table", "kanban"] as const).map((v) => (
             <button
               key={v}
               onClick={() => { setView(v); try { localStorage.setItem("epic-orders-view", v); } catch {} }}
