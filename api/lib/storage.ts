@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { mkdirSync, readdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
-import { extname, join, resolve } from "node:path";
+import { basename, extname, isAbsolute, join, resolve, sep } from "node:path";
 import { prisma } from "./prisma.js";
 import { decrypt } from "./crypto.js";
 
@@ -11,10 +11,49 @@ export type StorageConfig =
 const has = (value: unknown, key: string): boolean => Boolean(value && typeof value === "object" && key in (value as Record<string, unknown>));
 
 const uploadsRoot = process.env.UPLOADS_DIR ?? join(process.cwd(), "public", "uploads");
+const IMAGE_CONTENT_TYPES: Record<string, string> = {
+  ".avif": "image/avif",
+  ".gif": "image/gif",
+  ".jpeg": "image/jpeg",
+  ".jpg": "image/jpeg",
+  ".png": "image/png",
+  ".svg": "image/svg+xml",
+  ".webp": "image/webp",
+};
+
+export function imageContentType(filename: string): string | undefined {
+  return IMAGE_CONTENT_TYPES[extname(filename).toLowerCase()];
+}
+
+export function isPersistentLocalStoragePath(value: string): boolean {
+  if (!isAbsolute(value)) return false;
+  const segments = value.replace(/\\/g, "/").toLowerCase().split("/").filter(Boolean);
+  return !segments.includes("hbuilds") && !segments.includes("public_html");
+}
 
 export async function getLocalProductsDirectory(): Promise<string> {
   const config = await loadStorageConfig();
   return config?.provider === "local" ? resolve(config.folderPath) : join(uploadsRoot, "products");
+}
+
+export async function readProductImage(filename: string): Promise<{ buffer: Buffer; contentType: string } | null> {
+  const safeName = basename(filename);
+  const contentType = imageContentType(safeName);
+  if (!contentType || safeName !== filename || safeName.startsWith(".")) return null;
+
+  const roots = [await getLocalProductsDirectory(), join(uploadsRoot, "products")];
+  for (const rootValue of [...new Set(roots)]) {
+    const root = resolve(rootValue);
+    const filePath = resolve(root, safeName);
+    if (!filePath.startsWith(`${root}${sep}`)) continue;
+    try {
+      const buffer = await import("node:fs/promises").then(({ readFile }) => readFile(filePath));
+      return { buffer, contentType };
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    }
+  }
+  return null;
 }
 
 export function isLocalConfig(value: unknown): value is Extract<StorageConfig, { provider: "local" }> {
@@ -41,13 +80,13 @@ export async function uploadImage(file: { buffer: Buffer; mimetype: string; orig
 
   if (storageConfig.provider === "local") {
     const productsDir = resolve(storageConfig.folderPath);
-    mkdirSync(productsDir, { recursive: true });
+    mkdirSync(productsDir, { recursive: true, mode: 0o755 });
     const hash = createHash("sha256").update(file.buffer).digest("hex");
     const existing = readdirSync(productsDir).find((name) => name.startsWith(hash));
     const baseUrl = storageConfig.publicBaseUrl.replace(/\/+$/, "");
     if (existing) return `${baseUrl}/${existing}`;
     const filename = `${hash}${ext}`;
-    writeFileSync(join(productsDir, filename), file.buffer);
+    writeFileSync(join(productsDir, filename), file.buffer, { mode: 0o644 });
     return `${baseUrl}/${filename}`;
   }
 

@@ -17,7 +17,7 @@ const next = require("next");
 const port = Number(process.env.PORT || 3000);
 const host = process.env.HOST || "0.0.0.0";
 
-process.env.UPLOADS_DIR = path.join(rootDir, "public", "uploads");
+process.env.UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(rootDir, "public", "uploads");
 
 const compiledApi = path.join(rootDir, "dist", "server.js");
 

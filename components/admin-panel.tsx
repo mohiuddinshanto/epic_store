@@ -5303,8 +5303,8 @@ function StorageSettings({ save, saving, configured, storage }: {
           <div className="grid grid-cols-1 gap-4">
             <Input isRequired name="folderPath" label="Absolute Upload Folder Path" placeholder="/home/hosting-user/domains/your-domain/uploads/products" defaultValue={storage?.folderPath ?? ""} />
             <p className="text-xs text-gray-500 dark:text-slate-400">Use a writable absolute folder outside public_html and the app deployment folder, so deploys do not replace uploaded images.</p>
-            <Input isRequired name="publicBaseUrl" label="Public Base URL" placeholder="https://woocommerce.gadgetlagbe.online/uploads/products" defaultValue={storage?.publicBaseUrl ?? ""} />
-            <p className="text-xs text-gray-500 dark:text-slate-400">For this store, use https://woocommerce.gadgetlagbe.online/uploads/products. The app serves files from this URL.</p>
+            <Input isRequired name="publicBaseUrl" label="Public Base URL" placeholder="https://your-domain.com/uploads/products" defaultValue={storage?.publicBaseUrl ?? ""} />
+            <p className="text-xs text-gray-500 dark:text-slate-400">Use this site's HTTPS URL ending in /uploads/products. The app serves files from the absolute folder above.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

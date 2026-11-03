@@ -13,7 +13,7 @@ import { checkIpCooldown, restrictStaffOrderView, staffCanAccessOrderItems } fro
 import { rateLimit } from "./lib/rate-limit.js";
 import { makeSessionToken, readSessionToken, requireAuth, requireRole, requireStaffArea, setSessionCookie, clearSessionCookie, SESSION_MAX_AGE_MS } from "./middleware/auth.js";
 import { decrypt, encrypt } from "./lib/crypto.js";
-import { uploadImage, deleteImage, getLocalProductsDirectory, listImages } from "./lib/storage.js";
+import { uploadImage, deleteImage, getLocalProductsDirectory, imageContentType, isPersistentLocalStoragePath, listImages } from "./lib/storage.js";
 import { baseSkuForParts, generateVariationsForProduct, makeUniqueSku, replaceProductVariations } from "./lib/product-variations.js";
 import { resendStoredEmail, sendEmailVerification, sendNewOrderToOwner, sendNewsletterWelcome, sendOrderConfirmation, sendOrderStatusEmail, sendPasswordReset, sendTestMail } from "./lib/mailer.js";
 
@@ -70,9 +70,19 @@ const legacyUploadsDirectory = process.env.UPLOADS_DIR ?? "public/uploads";
 app.use("/uploads/products", async (req, res, next) => {
   try {
     const directory = await getLocalProductsDirectory();
-    express.static(directory, { maxAge: "30d", fallthrough: true, index: false })(req, res, (error) => {
+    const staticOptions = {
+      maxAge: "30d" as const,
+      fallthrough: true,
+      index: false,
+      setHeaders(response: express.Response, filePath: string) {
+        const contentType = imageContentType(filePath);
+        if (contentType) response.setHeader("Content-Type", contentType);
+        response.setHeader("X-Content-Type-Options", "nosniff");
+      },
+    };
+    express.static(directory, staticOptions)(req, res, (error) => {
       if (error) return next(error);
-      express.static(`${legacyUploadsDirectory}/products`, { maxAge: "30d", fallthrough: true, index: false })(req, res, next);
+      express.static(`${legacyUploadsDirectory}/products`, staticOptions)(req, res, next);
     });
   } catch (error) {
     next(error);
@@ -2012,7 +2022,17 @@ app.patch("/api/admin/config", requireAuth, requireRole("ADMIN"), async (req, re
             secretAccessKey: z.string().min(1).optional(),
             publicBaseUrl: z.string().url().optional(),
           }),
-          z.object({ provider: z.literal("local"), folderPath: z.string().min(1), publicBaseUrl: z.string().min(1) }),
+          z.object({
+            provider: z.literal("local"),
+            folderPath: z.string().refine(isPersistentLocalStoragePath, "Use an absolute writable folder outside hbuilds and public_html."),
+            publicBaseUrl: z.string().url().refine((value) => {
+              try {
+                const url = new URL(value);
+                return url.pathname.replace(/\/+$/, "") === "/uploads/products" && (process.env.NODE_ENV !== "production" || url.protocol === "https:");
+              }
+              catch { return false; }
+            }, "Use the public URL ending in /uploads/products."),
+          }),
         ])
         .optional(),
       aiConfig: z.object({ provider: z.enum(["openai", "gemini"]), apiKey: z.string(), systemPromptOverride: z.string().optional() }).optional(),
