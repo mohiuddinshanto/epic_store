@@ -66,13 +66,23 @@ type HomepageCategoryEntry = {
   categoryId: string;
   visible: boolean;
   productLimit?: number | null;
-  displayStyle?: "grid" | "slider";
+  displayStyle?: "grid" | "slider" | "loop";
+  auto?: boolean;
+  loop?: boolean;
+  seconds?: number;
+  pagination?: boolean;
+  perView?: { mobile: number; tablet: number; desktop: number };
 };
 
 type HomepageCategoriesSettings = {
   mode: "manual" | "automatic";
   defaultProductLimit: number | null;
-  defaultDisplayStyle: "grid" | "slider";
+  defaultDisplayStyle: "grid" | "slider" | "loop";
+  defaultAuto: boolean;
+  defaultLoop: boolean;
+  defaultSeconds: number;
+  defaultPagination: boolean;
+  defaultPerView: { mobile: number; tablet: number; desktop: number };
   defaultOrder: "alphabetical" | "newest";
   categories: HomepageCategoryEntry[];
 };
@@ -3723,13 +3733,27 @@ const defaultHomepageCategories: HomepageCategoriesSettings = {
   mode: "automatic",
   defaultProductLimit: 8,
   defaultDisplayStyle: "slider",
+  defaultAuto: false,
+  defaultLoop: false,
+  defaultSeconds: 3,
+  defaultPagination: false,
+  defaultPerView: { mobile: 2, tablet: 4, desktop: 6 },
   defaultOrder: "alphabetical",
   categories: [],
 };
 
+function resolveHomepageCategories(value?: Partial<HomepageCategoriesSettings>): HomepageCategoriesSettings {
+  return {
+    ...defaultHomepageCategories,
+    ...value,
+    defaultPerView: { ...defaultHomepageCategories.defaultPerView, ...(value?.defaultPerView ?? {}) },
+    categories: value?.categories ?? [],
+  };
+}
+
 function HomeLayoutSettings({ config, save, saving, token }: { config: Config; save: (payload: object) => Promise<void>; saving: boolean; token: string }) {
   const [cats, setCats] = useState<SmallCategory[]>([]);
-  const [homepageCategories, setHomepageCategories] = useState<HomepageCategoriesSettings>(config.homePageConfig?.homepageCategories ?? defaultHomepageCategories);
+  const [homepageCategories, setHomepageCategories] = useState<HomepageCategoriesSettings>(resolveHomepageCategories(config.homePageConfig?.homepageCategories));
   const [homepageCategoriesDirty, setHomepageCategoriesDirty] = useState(false);
   const [draggedCategoryId, setDraggedCategoryId] = useState<string | null>(null);
   const [sections, setSections] = useState<HomeSectionDef[]>(
@@ -3789,7 +3813,7 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
   }, [config.homePageConfig?.footer]);
 
   useEffect(() => {
-    setHomepageCategories(config.homePageConfig?.homepageCategories ?? defaultHomepageCategories);
+    setHomepageCategories(resolveHomepageCategories(config.homePageConfig?.homepageCategories));
     setHomepageCategoriesDirty(false);
   }, [config.homePageConfig?.homepageCategories]);
 
@@ -3860,11 +3884,23 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
       defaultProductLimit: homepageCategories.defaultProductLimit === null
         ? null
         : Math.max(1, Math.min(50, Math.floor(Number(homepageCategories.defaultProductLimit) || 8))),
+      defaultSeconds: Math.max(1, Math.min(60, Math.floor(Number(homepageCategories.defaultSeconds) || 3))),
+      defaultPerView: {
+        mobile: Math.max(1, Math.min(12, Math.floor(Number(homepageCategories.defaultPerView.mobile) || 2))),
+        tablet: Math.max(1, Math.min(12, Math.floor(Number(homepageCategories.defaultPerView.tablet) || 4))),
+        desktop: Math.max(1, Math.min(12, Math.floor(Number(homepageCategories.defaultPerView.desktop) || 6))),
+      },
       categories: homepageCategories.categories.map((entry) => ({
         ...entry,
         productLimit: entry.productLimit === undefined || entry.productLimit === null
           ? entry.productLimit
           : Math.max(1, Math.min(50, Math.floor(Number(entry.productLimit) || 1))),
+        seconds: entry.seconds === undefined ? undefined : Math.max(1, Math.min(60, Math.floor(Number(entry.seconds) || 3))),
+        perView: entry.perView ? {
+          mobile: Math.max(1, Math.min(12, Math.floor(Number(entry.perView.mobile) || 2))),
+          tablet: Math.max(1, Math.min(12, Math.floor(Number(entry.perView.tablet) || 4))),
+          desktop: Math.max(1, Math.min(12, Math.floor(Number(entry.perView.desktop) || 6))),
+        } : undefined,
       })),
     };
     await save({ homePageConfig: { ...(config.homePageConfig ?? {}), homepageCategories: clean } });
@@ -4094,13 +4130,22 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
               <Input type="number" min={1} max={50} label="Default products per category" value={String(homepageCategories.defaultProductLimit ?? 8)} isDisabled={homepageCategories.defaultProductLimit === null} onValueChange={(value) => { setHomepageCategories((current) => ({ ...current, defaultProductLimit: Math.max(1, Math.min(50, Math.floor(Number(value) || 1))) })); setHomepageCategoriesDirty(true); }} />
               <Switch className="mt-2" size="sm" isSelected={homepageCategories.defaultProductLimit === null} onValueChange={(unlimited) => { setHomepageCategories((current) => ({ ...current, defaultProductLimit: unlimited ? null : 8 })); setHomepageCategoriesDirty(true); }} color="primary">Show all products</Switch>
             </div>
-            <Select label="Default display" selectedKeys={[homepageCategories.defaultDisplayStyle]} onSelectionChange={(keys) => { const value = Array.from(keys as Set<string>)[0]; if (value === "grid" || value === "slider") { setHomepageCategories((current) => ({ ...current, defaultDisplayStyle: value })); setHomepageCategoriesDirty(true); } }}>
-              <SelectItem key="grid">Grid</SelectItem><SelectItem key="slider">Slider</SelectItem>
+            <Select label="Default display mode" selectedKeys={[homepageCategories.defaultDisplayStyle]} onSelectionChange={(keys) => { const value = Array.from(keys as Set<string>)[0]; if (value === "grid" || value === "slider" || value === "loop") { setHomepageCategories((current) => ({ ...current, defaultDisplayStyle: value, ...(value === "loop" ? { defaultAuto: true, defaultLoop: true } : {}) })); setHomepageCategoriesDirty(true); } }}>
+              <SelectItem key="grid">Grid</SelectItem><SelectItem key="slider">Slider</SelectItem><SelectItem key="loop">Loop auto-sliding carousel</SelectItem>
             </Select>
             <Select label="Default category order" selectedKeys={[homepageCategories.defaultOrder]} onSelectionChange={(keys) => { const value = Array.from(keys as Set<string>)[0]; if (value === "alphabetical" || value === "newest") { setHomepageCategories((current) => ({ ...current, defaultOrder: value })); setHomepageCategoriesDirty(true); } }}>
               <SelectItem key="alphabetical">Name (A–Z)</SelectItem><SelectItem key="newest">Newest categories first</SelectItem>
             </Select>
           </div>
+          {homepageCategories.defaultDisplayStyle !== "grid" && <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-4">
+            <Input type="number" min={1} max={60} label="Auto-slide seconds" value={String(homepageCategories.defaultSeconds)} onValueChange={(value) => { setHomepageCategories((current) => ({ ...current, defaultSeconds: Math.max(1, Math.min(60, Math.floor(Number(value) || 3))) })); setHomepageCategoriesDirty(true); }} />
+            {(["mobile", "tablet", "desktop"] as const).map((device) => <Input key={device} type="number" min={1} max={12} label={`Per view — ${device}`} value={String(homepageCategories.defaultPerView[device])} onValueChange={(value) => { setHomepageCategories((current) => ({ ...current, defaultPerView: { ...current.defaultPerView, [device]: Math.max(1, Math.min(12, Math.floor(Number(value) || 1))) } })); setHomepageCategoriesDirty(true); }} />)}
+            <div className="flex flex-wrap items-center gap-4 sm:col-span-4">
+              {homepageCategories.defaultDisplayStyle === "slider" && <Switch isSelected={homepageCategories.defaultAuto} onValueChange={(value) => { setHomepageCategories((current) => ({ ...current, defaultAuto: value })); setHomepageCategoriesDirty(true); }} color="primary">Auto-slide</Switch>}
+              {homepageCategories.defaultDisplayStyle === "slider" && <Switch isSelected={homepageCategories.defaultLoop} onValueChange={(value) => { setHomepageCategories((current) => ({ ...current, defaultLoop: value })); setHomepageCategoriesDirty(true); }} color="primary">Loop</Switch>}
+              <Switch isSelected={homepageCategories.defaultPagination} onValueChange={(value) => { setHomepageCategories((current) => ({ ...current, defaultPagination: value })); setHomepageCategoriesDirty(true); }} color="primary">Pagination dots</Switch>
+            </div>
+          </div>}
           </details>
         )}
 
@@ -4121,8 +4166,13 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
               {orderedHomepageCategories.map((category, index) => {
                 const entry = homepageCategories.categories.find((item) => item.categoryId === category.id);
                 const visible = entry?.visible ?? homepageCategories.mode === "automatic";
-                const limit = entry?.productLimit === undefined ? homepageCategories.defaultProductLimit : entry.productLimit;
-                const style = entry?.displayStyle ?? homepageCategories.defaultDisplayStyle;
+                const limit = homepageCategories.mode === "automatic" || entry?.productLimit === undefined ? homepageCategories.defaultProductLimit : entry.productLimit;
+                const style = homepageCategories.mode === "automatic" ? homepageCategories.defaultDisplayStyle : entry?.displayStyle ?? homepageCategories.defaultDisplayStyle;
+                const auto = style === "loop" || (homepageCategories.mode === "automatic" ? homepageCategories.defaultAuto : entry?.auto ?? homepageCategories.defaultAuto);
+                const loop = style === "loop" || (homepageCategories.mode === "automatic" ? homepageCategories.defaultLoop : entry?.loop ?? homepageCategories.defaultLoop);
+                const seconds = homepageCategories.mode === "automatic" ? homepageCategories.defaultSeconds : entry?.seconds ?? homepageCategories.defaultSeconds;
+                const pagination = homepageCategories.mode === "automatic" ? homepageCategories.defaultPagination : entry?.pagination ?? homepageCategories.defaultPagination;
+                const perView = homepageCategories.mode === "automatic" ? homepageCategories.defaultPerView : { ...homepageCategories.defaultPerView, ...(entry?.perView ?? {}) };
                 return (
                   <div key={category.id} draggable={homepageCategories.mode === "manual"} onDragStart={() => setDraggedCategoryId(category.id)} onDragOver={(event) => { if (homepageCategories.mode === "manual") event.preventDefault(); }} onDrop={(event) => { event.preventDefault(); if (draggedCategoryId) reorderHomepageCategory(draggedCategoryId, category.id); setDraggedCategoryId(null); }} onDragEnd={() => setDraggedCategoryId(null)} className={`rounded-xl border p-3 transition sm:p-4 ${visible ? "border-gray-200 dark:border-white/10" : "border-dashed border-gray-200 opacity-70 dark:border-white/10"} ${draggedCategoryId === category.id ? "opacity-40" : ""}`}>
                     <div className="flex flex-wrap items-center gap-3">
@@ -4134,7 +4184,7 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
                       <Switch size="sm" isSelected={visible} onValueChange={(checked) => updateHomepageCategory(category.id, { visible: checked })} color="primary">Show</Switch>
                       {homepageCategories.mode === "manual" && <div className="flex gap-1"><button type="button" aria-label={`Move ${category.name} up`} disabled={index === 0} onClick={() => moveHomepageCategory(category.id, -1)} className="grid h-8 w-8 place-items-center rounded-lg border text-gray-600 disabled:opacity-30 dark:border-white/10 dark:text-slate-300"><FiArrowUp /></button><button type="button" aria-label={`Move ${category.name} down`} disabled={index === orderedHomepageCategories.length - 1} onClick={() => moveHomepageCategory(category.id, 1)} className="grid h-8 w-8 place-items-center rounded-lg border text-gray-600 disabled:opacity-30 dark:border-white/10 dark:text-slate-300"><FiArrowDown /></button></div>}
                     </div>
-                    <details className="homepage-category-details mt-3 border-t border-gray-100 pt-3 dark:border-white/10">
+                    {homepageCategories.mode === "manual" && <details className="homepage-category-details mt-3 border-t border-gray-100 pt-3 dark:border-white/10">
                       <summary>Section settings</summary>
                       <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <div>
@@ -4144,11 +4194,21 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
                           {entry?.productLimit !== undefined && <button type="button" onClick={() => updateHomepageCategory(category.id, { productLimit: undefined })} className="text-xs font-semibold text-primary hover:underline">Use default</button>}
                         </div>
                       </div>
-                      <Select label="Display style" selectedKeys={[style]} onSelectionChange={(keys) => { const value = Array.from(keys as Set<string>)[0]; if (value === "grid" || value === "slider") updateHomepageCategory(category.id, { displayStyle: value }); }}>
-                        <SelectItem key="grid">Grid</SelectItem><SelectItem key="slider">Slider</SelectItem>
+                      <Select label="Display mode" selectedKeys={[style]} onSelectionChange={(keys) => { const value = Array.from(keys as Set<string>)[0]; if (value === "grid" || value === "slider" || value === "loop") updateHomepageCategory(category.id, { displayStyle: value, ...(value === "loop" ? { auto: true, loop: true } : {}) }); }}>
+                        <SelectItem key="grid">Grid</SelectItem><SelectItem key="slider">Slider</SelectItem><SelectItem key="loop">Loop auto-sliding carousel</SelectItem>
                       </Select>
+                      {style !== "grid" && <>
+                        <Input type="number" min={1} max={60} label="Auto-slide seconds" value={String(seconds)} onValueChange={(value) => updateHomepageCategory(category.id, { seconds: Math.max(1, Math.min(60, Math.floor(Number(value) || 3))) })} />
+                        {(["mobile", "tablet", "desktop"] as const).map((device) => <Input key={device} type="number" min={1} max={12} label={`Per view — ${device}`} value={String(perView[device])} onValueChange={(value) => updateHomepageCategory(category.id, { perView: { ...perView, [device]: Math.max(1, Math.min(12, Math.floor(Number(value) || 1))) } })} />)}
+                        <div className="flex flex-wrap items-center gap-4 sm:col-span-2">
+                          {style === "slider" && <Switch size="sm" isSelected={auto} onValueChange={(value) => updateHomepageCategory(category.id, { auto: value })} color="primary">Auto-slide</Switch>}
+                          {style === "slider" && <Switch size="sm" isSelected={loop} onValueChange={(value) => updateHomepageCategory(category.id, { loop: value })} color="primary">Loop</Switch>}
+                          <Switch size="sm" isSelected={pagination} onValueChange={(value) => updateHomepageCategory(category.id, { pagination: value })} color="primary">Pagination dots</Switch>
+                        </div>
+                      </>}
+                      {(entry?.displayStyle !== undefined || entry?.auto !== undefined || entry?.loop !== undefined || entry?.seconds !== undefined || entry?.pagination !== undefined || entry?.perView !== undefined) && <button type="button" onClick={() => updateHomepageCategory(category.id, { displayStyle: undefined, auto: undefined, loop: undefined, seconds: undefined, pagination: undefined, perView: undefined })} className="text-left text-xs font-semibold text-primary hover:underline sm:col-span-2">Use automatic defaults</button>}
                       </div>
-                    </details>
+                    </details>}
                   </div>
                 );
               })}

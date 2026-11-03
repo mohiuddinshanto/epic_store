@@ -288,9 +288,14 @@ type HomeSectionDef = {
 export type HomepageCategoriesSettings = {
   mode: "manual" | "automatic";
   defaultProductLimit: number | null;
-  defaultDisplayStyle: "grid" | "slider";
+  defaultDisplayStyle: "grid" | "slider" | "loop";
+  defaultAuto: boolean;
+  defaultLoop: boolean;
+  defaultSeconds: number;
+  defaultPagination: boolean;
+  defaultPerView: PerView;
   defaultOrder: "alphabetical" | "newest";
-  categories: { categoryId: string; visible: boolean; productLimit?: number | null; displayStyle?: "grid" | "slider" }[];
+  categories: { categoryId: string; visible: boolean; productLimit?: number | null; displayStyle?: "grid" | "slider" | "loop"; auto?: boolean; loop?: boolean; seconds?: number; pagination?: boolean; perView?: PerView }[];
 };
 
 export type PromoBannerDef = {
@@ -375,13 +380,26 @@ export function CatalogHome({
     items: products.filter((p) => p.categoryId === c.id),
   }));
 
-  const effectiveHomepageCategories = homepageCategories ?? (!sections?.length ? {
+  const defaultHomepageCategories: HomepageCategoriesSettings = {
     mode: "automatic" as const,
     defaultProductLimit: 8,
     defaultDisplayStyle: "slider" as const,
+    defaultAuto: false,
+    defaultLoop: false,
+    defaultSeconds: 3,
+    defaultPagination: false,
+    defaultPerView: { mobile: 2, tablet: 4, desktop: 6 },
     defaultOrder: "alphabetical" as const,
     categories: [],
-  } : null);
+  };
+  const effectiveHomepageCategories = homepageCategories
+    ? {
+        ...defaultHomepageCategories,
+        ...homepageCategories,
+        defaultPerView: { ...defaultHomepageCategories.defaultPerView, ...(homepageCategories.defaultPerView ?? {}) },
+        categories: homepageCategories.categories ?? [],
+      }
+    : !sections?.length ? defaultHomepageCategories : null;
 
   const managedSections = effectiveHomepageCategories ? (() => {
     const settings = effectiveHomepageCategories;
@@ -398,20 +416,26 @@ export function CatalogHome({
       const entry = entries.get(category.id);
       const visible = entry?.visible ?? settings.mode === "automatic";
       if (!visible || categoryProducts.length === 0) return [];
-      const limit = entry?.productLimit === undefined ? settings.defaultProductLimit : entry.productLimit;
+      const limit = settings.mode === "automatic" || entry?.productLimit === undefined ? settings.defaultProductLimit : entry.productLimit;
       const items = limit === null ? categoryProducts : categoryProducts.slice(0, Math.max(1, Math.min(50, Math.floor(limit ?? 8))));
-      const displayStyle = entry?.displayStyle ?? settings.defaultDisplayStyle;
+      const displayStyle = settings.mode === "automatic" ? settings.defaultDisplayStyle : entry?.displayStyle ?? settings.defaultDisplayStyle;
+      const isLoop = displayStyle === "loop";
+      const auto = settings.mode === "automatic" ? settings.defaultAuto : entry?.auto ?? settings.defaultAuto;
+      const loop = settings.mode === "automatic" ? settings.defaultLoop : entry?.loop ?? settings.defaultLoop;
+      const seconds = settings.mode === "automatic" ? settings.defaultSeconds : entry?.seconds ?? settings.defaultSeconds;
+      const pagination = settings.mode === "automatic" ? settings.defaultPagination : entry?.pagination ?? settings.defaultPagination;
+      const perView = settings.mode === "automatic" ? settings.defaultPerView : { ...settings.defaultPerView, ...(entry?.perView ?? {}) };
       return [{
         id: `home-category-${category.id}`,
         title: category.name,
         categoryIds: [category.id],
-        mode: displayStyle === "grid" ? "grid" as const : "carousel" as const,
+        mode: displayStyle === "grid" ? "grid" as const : isLoop ? "infinite" as const : "carousel" as const,
         productLimit: limit,
-        auto: false,
-        seconds: 4,
-        perView: { mobile: 1.5, tablet: 2.5, desktop: 3 },
-        pagination: false,
-        loop: false,
+        auto: isLoop || auto,
+        seconds,
+        perView,
+        pagination,
+        loop: isLoop || loop,
         showViewAll: true,
         items,
         slug: category.slug,
