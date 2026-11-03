@@ -13,6 +13,7 @@ import { CarouselSlider } from "./carousel-slider";
 import { CatalogHome } from "./catalog-home";
 import { StoreFooter } from "./store-footer";
 import { HomeSkeleton } from "./skeletons";
+import { ProductImage } from "./product-image";
 import {
   FiArrowRight,
   FiCheckCircle,
@@ -1493,7 +1494,7 @@ export function MiniProductCard({
       }`}
     >
       <Link href={`/products/${p.slug}`} className="relative block aspect-[3/4] overflow-hidden bg-slate-100">
-        <Image
+        <ProductImage
           src={p.images[0] || FALLBACK_IMG}
           alt={p.name}
           fill

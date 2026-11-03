@@ -1,5 +1,5 @@
 "use client";
-import Image from "next/image";
+import { ProductImage } from "./product-image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
@@ -10,7 +10,7 @@ import { ProductGridSkeleton, Skeleton } from "./skeletons";
 import { FiArrowLeft, FiHeart, FiMessageCircle, FiShoppingBag, FiZap } from "react-icons/fi";
 
 const apiUrl = "";
-const FALLBACK_IMG = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80";
+const FALLBACK_IMG = "/product-placeholder.svg";
 
 type Product = {
   id: string;
@@ -90,7 +90,7 @@ function CatalogCard({
           <span className="absolute left-2.5 top-2.5 z-10 rounded bg-white/90 px-2.5 py-0.5 text-xs font-medium text-gray-800 shadow-sm backdrop-blur-sm">{p.category.name}</span>
           {hasSale && <span className="absolute right-2.5 top-2.5 z-10 rounded bg-rose-700 px-2.5 py-0.5 text-xs font-bold text-white shadow-sm">ছাড়</span>}
           <Link href={`/products/${p.slug}`} className="block h-full w-full">
-            <Image src={img} alt={p.name} fill sizes="(max-width: 650px) 50vw, 290px" className="object-cover object-top transition duration-500 group-hover:scale-105" />
+            <ProductImage src={img} alt={p.name} fill sizes="(max-width: 650px) 50vw, 290px" className="object-cover object-top transition duration-500 group-hover:scale-105" />
           </Link>
         </div>
         <Link href={`/products/${p.slug}`} className="mb-1 block text-base font-bold leading-snug text-gray-900 line-clamp-2 hover:text-[var(--primary)]">{p.name}</Link>
@@ -154,7 +154,7 @@ function ClassicCard({
   return (
     <article className="group overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/40 hover:shadow-md w-full h-full">
       <Link href={`/products/${p.slug}`} className="relative block aspect-[3/4] overflow-hidden bg-slate-100">
-        <Image src={p.images[0] || FALLBACK_IMG} alt={p.name} fill sizes="(max-width: 650px) 50vw, 280px" className="object-cover transition-transform duration-300 group-hover:scale-105" />
+        <ProductImage src={p.images[0] || FALLBACK_IMG} alt={p.name} fill sizes="(max-width: 650px) 50vw, 280px" className="object-cover transition-transform duration-300 group-hover:scale-105" />
         {hasSale && <span className="absolute left-3 top-3 rounded-full border border-rose-500/30 bg-rose-500/90 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide text-white backdrop-blur-md">SALE</span>}
         <button onClick={(e) => onWishlist(p.id, e)} aria-label="Wishlist" className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full border border-white/60 bg-white/85 text-slate-500 backdrop-blur-md transition-all hover:text-rose-500" style={{ color: wishlisted ? "#ef4444" : "inherit" }}>
           <FiHeart size={16} fill={wishlisted ? "#ef4444" : "none"} />

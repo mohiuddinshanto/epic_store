@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import { ProductImage } from "./product-image";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -32,8 +32,7 @@ import { ProductGridSkeleton } from "./skeletons";
 
 const apiUrl = "";
 const SHOP_PAGE_SIZE = 24;
-const FALLBACK_IMG =
-  "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80";
+const FALLBACK_IMG = "/product-placeholder.svg";
 
 type Product = {
   id: string;
@@ -198,7 +197,7 @@ function ShopProductCard({
             </span>
           )}
           <Link href={`/products/${p.slug}`} className="block h-full w-full">
-            <Image
+            <ProductImage
               src={img}
               alt={p.name}
               fill
@@ -325,7 +324,7 @@ function ShopProductCard({
             </span>
           )}
           <Link href={`/products/${p.slug}`} className="block h-full w-full">
-            <Image
+            <ProductImage
               src={img}
               alt={p.name}
               fill

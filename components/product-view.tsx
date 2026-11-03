@@ -1,7 +1,7 @@
 "use client";
 
 import { Button, Textarea } from "@heroui/react";
-import Image from "next/image";
+import { ProductImage } from "./product-image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
@@ -336,8 +336,8 @@ export function ProductView({ slug, initialProduct }: { slug: string; initialPro
         {/* Left Column: Image Showcase */}
         <div>
           <div className="detail-image" onClick={() => setLightboxOpen(true)} role="button" tabIndex={0} aria-label="View image enlarged" style={{ cursor: "zoom-in" }}>
-            <Image
-              src={activeImg || product.images[0] || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&q=80"}
+            <ProductImage
+              src={activeImg || product.images[0] || "/product-placeholder.svg"}
               alt={product.imagesDetails?.find((i) => i.url === activeImg)?.altText || product.name}
               fill
               sizes="50vw"
@@ -362,7 +362,7 @@ export function ProductView({ slug, initialProduct }: { slug: string; initialPro
                     background: "none",
                   }}
                 >
-                  <img src={imgUrl} alt={product.imagesDetails?.[index]?.altText || ""} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  <img src={imgUrl} alt={product.imagesDetails?.[index]?.altText || ""} onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = "/product-placeholder.svg"; }} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 </button>
               ))}
             </div>

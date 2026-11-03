@@ -1,11 +1,11 @@
 "use client";
 
-import Image from "next/image";
+import { ProductImage } from "./product-image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { CarouselSlider } from "./carousel-slider";
 
-const FALLBACK_IMG = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&q=80";
+const FALLBACK_IMG = "/product-placeholder.svg";
 
 type RelatedProduct = {
   id: string;
@@ -24,7 +24,7 @@ function RelatedCard({ p }: { p: RelatedProduct }) {
   return (
     <article className="group h-full overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/40 hover:shadow-md">
       <Link href={`/products/${p.slug}`} className="relative block aspect-[3/4] overflow-hidden bg-slate-100">
-        <Image
+        <ProductImage
           src={p.images[0] || FALLBACK_IMG}
           alt={p.name}
           fill

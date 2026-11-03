@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
+import { ProductImage } from "./product-image";
 import toast from "react-hot-toast";
 import { FiChevronLeft, FiChevronRight, FiShoppingBag, FiArrowRight, FiCheck, FiTruck, FiRefreshCw, FiShield, FiMessageCircle, FiClock, FiStar, FiHeadphones } from "react-icons/fi";
 import type { IconType } from "react-icons";
@@ -172,7 +173,7 @@ export function CatalogCard({
             </span>
           )}
           <Link href={`/products/${p.slug}`} className="block h-full w-full">
-            <Image
+            <ProductImage
               src={img}
               alt={p.name}
               fill
