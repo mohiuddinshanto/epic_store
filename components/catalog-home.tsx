@@ -161,7 +161,7 @@ export function CatalogCard({
     : null;
 
   return (
-    <div className={`flex flex-col justify-between rounded-2xl border border-gray-100 bg-white p-3 shadow-sm transition-all duration-300 hover:shadow-xl ${fill ? "h-full w-full" : "w-[270px] min-w-[270px] sm:w-[290px] sm:min-w-[290px] max-w-[290px]"}`}>
+    <div className={`flex flex-col justify-between rounded-2xl border border-gray-100 bg-white p-2.5 shadow-sm transition-all duration-300 hover:shadow-xl sm:p-3 ${fill ? "h-full w-full" : "w-[270px] min-w-[270px] sm:w-[290px] sm:min-w-[290px] max-w-[290px]"}`}>
       <div>
         <div className="relative mb-3 aspect-[4/5] overflow-hidden rounded-xl bg-gray-100 group">
           <span className="absolute left-2.5 top-2.5 z-10 rounded bg-white/90 px-2.5 py-0.5 text-xs font-medium text-gray-800 shadow-sm backdrop-blur-sm">
@@ -182,17 +182,17 @@ export function CatalogCard({
             />
           </Link>
         </div>
-        <Link href={`/products/${p.slug}`} className="mb-1 block text-base font-bold leading-snug text-gray-900 line-clamp-2 hover:text-[var(--primary)]">
+        <Link href={`/products/${p.slug}`} className="mb-1 block text-[15px] font-bold leading-snug text-gray-900 line-clamp-2 hover:text-[var(--primary)] sm:text-base">
           {p.name}
         </Link>
         <div className="mb-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-          <span className="text-lg font-bold text-gray-900">{money(displayPrice)}</span>
+          <span className="text-base font-bold text-gray-900 sm:text-lg">{money(displayPrice)}</span>
           {displayOriginal && <span className="text-xs text-gray-400 line-through">{money(displayOriginal)}</span>}
         </div>
 
         {sizes.length > 0 && (
           <div className="mb-3">
-            <p className="mb-1.5 text-sm font-medium text-gray-600">
+            <p className="mb-1.5 text-xs font-medium text-gray-600 sm:text-sm">
               সাইজ সিলেক্ট করুন:
               {selectedSize && <span className="ml-1 font-bold text-[var(--primary)]">({selectedSize})</span>}
             </p>
@@ -208,7 +208,7 @@ export function CatalogCard({
                     key={size}
                     type="button"
                     onClick={() => setSelectedSize(size)}
-                    className={`min-w-[36px] rounded px-2 py-1 text-center text-xs font-semibold leading-tight transition
+                    className={`min-w-[32px] rounded px-1.5 py-1 text-center text-xs font-semibold leading-tight transition sm:min-w-[36px] sm:px-2
                       ${outOfStock
                         ? isSelected
                           ? "border-2 border-gray-400 bg-gray-300 text-white shadow-sm"
@@ -227,21 +227,23 @@ export function CatalogCard({
         )}
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-1.5 sm:space-y-2">
         <button
           type="button"
           onClick={handleBuyNow}
-          className="flex w-full items-center justify-center gap-1.5 whitespace-normal rounded-lg bg-[var(--primary)] px-3 py-2.5 text-center text-sm font-bold leading-tight text-white shadow transition hover:bg-[var(--primary-hover)] hover:shadow-md active:scale-[0.98]"
+          className="flex min-h-10 w-full items-center justify-center gap-1 whitespace-nowrap rounded-lg bg-[var(--primary)] px-1.5 py-2 text-center text-[10px] font-bold leading-tight text-white shadow transition hover:bg-[var(--primary-hover)] hover:shadow-md active:scale-[0.98] min-[400px]:px-2 min-[400px]:text-xs sm:min-h-11 sm:px-3 sm:text-sm"
         >
           <span className="text-sm text-amber-400">⚡</span>
           <span>সরাসরি অর্ডার করুন</span>
         </button>
-        <div className="grid grid-cols-1 gap-2 min-[400px]:grid-cols-2">
+        <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
           <button
             type="button"
             onClick={handleAddToCart}
             disabled={!allowAddToCart}
-            className={`flex items-center justify-center gap-1 whitespace-normal rounded-lg px-2 py-2 text-sm font-semibold leading-tight transition ${
+            aria-label="কার্টে যোগ করুন"
+            title="কার্টে যোগ করুন"
+            className={`flex min-h-10 min-w-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg px-1 py-2 text-[0px] font-semibold leading-tight transition min-[480px]:px-2 min-[480px]:text-xs ${
               !allowAddToCart
                 ? "cursor-not-allowed bg-gray-100 text-gray-400"
                 : "bg-gray-100 text-gray-800 hover:bg-gray-200"
@@ -254,12 +256,14 @@ export function CatalogCard({
               href={waHref}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center gap-1 whitespace-normal rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-2 text-sm font-semibold leading-tight text-emerald-800 transition hover:bg-emerald-100"
+              aria-label="WhatsApp-এ যোগাযোগ করুন"
+              title="WhatsApp-এ যোগাযোগ করুন"
+              className="flex min-h-10 min-w-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-emerald-200 bg-emerald-50 px-1 py-2 text-[0px] font-semibold leading-tight text-emerald-800 transition hover:bg-emerald-100 min-[480px]:px-2 min-[480px]:text-xs"
             >
               <FiMessageCircle size={13} /> হোয়াটসঅ্যাপ
             </a>
           ) : (
-            <span className="flex items-center justify-center whitespace-normal rounded-lg border border-gray-100 bg-gray-50 px-2 py-2 text-sm leading-tight text-gray-400">
+            <span aria-label="WhatsApp unavailable" className="flex min-h-10 min-w-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-gray-100 bg-gray-50 px-1 py-2 text-[0px] leading-tight text-gray-400 min-[480px]:px-2 min-[480px]:text-xs">
               <FiMessageCircle size={13} /> হোয়াটসঅ্যাপ
             </span>
           )}
