@@ -117,6 +117,8 @@ type HomeSection = {
 
 type CategoryDisplayConfig = {
   maxCategories?: number;
+  selectionMode?: "automatic" | "manual";
+  categoryIds?: string[];
   mode?: "grid" | "carousel" | "loop";
   auto?: boolean;
   loop?: boolean;

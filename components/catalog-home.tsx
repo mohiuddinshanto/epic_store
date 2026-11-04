@@ -322,6 +322,7 @@ export type TrustBadgeDef = {
 
 export type CategoryShowcase = {
   maxCategories?: number;
+  selectionMode?: "automatic" | "manual";
   categoryIds?: string[];
   mode?: "grid" | "carousel" | "loop";
   auto?: boolean;
@@ -371,15 +372,16 @@ export function CatalogHome({
   const [activeTab, setActiveTab] = useState<string>("all");
   const maxCategories = Math.max(1, Math.min(50, Math.floor(categoryShowcase?.maxCategories ?? 8)));
 
-  const selectedCategoryIds = categoryShowcase?.categoryIds;
-  const showcaseCategories = selectedCategoryIds?.length
+  const selectionMode = categoryShowcase?.selectionMode ?? (categoryShowcase?.categoryIds ? "manual" : "automatic");
+  const selectedCategoryIds = categoryShowcase?.categoryIds ?? [];
+  const showcaseCategories = selectionMode === "manual"
     ? categories.filter((category) => selectedCategoryIds.includes(category.id))
-    : categories.filter((category) => !category.parentId);
+    : categories;
   const catCounts = showcaseCategories.map((c) => ({
     ...c,
     count: products.filter((p) => p.categoryId === c.id).length,
   }));
-  const tabCats = selectedCategoryIds?.length ? catCounts : catCounts.filter((c) => c.count > 0);
+  const tabCats = catCounts;
   const filteredProducts =
     activeTab === "all" ? products : products.filter((p) => p.categoryId === activeTab);
 

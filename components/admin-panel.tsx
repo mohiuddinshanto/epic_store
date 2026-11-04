@@ -2230,6 +2230,7 @@ function AdminProducts({ token }: { token: string }) {
 /* ==================== CATEGORIES ==================== */
 type CategoryDisplay = {
   maxCategories?: number;
+  selectionMode?: "automatic" | "manual";
   categoryIds?: string[];
   mode?: "grid" | "carousel" | "loop";
   auto?: boolean;
@@ -3977,9 +3978,10 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
 
   function saveCatShow() {
     const mode: CategoryDisplay["mode"] = catShow.mode === "carousel" || catShow.mode === "loop" ? catShow.mode : "grid";
-    const clean: typeof catShow = { mode };
+    const selectionMode = catShow.selectionMode ?? (catShow.categoryIds ? "manual" : "automatic");
+    const clean: typeof catShow = { mode, selectionMode };
     clean.maxCategories = Math.max(1, Math.min(50, Math.floor(Number(catShow.maxCategories) || 8)));
-    clean.categoryIds = catShow.categoryIds?.length ? catShow.categoryIds : undefined;
+    clean.categoryIds = selectionMode === "manual" ? (catShow.categoryIds ?? []) : undefined;
     clean.eyebrow = catShow.eyebrow?.trim() || undefined;
     clean.title = catShow.title?.trim() || undefined;
     clean.accent = catShow.accent?.trim() || undefined;
@@ -4258,24 +4260,42 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Select
-            label="Categories shown in this section"
+            label="How should categories be added?"
+            selectedKeys={[catShow.selectionMode ?? (catShow.categoryIds ? "manual" : "automatic")]}
+            onSelectionChange={(keys) => {
+              const selectionMode = Array.from(keys as Set<string>)[0];
+              if (selectionMode === "automatic" || selectionMode === "manual") {
+                setCatShow((current) => ({ ...current, selectionMode, ...(selectionMode === "manual" && !current.categoryIds ? { categoryIds: [] } : {}) }));
+                setCatShowDirty(true);
+              }
+            }}
+            className="sm:col-span-3"
+          >
+            <SelectItem key="automatic">Automatic — include all categories and new ones</SelectItem>
+            <SelectItem key="manual">Manual — choose which categories to show</SelectItem>
+          </Select>
+          {(catShow.selectionMode ?? (catShow.categoryIds ? "manual" : "automatic")) === "manual" && <Select
+            label="Choose categories and sub-categories"
             aria-label="Choose categories and sub-categories for the home page category section"
             selectionMode="multiple"
             selectedKeys={new Set(catShow.categoryIds ?? [])}
             onSelectionChange={(keys) => {
               const ids = Array.from(keys as Set<string>);
-              setCatShow((current) => ({ ...current, categoryIds: ids.length ? ids : undefined }));
+              setCatShow((current) => ({ ...current, categoryIds: ids }));
               setCatShowDirty(true);
             }}
-            description="Choose individual categories and sub-categories. Leave empty to show all top-level categories."
+            description="Each option shows the number of active products in it."
             className="sm:col-span-3"
           >
             {cats.map((category) => (
               <SelectItem key={category.id} textValue={category.name}>
-                {category.parentId ? `↳ ${category.name} (sub-category)` : category.name}
+                <span className="flex w-full items-center justify-between gap-3">
+                  <span className="truncate">{category.parentId ? `↳ ${category.name} (sub-category)` : category.name}</span>
+                  <span className="shrink-0 text-xs text-gray-500">{category._count?.products ?? 0} products</span>
+                </span>
               </SelectItem>
             ))}
-          </Select>
+          </Select>}
           <Input type="number" label="Categories to show on home page" min={1} max={50} value={String(catShow.maxCategories ?? 8)} onValueChange={(v) => { setCatShow((s) => ({ ...s, maxCategories: Math.max(1, Math.min(50, Math.floor(Number(v) || 1))) })); setCatShowDirty(true); }} />
           <Input label="Eyebrow" placeholder="SHOP BY CATEGORY" value={catShow.eyebrow ?? ""} onValueChange={(v) => { setCatShow((s) => ({ ...s, eyebrow: v })); setCatShowDirty(true); }} />
           <Input label="Title" placeholder="Curated collections," value={catShow.title ?? ""} onValueChange={(v) => { setCatShow((s) => ({ ...s, title: v })); setCatShowDirty(true); }} />
