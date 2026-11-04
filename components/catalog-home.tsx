@@ -556,7 +556,7 @@ export function CatalogHome({
             items={heroSlides.map((s) => (
               <div key={s.id} className="relative flex min-h-[360px] items-center overflow-hidden bg-gradient-to-r from-[#031d14] via-[var(--primary)] to-[#12573d] text-white sm:min-h-[420px] md:min-h-[480px]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={s.image} alt={s.title || "Banner"} className="absolute inset-0 h-full w-full object-cover opacity-40" />
+                <img src={s.image} alt="" fetchPriority="high" decoding="async" className="absolute inset-0 h-full w-full object-cover opacity-40" />
                 <div className="relative z-10 grid w-full items-center gap-6 px-5 py-8 sm:px-8 sm:gap-6 md:grid-cols-12 md:px-14">
                   <div className="space-y-4 md:col-span-7">
                     {s.badge && <p className="text-sm font-medium tracking-wide text-amber-300">{s.badge}</p>}
@@ -625,7 +625,7 @@ export function CatalogHome({
               />
             </div>
             <h3 className="truncate text-sm font-bold text-gray-800 group-hover:text-[var(--primary)] sm:text-[0.95rem]">{c.name}</h3>
-            <p className="text-xs text-gray-400">({c.count} টি)</p>
+            <p className="text-xs text-gray-600">({c.count} টি)</p>
           </Link>
         );
         return (
@@ -789,7 +789,7 @@ export function CatalogHome({
                       <Ic size={22} />
                     </div>
                     <div>
-                      <h4 className="text-sm font-bold text-gray-900">{t.title}</h4>
+                      <h3 className="text-sm font-bold text-gray-900">{t.title}</h3>
                       <p className="text-xs text-gray-500">{t.subtitle}</p>
                     </div>
                   </div>

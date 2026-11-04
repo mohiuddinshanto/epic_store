@@ -569,9 +569,13 @@ app.post("/api/auth/reset-password", rateLimit({ windowMs: 15 * 60_000, max: 10 
 });
 
 // Customer Wishlist
-app.get("/api/wishlist", requireAuth, async (req, res) =>
-  res.json(await prisma.wishlist.findMany({ where: { userId: req.user!.id }, include: { product: { include: { category: true } } } }))
-);
+app.get("/api/wishlist", async (req, res) => {
+  const token = readSessionToken(req);
+  if (!token) return res.json([]);
+  const session = await prisma.session.findUnique({ where: { token }, select: { userId: true, expiresAt: true } });
+  if (!session || session.expiresAt <= new Date()) return res.json([]);
+  res.json(await prisma.wishlist.findMany({ where: { userId: session.userId }, include: { product: { include: { category: true } } } }));
+});
 app.post("/api/wishlist/:productId", requireAuth, async (req, res) => {
   const productId = String(req.params.productId);
   const where = { userId_productId: { userId: req.user!.id, productId } };

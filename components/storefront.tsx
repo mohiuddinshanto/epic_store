@@ -852,11 +852,11 @@ export function Storefront({
                   <div key={slide.id} className="relative flex min-h-[320px] items-center sm:min-h-[440px] lg:min-h-[480px]">
                     <Image
                       src={slide.image}
-                      alt={slide.title || "Banner"}
+                      alt=""
                       fill
                       priority
                       sizes="100vw"
-                      className="object-cover"
+                      className="object-cover opacity-40"
                     />
                     <div className="absolute inset-0 bg-gradient-to-r from-white via-white/92 to-white/40" />
                     <div className="relative z-10 w-full max-w-2xl space-y-4 p-5 sm:p-10 lg:p-14">
@@ -1483,7 +1483,7 @@ export function MiniProductCard({
           src={p.images[0] || FALLBACK_IMG}
           alt={p.name}
           fill
-          sizes="(max-width: 650px) 55vw, 280px"
+          sizes="(max-width: 650px) 70vw, 280px"
           className="object-cover transition-transform duration-300 group-hover:scale-105"
         />
         {hasSale && (

@@ -394,6 +394,8 @@ export function ProductView({ slug, initialProduct }: { slug: string; initialPro
             <img
               src={activeImg}
               alt={product.name}
+              fetchPriority="high"
+              decoding="async"
               style={{
                 maxWidth: "92vw",
                 maxHeight: "88vh",

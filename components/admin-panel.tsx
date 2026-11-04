@@ -5178,6 +5178,9 @@ function BannerSettings({ save, saving, config, token }: { save: (payload: objec
   const [announceLinkLabel, setAnnounceLinkLabel] = useState(current.announceLinkLabel ?? "Explore Drops");
   const [announceLink, setAnnounceLink] = useState(current.announceLink ?? "#categories");
   const [heroSeconds, setHeroSeconds] = useState(String(current.seconds ?? 6));
+  const [mediaItems, setMediaItems] = useState<{ url: string; filename: string; altText?: string | null }[]>([]);
+  const [mediaPickerSlide, setMediaPickerSlide] = useState<string | null>(null);
+  const [mediaLoading, setMediaLoading] = useState(false);
 
   type SlideData = {
     id: string;
@@ -5258,6 +5261,22 @@ function BannerSettings({ save, saving, config, token }: { save: (payload: objec
 
   function updateSlide(id: string, patch: Partial<SlideData>) {
     setSlides((old) => old.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+  }
+
+  async function toggleMediaPicker(id: string) {
+    if (mediaPickerSlide === id) { setMediaPickerSlide(null); return; }
+    setMediaPickerSlide(id);
+    if (mediaItems.length) return;
+    setMediaLoading(true);
+    try {
+      const response = await fetch(apiUrl + "/api/admin/media", { headers: { Authorization: `Bearer ${token}` } });
+      if (!response.ok) throw new Error("Could not load image library");
+      const data = await response.json();
+      setMediaItems(Array.isArray(data) ? data : data.items ?? []);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not load image library");
+      setMediaPickerSlide(null);
+    } finally { setMediaLoading(false); }
   }
 
   async function handleUpload(id: string, event: React.ChangeEvent<HTMLInputElement>) {
@@ -5395,6 +5414,9 @@ function BannerSettings({ save, saving, config, token }: { save: (payload: objec
                 {slide.uploading ? "Uploading…" : "Upload Image"}
                 <input type="file" accept="image/*" className="hidden" onChange={(e) => handleUpload(slide.id, e)} disabled={slide.uploading} />
               </label>
+              <button type="button" onClick={() => toggleMediaPicker(slide.id)} className="flex items-center gap-2 px-3 h-9 rounded-lg border border-primary/20 text-xs font-semibold text-primary hover:bg-primary/5">
+                <FiImage size={14} /> {mediaPickerSlide === slide.id ? "Hide image library" : "Choose existing image"}
+              </button>
               {slide.image && (
                 <button type="button" onClick={() => updateSlide(slide.id, { image: "" })} className="px-3 h-8 rounded-lg text-xs font-semibold text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors">
                   Remove
@@ -5402,6 +5424,17 @@ function BannerSettings({ save, saving, config, token }: { save: (payload: objec
               )}
             </div>
           </div>
+          {mediaPickerSlide === slide.id && (
+            <div className="rounded-xl border border-gray-100 p-3 dark:border-white/10">
+              {mediaLoading ? <p className="py-5 text-center text-sm text-gray-500">Loading images…</p> : mediaItems.length ? (
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+                  {mediaItems.map((image) => <button type="button" key={image.url} onClick={() => { updateSlide(slide.id, { image: image.url }); setMediaPickerSlide(null); }} className={`overflow-hidden rounded-lg border-2 ${slide.image === image.url ? "border-primary" : "border-transparent"}`} title={image.filename}>
+                    <img src={image.url} alt={image.altText ?? image.filename} className="h-20 w-full object-cover" />
+                  </button>)}
+                </div>
+              ) : <p className="py-5 text-center text-sm text-gray-500">No existing images found. Upload one above.</p>}
+            </div>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="Badge" placeholder="e.g. নতুন কালেকশন" value={slide.badge} onValueChange={(v) => updateSlide(slide.id, { badge: v })} />
