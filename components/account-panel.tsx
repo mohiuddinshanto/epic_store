@@ -191,7 +191,7 @@ export function AccountPanel() {
 
   if (!user) {
     return (
-      <main className="relative min-h-[80vh] overflow-hidden px-6 py-14">
+      <main className="account-auth relative min-h-[80vh] overflow-hidden px-6 py-14">
         <div
           aria-hidden
           className="pointer-events-none absolute -top-24 right-[-12%] h-96 w-96 rounded-full bg-gradient-to-br from-primary/15 to-cyan/15 blur-3xl"
@@ -217,7 +217,7 @@ export function AccountPanel() {
                 <FiUser size={12} /> কাস্টমার পোর্টাল
               </span>
               <h1 className="font-display mt-4 text-3xl font-extrabold tracking-tight">
-                <span className="gradient-text">স্বাগতম।</span> লগইন করুন।
+                <span>স্বাগতম।</span> লগইন করুন।
               </h1>
               <div aria-hidden className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-white/10 blur-2xl" />
             </div>
@@ -238,7 +238,7 @@ export function AccountPanel() {
                 </form>
               ) : (
                 <>
-                  <Tabs aria-label="Account" color="primary" fullWidth size="md" variant="solid">
+                  <Tabs className="account-auth-tabs" aria-label="Account" color="primary" fullWidth size="md" variant="solid">
                     <Tab key="signin" title="লগইন">
                       <AccountForm mode="sign-in" submit={submit} />
                     </Tab>
@@ -506,7 +506,7 @@ function AccountForm({
   return (
     <form
       onSubmit={(event) => submit(event, mode)}
-      className="flex flex-col gap-4"
+      className="account-form flex flex-col gap-4"
     >
       {mode === "sign-up" && (
         <Input name="name" label="Full name" placeholder="Rahim Ahmed" isRequired startContent={<FiUser />} />

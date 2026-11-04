@@ -24,6 +24,13 @@ store-app/
 | Auth      | Bearer session tokens stored in the database, role based            |
 | Secrets   | AES-256-GCM for payment / SMTP / courier / AI credentials          |
 
+## Customer account page
+
+The `/account` sign-in and registration page uses a responsive customer portal
+layout with clear tab states, readable form fields, visible keyboard focus, and
+touch-friendly controls. Its styling is scoped to the sign-in experience so it
+does not change the customer dashboard after login.
+
 ## Local development
 
 1. Copy the env file and point `DATABASE_URL` at a MySQL server:
