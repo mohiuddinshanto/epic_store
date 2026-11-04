@@ -195,7 +195,7 @@ function ShopProductCard({
           </span>
           {hasSale && (
             <span className="absolute right-2.5 top-2.5 z-10 rounded-full bg-rose-600 px-2.5 py-0.5 text-xs font-bold text-white shadow-sm">
-              -{discountPercent}% ছাড়
+              {discountPercent}% ছাড়
             </span>
           )}
           <Link href={`/products/${p.slug}`} className="block h-full w-full">
@@ -322,7 +322,7 @@ function ShopProductCard({
           </span>
           {hasSale && (
             <span className="absolute right-2.5 top-2.5 z-10 rounded-full bg-rose-600 px-2.5 py-0.5 text-[11px] font-bold text-white shadow-xs">
-              -{discountPercent}% ছাড়
+              {discountPercent}% ছাড়
             </span>
           )}
           <Link href={`/products/${p.slug}`} className="block h-full w-full">

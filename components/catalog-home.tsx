@@ -101,6 +101,7 @@ export function CatalogCard({
   const hasSale = Boolean(p.salePrice && Number(p.salePrice) < Number(p.price));
   const salePrice = hasSale ? Number(p.salePrice) : null;
   const price = Number(p.price);
+  const discountPercent = hasSale ? Math.round(((price - salePrice!) / price) * 100) : 0;
   const isVariable = p.productType === "VARIABLE" && (p.variations?.length ?? 0) > 0;
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
 
@@ -170,7 +171,7 @@ export function CatalogCard({
           </span>
           {hasSale && (
             <span className="absolute right-2.5 top-2.5 z-10 rounded bg-rose-700 px-2.5 py-0.5 text-xs font-bold text-white shadow-sm">
-              ছাড়
+              {discountPercent}% ছাড়
             </span>
           )}
           <Link href={`/products/${p.slug}`} className="block h-full w-full">

@@ -32,6 +32,20 @@ touch-friendly controls. Customers can toggle password visibility while signing
 in or creating an account. Its styling is scoped to the sign-in experience so it
 does not change the customer dashboard after login.
 
+## Product catalog, categories and SEO
+
+- A product can belong to multiple categories. Its primary category remains the
+  default, while the additional category assignments also appear in category
+  listings and storefront sections.
+- Product slugs are generated from the product name and made unique. You can
+  still edit a slug manually in the product form.
+- Product pages get search metadata automatically: the product name and store
+  name form the default title, and a cleaned excerpt of the product description
+  forms the default description. Set a product's SEO title or description in the
+  admin product form to override either default.
+- Sale badges across the storefront show the calculated discount percentage;
+  sale and original prices remain visible on the product card.
+
 ## Local development
 
 1. Copy the env file and point `DATABASE_URL` at a MySQL server:

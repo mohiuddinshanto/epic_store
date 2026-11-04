@@ -1471,6 +1471,7 @@ export function MiniProductCard({
   fill?: boolean;
 }) {
   const hasSale = Boolean(p.salePrice && Number(p.salePrice) < Number(p.price));
+  const discountPercent = hasSale ? Math.round(((Number(p.price) - Number(p.salePrice)) / Number(p.price)) * 100) : 0;
   return (
     <article
       className={`group overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/40 hover:shadow-md ${
@@ -1487,7 +1488,7 @@ export function MiniProductCard({
         />
         {hasSale && (
           <span className="absolute left-3 top-3 rounded-full border border-rose-500/30 bg-rose-500/90 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide text-white backdrop-blur-md">
-            SALE
+            {discountPercent}% ছাড়
           </span>
         )}
         <button

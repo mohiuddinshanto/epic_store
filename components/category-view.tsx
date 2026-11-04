@@ -53,6 +53,7 @@ function CatalogCard({
   const hasSale = Boolean(p.salePrice && Number(p.salePrice) < Number(p.price));
   const salePrice = hasSale ? Number(p.salePrice) : null;
   const price = Number(p.price);
+  const discountPercent = hasSale ? Math.round(((price - salePrice!) / price) * 100) : 0;
   const isVariable = p.productType === "VARIABLE" && (p.variations?.length ?? 0) > 0;
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const sizeAttr = (p.attributes ?? []).find((a) => /size|সাইজ/i.test(a.name));
@@ -89,7 +90,7 @@ function CatalogCard({
       <div>
         <div className="relative mb-3 aspect-[4/5] overflow-hidden rounded-xl bg-gray-100 group">
           <span className="absolute left-2.5 top-2.5 z-10 rounded bg-white/90 px-2.5 py-0.5 text-xs font-medium text-gray-800 shadow-sm backdrop-blur-sm">{p.category.name}</span>
-          {hasSale && <span className="absolute right-2.5 top-2.5 z-10 rounded bg-rose-700 px-2.5 py-0.5 text-xs font-bold text-white shadow-sm">ছাড়</span>}
+          {hasSale && <span className="absolute right-2.5 top-2.5 z-10 rounded bg-rose-700 px-2.5 py-0.5 text-xs font-bold text-white shadow-sm">{discountPercent}% ছাড়</span>}
           <Link href={`/products/${p.slug}`} className="block h-full w-full">
             <ProductImage src={img} alt={p.name} fill sizes="(max-width: 650px) 50vw, 290px" className="object-cover object-top transition duration-500 group-hover:scale-105" />
           </Link>
@@ -152,11 +153,12 @@ function ClassicCard({
   onWishlist: (id: string, e: React.MouseEvent) => void;
 }) {
   const hasSale = Boolean(p.salePrice && Number(p.salePrice) < Number(p.price));
+  const discountPercent = hasSale ? Math.round(((Number(p.price) - Number(p.salePrice)) / Number(p.price)) * 100) : 0;
   return (
     <article className="group overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/40 hover:shadow-md w-full h-full">
       <Link href={`/products/${p.slug}`} className="relative block aspect-[3/4] overflow-hidden bg-slate-100">
         <ProductImage src={p.images[0] || FALLBACK_IMG} alt={p.name} fill sizes="(max-width: 650px) 50vw, 280px" className="object-cover transition-transform duration-300 group-hover:scale-105" />
-        {hasSale && <span className="absolute left-3 top-3 rounded-full border border-rose-500/30 bg-rose-500/90 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide text-white backdrop-blur-md">SALE</span>}
+        {hasSale && <span className="absolute left-3 top-3 rounded-full border border-rose-500/30 bg-rose-500/90 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide text-white backdrop-blur-md">{discountPercent}% ছাড়</span>}
         <button onClick={(e) => onWishlist(p.id, e)} aria-label="Wishlist" className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full border border-white/60 bg-white/85 text-slate-500 backdrop-blur-md transition-all hover:text-rose-500" style={{ color: wishlisted ? "#ef4444" : "inherit" }}>
           <FiHeart size={16} fill={wishlisted ? "#ef4444" : "none"} />
         </button>
