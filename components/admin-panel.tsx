@@ -337,6 +337,9 @@ const categoryOptions = (categories: Category[]) =>
     .filter((c) => !c.parentId)
     .flatMap((c) => [c, ...(c.subCategories ?? categories.filter((s) => s.parentId === c.id))]);
 
+const slugFromName = (name: string) =>
+  name.normalize("NFKD").toLowerCase().replace(/[\u0300-\u036f]/g, "").replace(/[^\p{L}\p{N}]+/gu, "-").replace(/(^-|-$)/g, "");
+
 export function AdminPanel() {
   const [token, setToken] = useState("");
   const [config, setConfig] = useState<Config | null>(null);
@@ -1054,6 +1057,9 @@ function AdminProducts({ token }: { token: string }) {
   const [manageStockQty, setManageStockQty] = useState(true);
   const [manualOutOfStock, setManualOutOfStock] = useState(false);
   const [sku, setSku] = useState("");
+  const [productName, setProductName] = useState("");
+  const [productSlug, setProductSlug] = useState("");
+  const [productSlugEdited, setProductSlugEdited] = useState(false);
   const [basePrice, setBasePrice] = useState("");
   const [attributes, setAttributes] = useState<ProductAttribute[]>([]);
   const [variations, setVariations] = useState<Variation[]>([]);
@@ -1093,6 +1099,9 @@ function AdminProducts({ token }: { token: string }) {
 
   function startCreate() {
     setEditingProduct(null);
+    setProductName("");
+    setProductSlug("");
+    setProductSlugEdited(false);
     setGallery([]);
     setProductType("SIMPLE");
     setSameVariationPrice(true);
@@ -1110,6 +1119,9 @@ function AdminProducts({ token }: { token: string }) {
 
   function startEdit(p: Product) {
     setEditingProduct(p);
+    setProductName(p.name);
+    setProductSlug(p.slug);
+    setProductSlugEdited(false);
     const details = Array.isArray(p.imagesDetails) && p.imagesDetails.length
       ? p.imagesDetails
       : p.images.map((url, i) => ({ id: "", url, altText: null as string | null, title: null as string | null, sortOrder: i, isFeatured: i === 0 }));
@@ -1431,11 +1443,7 @@ function AdminProducts({ token }: { token: string }) {
     if (!gallery.length) return toast.error("Upload at least one image first");
     const name = String(form.get("name") || "").trim();
     const rawSlug = String(form.get("slug") || "");
-    const slug = (rawSlug || name)
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "")
-      || `product-${Date.now()}`;
+    const slug = slugFromName(rawSlug || name) || `product-${Date.now()}`;
     const toBdtNumber = (raw: string | null) => {
       if (!raw) return undefined;
       const cleaned = raw.replace(/[^0-9.]/g, "").replace(/\.(?=.*\.)/g, "");
@@ -1508,7 +1516,7 @@ function AdminProducts({ token }: { token: string }) {
       const url = editingProduct ? `/api/admin/products/${editingProduct.id}` : "/api/admin/products";
       const method = editingProduct ? "PATCH" : "POST";
       const body = editingProduct
-        ? { name, description: descriptionText, longDescription: longDescriptionText, price, salePrice, stock, manageStock: manageStockQty, images, imageDetails, sku: sku.trim() || undefined, productType: productTypeValue, attributes: attributesPayload, variations: variationsPayload }
+        ? { name, slug, description: descriptionText, longDescription: longDescriptionText, price, salePrice, stock, manageStock: manageStockQty, images, imageDetails, sku: sku.trim() || undefined, productType: productTypeValue, attributes: attributesPayload, variations: variationsPayload }
         : payload;
       const response = await api(url, token, { method, body: JSON.stringify(body) });
       const data = await response.json();
@@ -1602,8 +1610,8 @@ function AdminProducts({ token }: { token: string }) {
           )}
           <form key={editingProduct?.id ?? "new"} onSubmit={saveProduct} className="space-y-5">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <Input label="Product Name" name="name" isRequired placeholder="Classic Cotton Shirt" defaultValue={editingProduct?.name ?? ""} />
-              <Input label="Slug (Leave empty to auto-generate)" name="slug" placeholder="classic-cotton-shirt" defaultValue={editingProduct?.slug ?? ""} />
+              <Input label="Product Name" name="name" isRequired placeholder="Classic Cotton Shirt" value={productName} onValueChange={(value) => { setProductName(value); if (!productSlugEdited) setProductSlug(slugFromName(value)); }} />
+              <Input label="Slug (Auto-generated from product name)" name="slug" placeholder="classic-cotton-shirt" value={productSlug} onValueChange={(value) => { setProductSlug(value); setProductSlugEdited(true); }} />
               <Select label="Category" name="categoryId" isRequired placeholder="Select a category" defaultSelectedKeys={editingProduct?.categoryId ? [editingProduct.categoryId] : []}>
                 {categoryOptions(categories).map((category) => (
                   <SelectItem key={category.id}>{category.parentId ? `↳  ${category.name}` : category.name}</SelectItem>
@@ -2356,6 +2364,20 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
     }
   }
 
+  async function promoteSubCategory(category: Category) {
+    try {
+      const res = await api(`/api/admin/categories/${category.id}`, token, {
+        method: "PATCH",
+        body: JSON.stringify({ parentId: null }),
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "Could not make this a main category");
+      toast.success(`${category.name} is now a main category`);
+      load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not update category");
+    }
+  }
+
   const [uploadingId, setUploadingId] = useState<string | null>(null);
 
   async function uploadCategoryImage(id: string, event: React.ChangeEvent<HTMLInputElement>) {
@@ -2582,10 +2604,18 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
                 {subs.length > 0 && (
                   <div className="px-5 pb-4 space-y-2">
                     {subs.map((sub) => (
-                      <div key={sub.id} className="flex items-center gap-3 px-3 py-2.5 bg-gray-50 dark:bg-white/4 rounded-xl">
+                      <div key={sub.id} className="flex flex-wrap items-center gap-3 px-3 py-2.5 bg-gray-50 dark:bg-white/4 rounded-xl">
                         <span className="text-xs text-primary font-bold">↳</span>
                         <p className="flex-1 text-sm font-medium text-gray-700 dark:text-slate-300">{sub.name}</p>
                         <p className="text-xs text-gray-400 dark:text-slate-500">/{sub.slug} · {sub._count?.products ?? 0}</p>
+                        <button
+                          type="button"
+                          onClick={() => promoteSubCategory(sub)}
+                          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-primary/10 px-3 text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
+                          title="Remove parent and make this a main category"
+                        >
+                          <FiArrowUp /> Make main category
+                        </button>
                         <a
                           href={`/categories/${sub.slug}`}
                           target="_blank"

@@ -18,6 +18,17 @@ import { baseSkuForParts, generateVariationsForProduct, makeUniqueSku, replacePr
 import { resendStoredEmail, sendEmailVerification, sendNewOrderToOwner, sendOrderConfirmation, sendOrderStatusEmail, sendPasswordReset, sendTestMail } from "./lib/mailer.js";
 
 const app = express();
+const slugFromName = (value: string) =>
+  value.normalize("NFKD").toLowerCase().replace(/[\u0300-\u036f]/g, "").replace(/[^\p{L}\p{N}]+/gu, "-").replace(/(^-|-$)/g, "");
+async function uniqueProductSlug(value: string, exceptId?: string) {
+  const base = slugFromName(value) || `product-${Date.now()}`;
+  let candidate = base;
+  let suffix = 2;
+  while (await prisma.product.findFirst({ where: { slug: candidate, ...(exceptId ? { id: { not: exceptId } } : {}) }, select: { id: true } })) {
+    candidate = `${base}-${suffix++}`;
+  }
+  return candidate;
+}
 app.set("trust proxy", 1);
 const allowedOrigins = (process.env.FRONTEND_URL ?? "http://localhost:3000")
   .split(",")
@@ -858,6 +869,7 @@ app.patch("/api/admin/products/:id", requireAuth, requireRole("ADMIN", "STAFF"),
   const data = z
     .object({
       name: z.string().min(2).optional(),
+      slug: z.string().min(1).optional(),
       price: z.number().nonnegative().optional(),
       salePrice: z.number().nonnegative().nullable().optional(),
       longDescription: z.string().nullable().optional(),
@@ -882,6 +894,7 @@ app.patch("/api/admin/products/:id", requireAuth, requireRole("ADMIN", "STAFF"),
   let { imageDetails, images, variationImages, attributes, variations, defaultVariationId, ...rest } = data.data;
 
   if (rest.sku === null) rest.sku = undefined;
+  if (rest.slug) rest.slug = await uniqueProductSlug(rest.slug, id);
 
   if (variations !== undefined && attributes !== undefined) {
     await replaceProductVariations(id, attributes, variations, rest.sku || undefined);
@@ -1199,7 +1212,7 @@ app.post("/api/admin/products", requireAuth, requireRole("ADMIN", "STAFF"), requ
     .object({
       categoryId: z.string(),
       name: z.string().min(2),
-      slug: z.string().min(1),
+      slug: z.string().min(1).optional(),
       description: z.string().min(10),
       longDescription: z.string().optional(),
       price: z.number().nonnegative(),
@@ -1224,6 +1237,7 @@ app.post("/api/admin/products", requireAuth, requireRole("ADMIN", "STAFF"), requ
     return res.status(400).json({ error: "Invalid product", details: data.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`) });
   }
   const { expiryDate, variationImages, imageDetails, attributes, variations, ...product } = data.data;
+  const productSlug = await uniqueProductSlug(product.slug || product.name);
   try {
     const imagesArr = product.images as string[];
     const sorted = imageDetails && imageDetails.length
@@ -1236,6 +1250,7 @@ app.post("/api/admin/products", requireAuth, requireRole("ADMIN", "STAFF"), requ
     const created = await prisma.product.create({
       data: {
         ...product,
+        slug: productSlug,
         images: normalizedDetails.filter((i) => i.isFeatured).concat(normalizedDetails.filter((i) => !i.isFeatured)).map((i) => i.url) as unknown as Prisma.InputJsonValue,
         productAttributes: (product as { productAttributes?: unknown }).productAttributes as Prisma.InputJsonValue,
         variants: (product as { variants?: unknown }).variants as Prisma.InputJsonValue,
