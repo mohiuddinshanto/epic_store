@@ -1045,6 +1045,9 @@ function AdminProducts({ token }: { token: string }) {
   const [creating, setCreating] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
+  const [mediaPickerLoading, setMediaPickerLoading] = useState(false);
+  const [mediaItems, setMediaItems] = useState<{ url: string; filename: string; altText?: string | null }[]>([]);
   const [gallery, setGallery] = useState<{ id?: string; url: string; preview?: string; altText?: string; title?: string; isFeatured: boolean }[]>([]);
   const [productType, setProductType] = useState<"SIMPLE" | "VARIABLE">("SIMPLE");
   const [sameVariationPrice, setSameVariationPrice] = useState(false);
@@ -1092,8 +1095,8 @@ function AdminProducts({ token }: { token: string }) {
     setEditingProduct(null);
     setGallery([]);
     setProductType("SIMPLE");
-    setSameVariationPrice(false);
-    setManageStockQty(true);
+    setSameVariationPrice(true);
+    setManageStockQty(false);
     setManualOutOfStock(false);
     setSku("");
     setBasePrice("");
@@ -1190,6 +1193,29 @@ function AdminProducts({ token }: { token: string }) {
     if (!files.length) return;
     await uploadFiles(files);
     event.target.value = "";
+  }
+
+  async function openMediaPicker() {
+    setMediaPickerOpen((open) => !open);
+    if (mediaItems.length) return;
+    setMediaPickerLoading(true);
+    try {
+      const response = await api("/api/admin/media", token);
+      const items = await response.json();
+      if (!response.ok || !Array.isArray(items)) throw new Error(items.error ?? "Could not load image library");
+      setMediaItems(items);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not load image library");
+    } finally {
+      setMediaPickerLoading(false);
+    }
+  }
+
+  function addExistingImage(image: { url: string; filename: string }) {
+    setGallery((current) => {
+      if (current.some((item) => item.url === image.url)) return current;
+      return [...current, { url: image.url, title: image.filename, isFeatured: current.length === 0 || !current.some((item) => item.isFeatured) }];
+    });
   }
 
   function removeImage(idx: number) {
@@ -1321,8 +1347,8 @@ function AdminProducts({ token }: { token: string }) {
         sku: skuBase || null,
         price: String(basePriceValue || 0),
         salePrice: null,
-        stock: 0,
-        manageStock: true,
+        stock: 1,
+        manageStock: false,
         weight: null,
         image: null,
         gallery: null,
@@ -1620,6 +1646,26 @@ function AdminProducts({ token }: { token: string }) {
                 </span>
                 <input type="file" accept="image/*" multiple onChange={pickImages} hidden />
               </label>
+
+              <button type="button" onClick={openMediaPicker} className="mt-3 h-10 w-full rounded-xl border border-primary/20 bg-primary/5 px-4 text-sm font-semibold text-primary transition hover:bg-primary/10 sm:w-auto">
+                {mediaPickerOpen ? "Hide image library" : "Choose from existing images"}
+              </button>
+              {mediaPickerOpen && (
+                <div className="mt-3 rounded-xl border border-gray-200 p-3 dark:border-white/10">
+                  <p className="mb-3 text-xs text-gray-500 dark:text-slate-400">Select an image to add it to this product gallery.</p>
+                  {mediaPickerLoading ? <p className="py-6 text-center text-sm text-gray-500">Loading image library…</p> : mediaItems.length ? (
+                    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
+                      {mediaItems.map((image) => {
+                        const selected = gallery.some((item) => item.url === image.url);
+                        return <button key={image.url} type="button" onClick={() => addExistingImage(image)} disabled={selected} title={image.filename} className="relative aspect-square overflow-hidden rounded-lg border border-gray-200 disabled:opacity-50 dark:border-white/10">
+                          <img src={image.url} alt={image.altText ?? image.filename} className="h-full w-full object-cover" />
+                          {selected && <span className="absolute inset-x-0 bottom-0 bg-primary/90 px-1 py-0.5 text-[10px] font-semibold text-white">Added</span>}
+                        </button>;
+                      })}
+                    </div>
+                  ) : <p className="py-6 text-center text-sm text-gray-500">No existing images found. Upload one above first.</p>}
+                </div>
+              )}
 
               {gallery.length > 0 && (
                 <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
