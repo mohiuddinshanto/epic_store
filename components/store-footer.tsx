@@ -51,7 +51,7 @@ type Props = {
 const FOOTER_CSS = `
 .ft{--bg:#0b1428;--bg2:#101c38;--card:#16223f;--line:rgba(255,255,255,.09);--text:#fff;--muted:#9fb0cf;--accent:#ffa62b;--accent2:#ff7a1a;
   position:relative;overflow:hidden;color:var(--text);font-family:"Hind Siliguri",system-ui,-apple-system,"Segoe UI",sans-serif;
-  background:radial-gradient(600px 300px at 90% -10%,rgba(255,166,43,.14),transparent 70%),linear-gradient(180deg,var(--bg2),var(--bg));padding:72px 24px 0}
+  margin-top:40px;background:radial-gradient(600px 300px at 90% -10%,rgba(255,166,43,.14),transparent 70%),linear-gradient(180deg,var(--bg2),var(--bg));padding:72px 24px 0}
 .ft::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,var(--accent),var(--accent2),transparent)}
 .ft *{box-sizing:border-box;margin:0;padding:0}
 .ft a{color:inherit;text-decoration:none}

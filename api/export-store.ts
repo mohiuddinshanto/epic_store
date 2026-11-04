@@ -12,6 +12,7 @@ async function main() {
     orderBy: { createdAt: "asc" },
     include: {
       category: { select: { slug: true } },
+      categoryLinks: { select: { category: { select: { slug: true } } } },
       imagesDetails: { orderBy: { sortOrder: "asc" } },
       attributes: {
         include: {
@@ -38,6 +39,7 @@ async function main() {
       description: p.description,
       longDescription: p.longDescription,
       categorySlug: p.category.slug,
+      categorySlugs: p.categoryLinks.map((link) => link.category.slug),
       price: p.price.toString(),
       salePrice: p.salePrice ? p.salePrice.toString() : null,
       stock: p.stock,

@@ -12,7 +12,9 @@ const catalog = [
 async function main() {
   for (const item of catalog) {
     const category = await prisma.category.upsert({ where: { slug: item.categorySlug }, update: { name: item.category }, create: { name: item.category, slug: item.categorySlug } });
-    await prisma.product.upsert({ where: { slug: item.slug }, update: { name: item.name, description: item.description, price: item.price, salePrice: item.salePrice, stock: item.stock, images: [item.image], categoryId: category.id, isActive: true }, create: { name: item.name, slug: item.slug, description: item.description, price: item.price, salePrice: item.salePrice, stock: item.stock, images: [item.image], categoryId: category.id } });
+    const product = await prisma.product.upsert({ where: { slug: item.slug }, update: { name: item.name, description: item.description, price: item.price, salePrice: item.salePrice, stock: item.stock, images: [item.image], categoryId: category.id, isActive: true }, create: { name: item.name, slug: item.slug, description: item.description, price: item.price, salePrice: item.salePrice, stock: item.stock, images: [item.image], categoryId: category.id } });
+    await prisma.productCategory.deleteMany({ where: { productId: product.id } });
+    await prisma.productCategory.create({ data: { productId: product.id, categoryId: category.id } });
   }
   console.log(`Seeded ${catalog.length} products.`);
 }

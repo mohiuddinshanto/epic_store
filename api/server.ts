@@ -290,12 +290,12 @@ app.get("/api/store/checkout-options", async (_req, res) => {
 app.get("/api/categories", async (_req, res) => {
   const categories = await cached("categories:all", 60_000, () =>
     prisma.category.findMany({
-      include: { _count: { select: { products: { where: { isActive: true } } } } },
+      include: { _count: { select: { products: { where: { isActive: true } }, productLinks: { where: { product: { isActive: true } } } } } },
       orderBy: { name: "asc" },
     }),
   );
   applyPublicCache(res);
-  res.json(categories);
+  res.json(categories.map(({ _count, ...category }) => ({ ...category, _count: { ..._count, products: _count.productLinks } })));
 });
 
 const PRODUCT_LIST_DEFAULT_PAGE_SIZE = 24;
@@ -315,6 +315,7 @@ async function queryProductList(where: Prisma.ProductWhereInput, page?: number, 
     description: true,
     images: true,
     categoryId: true,
+    categoryLinks: { select: { categoryId: true } },
     defaultVariationId: true,
     imagesDetails: { orderBy: { sortOrder: "asc" as const } },
     attributes: { select: { id: true, name: true, values: { select: { id: true, value: true } } } },
@@ -396,7 +397,7 @@ app.get("/api/products", async (req, res) => {
           ids.push(cur);
           for (const childId of byParent.get(cur) ?? []) stack.push(childId);
         }
-        categoryFilter = { categoryId: { in: ids } };
+        categoryFilter = { OR: [{ categoryId: { in: ids } }, { categoryLinks: { some: { categoryId: { in: ids } } } }] };
       }
     }
 
@@ -430,7 +431,8 @@ app.get("/api/products/:slug", async (req, res) => {
     const found = await prisma.product.findUnique({
       where: { slug: req.params.slug },
       include: {
-        category: { select: { name: true, slug: true } },
+        category: { select: { id: true, name: true, slug: true } },
+        categoryLinks: { select: { categoryId: true, category: { select: { id: true, name: true, slug: true } } } },
         imagesDetails: { orderBy: { sortOrder: "asc" } },
         attributes: { include: { values: true }, orderBy: { createdAt: "asc" } },
         variations: {
@@ -614,7 +616,12 @@ app.post("/api/coupons/validate", rateLimit({ windowMs: 5 * 60_000, max: 40, mes
   )
     return res.status(404).json({ error: "Coupon is invalid or expired" });
 
-  const permitted = !coupon.applicableCategoryIds || (coupon.applicableCategoryIds as string[]).some((id) => data.data.categoryIds.includes(id));
+  const legacyOrKnownCategories = await prisma.category.findMany({
+    where: { OR: [{ id: { in: data.data.categoryIds } }, { slug: { in: data.data.categoryIds } }] },
+    select: { id: true },
+  });
+  const submittedCategoryIds = new Set([...data.data.categoryIds, ...legacyOrKnownCategories.map((category) => category.id)]);
+  const permitted = !coupon.applicableCategoryIds || (coupon.applicableCategoryIds as string[]).some((id) => submittedCategoryIds.has(id));
   // Same response as an invalid code so the endpoint cannot be used to tell a
   // real-but-ineligible code apart from a non-existent one.
   if (!permitted) return res.status(404).json({ error: "Coupon is invalid or expired" });
@@ -713,11 +720,11 @@ app.post("/api/orders", rateLimit({ windowMs: 10 * 60_000, max: 20, message: "To
   let order;
   try {
     order = await prisma.$transaction(async (tx) => {
-      const normalizedItems: { productId: string; variationId?: string; name: string; qty: number; price: number; categoryId: string; sku?: string }[] = [];
+      const normalizedItems: { productId: string; variationId?: string; name: string; qty: number; price: number; categoryId: string; categoryIds: string[]; sku?: string }[] = [];
       let subtotalCents = 0;
 
       for (const item of requestedItems.values()) {
-        const product = await tx.product.findUnique({ where: { id: item.productId } });
+        const product = await tx.product.findUnique({ where: { id: item.productId }, include: { categoryLinks: { select: { categoryId: true } } } });
         if (!product || !product.isActive) throw new OrderRequestError(404, "One or more products are unavailable.");
 
         let unitPrice: number;
@@ -752,7 +759,7 @@ app.post("/api/orders", rateLimit({ windowMs: 10 * 60_000, max: 20, message: "To
           throw new OrderRequestError(400, "Order total exceeds the supported amount.");
         }
         subtotalCents += lineTotalCents;
-        normalizedItems.push({ productId: product.id, variationId: item.variationId, name, qty: item.qty, price: asMoney(unitPrice), categoryId: product.categoryId, sku });
+        normalizedItems.push({ productId: product.id, variationId: item.variationId, name, qty: item.qty, price: asMoney(unitPrice), categoryId: product.categoryId, categoryIds: product.categoryLinks.map((link) => link.categoryId), sku });
       }
 
       const shippingCents = computeShippingCents(subtotalCents, storeConfig?.shippingConfig, shippingDetails);
@@ -767,7 +774,7 @@ app.post("/api/orders", rateLimit({ windowMs: 10 * 60_000, max: 20, message: "To
         }
         if (coupon.minSpend && subtotalCents < cents(coupon.minSpend)) throw new OrderRequestError(400, "Order subtotal does not meet this coupon's minimum spend.");
         const allowedCategories = coupon.applicableCategoryIds as string[] | null;
-        if (allowedCategories?.length && !normalizedItems.some((item) => allowedCategories.includes(item.categoryId))) {
+        if (allowedCategories?.length && !normalizedItems.some((item) => item.categoryIds.some((categoryId) => allowedCategories.includes(categoryId)))) {
           throw new OrderRequestError(400, "Coupon does not apply to items in your cart.");
         }
         const priorUses = await tx.order.count({ where: { couponId: coupon.id, ...(customerId ? { customerId } : { ipAddress }) } });
@@ -855,6 +862,7 @@ app.get("/api/admin/products", requireAuth, requireRole("ADMIN", "STAFF"), async
     await prisma.product.findMany({
       include: {
         category: { select: { name: true } },
+        categoryLinks: { select: { categoryId: true } },
         imagesDetails: { orderBy: { sortOrder: "asc" } },
         attributes: { include: { values: true } },
         variations: { include: { attributes: true }, orderBy: { createdAt: "asc" } },
@@ -870,6 +878,8 @@ app.patch("/api/admin/products/:id", requireAuth, requireRole("ADMIN", "STAFF"),
     .object({
       name: z.string().min(2).optional(),
       slug: z.string().min(1).optional(),
+      categoryId: z.string().optional(),
+      categoryIds: z.array(z.string().min(1)).min(1).optional(),
       price: z.number().nonnegative().optional(),
       salePrice: z.number().nonnegative().nullable().optional(),
       longDescription: z.string().nullable().optional(),
@@ -891,10 +901,16 @@ app.patch("/api/admin/products/:id", requireAuth, requireRole("ADMIN", "STAFF"),
     .safeParse(req.body);
   if (!data.success) return res.status(400).json({ error: "Invalid product update", details: data.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`) });
 
-  let { imageDetails, images, variationImages, attributes, variations, defaultVariationId, ...rest } = data.data;
+  let { imageDetails, images, variationImages, attributes, variations, defaultVariationId, categoryId, categoryIds, ...rest } = data.data;
 
   if (rest.sku === null) rest.sku = undefined;
   if (rest.slug) rest.slug = await uniqueProductSlug(rest.slug, id);
+  const selectedCategoryIds = categoryIds?.length ? [...new Set(categoryIds)] : categoryId ? [categoryId] : undefined;
+  if (categoryIds !== undefined && !selectedCategoryIds?.length) return res.status(400).json({ error: "Select at least one category" });
+  const categoryUpdates = selectedCategoryIds ? {
+    category: { connect: { id: selectedCategoryIds[0] } },
+    categoryLinks: { deleteMany: {}, create: selectedCategoryIds.map((categoryId) => ({ category: { connect: { id: categoryId } } })) },
+  } : {};
 
   if (variations !== undefined && attributes !== undefined) {
     await replaceProductVariations(id, attributes, variations, rest.sku || undefined);
@@ -922,6 +938,7 @@ app.patch("/api/admin/products/:id", requireAuth, requireRole("ADMIN", "STAFF"),
           where: { id },
           data: {
             ...(rest as object),
+            ...categoryUpdates,
             images: normalized.filter((i) => i.isFeatured).concat(normalized.filter((i) => !i.isFeatured)).map((i) => i.url) as unknown as Prisma.InputJsonValue,
             ...(variationImages !== undefined ? { variationImages: variationImages as Prisma.InputJsonValue } : {}),
             imagesDetails: { create: normalized },
@@ -937,6 +954,7 @@ app.patch("/api/admin/products/:id", requireAuth, requireRole("ADMIN", "STAFF"),
       where: { id },
       data: {
         ...(rest as object),
+        ...categoryUpdates,
         ...(images ? { images: images as unknown as Prisma.InputJsonValue } : {}),
         ...(variationImages !== undefined ? { variationImages: variationImages as Prisma.InputJsonValue } : {}),
       },
@@ -949,14 +967,20 @@ app.delete("/api/admin/products/:id", requireAuth, requireRole("ADMIN"), async (
   res.status(204).end();
 });
 
-app.get("/api/admin/categories", requireAuth, requireRole("ADMIN", "STAFF"), async (_req, res) =>
-  res.json(
-    await prisma.category.findMany({
-      include: { _count: { select: { products: true } }, subCategories: { orderBy: { name: "asc" }, include: { _count: { select: { products: true } } } } },
-      orderBy: { name: "asc" },
-    })
-  )
-);
+app.get("/api/admin/categories", requireAuth, requireRole("ADMIN", "STAFF"), async (_req, res) => {
+  const categories = await prisma.category.findMany({
+    include: {
+      _count: { select: { products: true, productLinks: true } },
+      subCategories: { orderBy: { name: "asc" }, include: { _count: { select: { products: true, productLinks: true } } } },
+    },
+    orderBy: { name: "asc" },
+  });
+  res.json(categories.map((category) => ({
+    ...category,
+    _count: { ...category._count, products: category._count.productLinks },
+    subCategories: category.subCategories.map((sub) => ({ ...sub, _count: { ...sub._count, products: sub._count.productLinks } })),
+  })));
+});
 
 app.get("/api/admin/orders", requireAuth, requireRole("ADMIN", "STAFF"), requireStaffArea("orders"), restrictStaffOrderView, async (_req, res) => {
   res.json(await prisma.order.findMany({ orderBy: { createdAt: "desc" }, take: 100 }));
@@ -1193,7 +1217,9 @@ app.delete("/api/admin/categories/:id", requireAuth, requireRole("ADMIN"), async
     const children = await prisma.category.findMany({ where: { parentId: descendants[index] }, select: { id: true } });
     descendants.push(...children.map((child) => child.id));
   }
-  const products = await prisma.product.count({ where: { categoryId: { in: descendants } } });
+  const linkedProducts = await prisma.productCategory.findMany({ where: { categoryId: { in: descendants } }, select: { productId: true } });
+  const productIds = [...new Set(linkedProducts.map((link) => link.productId))];
+  const products = productIds.length;
   if (products > 0 && !moveTo) return res.status(400).json({ error: "Choose a destination category for products before deleting" });
   if (moveTo) {
     if (descendants.includes(moveTo)) return res.status(400).json({ error: "Destination cannot be this category or one of its sub-categories" });
@@ -1201,7 +1227,11 @@ app.delete("/api/admin/categories/:id", requireAuth, requireRole("ADMIN"), async
     if (!target) return res.status(400).json({ error: "Destination category not found" });
   }
   await prisma.$transaction(async (tx) => {
-    if (moveTo) await tx.product.updateMany({ where: { categoryId: { in: descendants } }, data: { categoryId: moveTo } });
+    if (moveTo) {
+      await tx.product.updateMany({ where: { categoryId: { in: descendants } }, data: { categoryId: moveTo } });
+      await tx.productCategory.deleteMany({ where: { categoryId: { in: descendants } } });
+      if (productIds.length) await tx.productCategory.createMany({ data: productIds.map((productId) => ({ productId, categoryId: moveTo })), skipDuplicates: true });
+    }
     await tx.category.delete({ where: { id } });
   });
   res.status(204).end();
@@ -1210,7 +1240,8 @@ app.delete("/api/admin/categories/:id", requireAuth, requireRole("ADMIN"), async
 app.post("/api/admin/products", requireAuth, requireRole("ADMIN", "STAFF"), requireStaffArea("products"), async (req, res) => {
   const data = z
     .object({
-      categoryId: z.string(),
+      categoryId: z.string().optional(),
+      categoryIds: z.array(z.string().min(1)).min(1).optional(),
       name: z.string().min(2),
       slug: z.string().min(1).optional(),
       description: z.string().min(10),
@@ -1236,7 +1267,9 @@ app.post("/api/admin/products", requireAuth, requireRole("ADMIN", "STAFF"), requ
   if (!data.success) {
     return res.status(400).json({ error: "Invalid product", details: data.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`) });
   }
-  const { expiryDate, variationImages, imageDetails, attributes, variations, ...product } = data.data;
+  const { expiryDate, variationImages, imageDetails, attributes, variations, categoryId, categoryIds, ...product } = data.data;
+  const selectedCategoryIds = [...new Set(categoryIds?.length ? categoryIds : categoryId ? [categoryId] : [])];
+  if (!selectedCategoryIds.length) return res.status(400).json({ error: "Select at least one category" });
   const productSlug = await uniqueProductSlug(product.slug || product.name);
   try {
     const imagesArr = product.images as string[];
@@ -1251,6 +1284,8 @@ app.post("/api/admin/products", requireAuth, requireRole("ADMIN", "STAFF"), requ
       data: {
         ...product,
         slug: productSlug,
+        category: { connect: { id: selectedCategoryIds[0] } },
+        categoryLinks: { create: selectedCategoryIds.map((id) => ({ category: { connect: { id } } })) },
         images: normalizedDetails.filter((i) => i.isFeatured).concat(normalizedDetails.filter((i) => !i.isFeatured)).map((i) => i.url) as unknown as Prisma.InputJsonValue,
         productAttributes: (product as { productAttributes?: unknown }).productAttributes as Prisma.InputJsonValue,
         variants: (product as { variants?: unknown }).variants as Prisma.InputJsonValue,

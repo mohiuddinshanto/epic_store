@@ -55,6 +55,7 @@ type Product = {
   description?: string;
   images: string[];
   categoryId: string;
+  categoryLinks?: { categoryId: string }[];
   productType?: string;
   category: { id?: string; name: string; slug: string };
   attributes?: { id: string; name: string; values: { id: string; value: string }[] }[];
@@ -89,6 +90,7 @@ type CartItem = {
   images: string[];
   price: number;
   categoryId: string;
+  categoryIds?: string[];
   qty: number;
   variationId?: string;
   sku?: string;
@@ -484,7 +486,7 @@ export function Storefront({
     return homeConfig.sections
       .map((s) => {
         const cats = categories.filter((c) => s.categoryIds.includes(c.id));
-        const items = products.filter((p) => s.categoryIds.includes(p.categoryId)).slice(0, Math.max(1, Math.min(50, s.productLimit ?? 8)));
+        const items = products.filter((p) => s.categoryIds.some((categoryId) => categoryId === p.categoryId || p.categoryLinks?.some((link) => link.categoryId === categoryId))).slice(0, Math.max(1, Math.min(50, s.productLimit ?? 8)));
         return {
           ...s,
           items,
@@ -564,9 +566,10 @@ export function Storefront({
     const displayName = variation ? `${p.name} (${variation.name})` : p.name;
     const sku = variation?.sku ?? undefined;
     const variationId = variation?.id ?? undefined;
+    const categoryIds = [...new Set([p.categoryId, ...(p.categoryLinks ?? []).map((link) => link.categoryId)])];
     setCart((old) =>
       old.some((i) => i.id === cartId)
-        ? old.map((i) => (i.id === cartId ? { ...i, qty: i.qty + 1 } : i))
+        ? old.map((i) => (i.id === cartId ? { ...i, qty: i.qty + 1, categoryIds: [...new Set([...(i.categoryIds ?? [i.categoryId]), ...categoryIds])] } : i))
         : [
             ...old,
             {
@@ -576,6 +579,7 @@ export function Storefront({
               images: variation?.image ? [variation.image, ...p.images.filter((i) => i !== variation.image)] : p.images,
               price,
               categoryId: p.categoryId,
+              categoryIds,
               qty: 1,
               variationId,
               sku,
@@ -597,13 +601,14 @@ export function Storefront({
     const displayName = variation ? `${p.name} (${variation.name})` : p.name;
     const sku = variation?.sku ?? undefined;
     const variationId = variation?.id ?? undefined;
-    const old = JSON.parse(localStorage.getItem("epic-cart") ?? "[]") as Array<{ id: string; qty: number }>;
+    const old = JSON.parse(localStorage.getItem("epic-cart") ?? "[]") as Array<{ id: string; qty: number; categoryId?: string; categoryIds?: string[] }>;
     const hit = old.find((i) => i.id === cartId);
+    const categoryIds = [...new Set([p.categoryId, ...(p.categoryLinks ?? []).map((link) => link.categoryId)])];
     localStorage.setItem(
       "epic-cart",
       JSON.stringify(
         hit
-          ? old.map((i) => (i.id === cartId ? { ...i, qty: i.qty + 1 } : i))
+          ? old.map((i) => (i.id === cartId ? { ...i, qty: i.qty + 1, categoryIds: [...new Set([...(i.categoryIds ?? (i.categoryId ? [i.categoryId] : [])), ...categoryIds])] } : i))
           : [
               ...old,
               {
@@ -613,6 +618,7 @@ export function Storefront({
                 images: variation?.image ? [variation.image, ...p.images.filter((i) => i !== variation.image)] : p.images,
                 price,
                 categoryId: p.categoryId,
+                categoryIds,
                 qty: 1,
                 variationId,
                 sku,
@@ -622,7 +628,7 @@ export function Storefront({
     );
     setCart((old2) =>
       old2.some((i) => i.id === cartId)
-        ? old2.map((i) => (i.id === cartId ? { ...i, qty: i.qty + 1 } : i))
+        ? old2.map((i) => (i.id === cartId ? { ...i, qty: i.qty + 1, categoryIds: [...new Set([...(i.categoryIds ?? [i.categoryId]), ...categoryIds])] } : i))
         : [
             ...old2,
             {
@@ -632,6 +638,7 @@ export function Storefront({
               images: variation?.image ? [variation.image, ...p.images.filter((i) => i !== variation.image)] : p.images,
               price,
               categoryId: p.categoryId,
+              categoryIds,
               qty: 1,
               variationId,
               sku,

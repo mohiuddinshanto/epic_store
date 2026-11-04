@@ -227,6 +227,7 @@ type Product = {
   description: string;
   longDescription?: string | null;
   categoryId: string;
+  categoryLinks?: { categoryId: string }[];
   price: string;
   salePrice: string | null;
   stock: number;
@@ -1045,6 +1046,7 @@ function MenuBuilder({ config, save, saving }: { config: Config; save: (payload:
 function AdminProducts({ token }: { token: string }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [creating, setCreating] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -1093,12 +1095,13 @@ function AdminProducts({ token }: { token: string }) {
 
   const filtered = products.filter(
     (p) =>
-      (!categoryFilter || p.categoryId === categoryFilter) &&
+      (!categoryFilter || p.categoryId === categoryFilter || p.categoryLinks?.some((link) => link.categoryId === categoryFilter)) &&
       (p.name.toLowerCase().includes(search.toLowerCase()) || p.category?.name.toLowerCase().includes(search.toLowerCase()))
   );
 
   function startCreate() {
     setEditingProduct(null);
+    setSelectedCategoryIds([]);
     setProductName("");
     setProductSlug("");
     setProductSlugEdited(false);
@@ -1119,6 +1122,7 @@ function AdminProducts({ token }: { token: string }) {
 
   function startEdit(p: Product) {
     setEditingProduct(p);
+    setSelectedCategoryIds(p.categoryLinks?.map((link) => link.categoryId) ?? [p.categoryId]);
     setProductName(p.name);
     setProductSlug(p.slug);
     setProductSlugEdited(false);
@@ -1442,6 +1446,7 @@ function AdminProducts({ token }: { token: string }) {
     const form = new FormData(event.currentTarget);
     if (!gallery.length) return toast.error("Upload at least one image first");
     const name = String(form.get("name") || "").trim();
+    if (!selectedCategoryIds.length) return toast.error("Select at least one category");
     const rawSlug = String(form.get("slug") || "");
     const slug = slugFromName(rawSlug || name) || `product-${Date.now()}`;
     const toBdtNumber = (raw: string | null) => {
@@ -1496,7 +1501,8 @@ function AdminProducts({ token }: { token: string }) {
     const variationsPayload = productTypeValue === "VARIABLE" ? cleanVariations : undefined;
     const attributesPayload = productTypeValue === "VARIABLE" ? cleanAttributes : undefined;
     const payload = {
-      categoryId: String(form.get("categoryId")),
+      categoryId: selectedCategoryIds[0],
+      categoryIds: selectedCategoryIds,
       name,
       slug,
       description: descriptionText,
@@ -1516,7 +1522,7 @@ function AdminProducts({ token }: { token: string }) {
       const url = editingProduct ? `/api/admin/products/${editingProduct.id}` : "/api/admin/products";
       const method = editingProduct ? "PATCH" : "POST";
       const body = editingProduct
-        ? { name, slug, description: descriptionText, longDescription: longDescriptionText, price, salePrice, stock, manageStock: manageStockQty, images, imageDetails, sku: sku.trim() || undefined, productType: productTypeValue, attributes: attributesPayload, variations: variationsPayload }
+        ? { name, slug, categoryId: selectedCategoryIds[0], categoryIds: selectedCategoryIds, description: descriptionText, longDescription: longDescriptionText, price, salePrice, stock, manageStock: manageStockQty, images, imageDetails, sku: sku.trim() || undefined, productType: productTypeValue, attributes: attributesPayload, variations: variationsPayload }
         : payload;
       const response = await api(url, token, { method, body: JSON.stringify(body) });
       const data = await response.json();
@@ -1591,7 +1597,7 @@ function AdminProducts({ token }: { token: string }) {
               <option value="">All categories ({products.length})</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.parentId ? `↳ ${c.name}` : c.name} ({products.filter((p) => p.categoryId === c.id).length})
+                  {c.parentId ? `↳ ${c.name}` : c.name} ({products.filter((p) => p.categoryId === c.id || p.categoryLinks?.some((link) => link.categoryId === c.id)).length})
                 </option>
               ))}
             </select>
@@ -1612,7 +1618,15 @@ function AdminProducts({ token }: { token: string }) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <Input label="Product Name" name="name" isRequired placeholder="Classic Cotton Shirt" value={productName} onValueChange={(value) => { setProductName(value); if (!productSlugEdited) setProductSlug(slugFromName(value)); }} />
               <Input label="Slug (Auto-generated from product name)" name="slug" placeholder="classic-cotton-shirt" value={productSlug} onValueChange={(value) => { setProductSlug(value); setProductSlugEdited(true); }} />
-              <Select label="Category" name="categoryId" isRequired placeholder="Select a category" defaultSelectedKeys={editingProduct?.categoryId ? [editingProduct.categoryId] : []}>
+              <Select
+                label="Categories"
+                selectionMode="multiple"
+                isRequired
+                placeholder="Select one or more categories"
+                selectedKeys={new Set(selectedCategoryIds)}
+                onSelectionChange={(keys) => setSelectedCategoryIds(keys === "all" ? categoryOptions(categories).map((category) => category.id) : Array.from(keys).map(String))}
+                description="Choose every category where this product should appear."
+              >
                 {categoryOptions(categories).map((category) => (
                   <SelectItem key={category.id}>{category.parentId ? `↳  ${category.name}` : category.name}</SelectItem>
                 ))}

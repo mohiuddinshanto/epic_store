@@ -164,6 +164,7 @@ model Category {
   subCategories Category[] @relation("SubCategories")
   attributeSchema Json?
   products Product[]
+  productLinks ProductCategory[]
   createdAt DateTime @default(now())
 }
 
@@ -171,6 +172,7 @@ model Product {
   id String @id @default(uuid())
   categoryId String
   category Category @relation(fields: [categoryId], references: [id])
+  categoryLinks ProductCategory[]
   name String
   slug String @unique
   description String @db.Text
@@ -202,6 +204,15 @@ model Product {
 
   @@index([isActive, createdAt])
   @@index([isActive, categoryId, createdAt])
+}
+
+model ProductCategory {
+  productId String
+  categoryId String
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  @@id([productId, categoryId])
+  @@index([categoryId])
 }
 
 model ProductImage {

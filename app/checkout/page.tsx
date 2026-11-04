@@ -26,6 +26,7 @@ type CartItem = {
   price: number;
   qty: number;
   categoryId: string;
+  categoryIds?: string[];
   images?: string[];
   variationId?: string;
   sku?: string;
@@ -137,7 +138,7 @@ export default function CheckoutPage() {
     if (!couponCode.trim()) return;
     setValidatingCoupon(true);
     try {
-      const categoryIds = cart.map((i) => i.categoryId);
+      const categoryIds = [...new Set(cart.flatMap((i) => i.categoryIds ?? [i.categoryId]))];
       const res = await fetch(apiUrl + "/api/coupons/validate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

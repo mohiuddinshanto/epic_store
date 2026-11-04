@@ -75,6 +75,8 @@ export type Product = {
   id: string;
   slug: string;
   name: string;
+  seoTitle?: string | null;
+  seoDescription?: string | null;
   price: string;
   salePrice: string | null;
   stock: number;
@@ -85,12 +87,14 @@ export type Product = {
   description: string;
   longDescription?: string | null;
   images: string[];
+  categoryId: string;
+  categoryLinks?: { categoryId: string }[];
   imagesDetails?: ProductImageDetail[];
   variants?: ProductVariant[];
   variationImages?: Record<string, string>;
   attributes?: ProductAttribute[];
   variations?: Variation[];
-  category: { name: string; slug: string };
+  category: { id: string; name: string; slug: string };
   reviews?: Review[];
 };
 
@@ -272,7 +276,8 @@ export function ProductView({ slug, initialProduct }: { slug: string; initialPro
             name: isVariable && selectedVariation ? `${product.name} — ${selectedVariation.name}` : product.name,
             images: displayImages.length ? displayImages : product.images,
             price: finalPrice,
-            categoryId: product.category.slug,
+            categoryId: product.categoryId,
+            categoryIds: product.categoryLinks?.map((link) => link.categoryId) ?? [product.categoryId],
             qty,
           },
         ];

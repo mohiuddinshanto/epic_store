@@ -23,6 +23,7 @@ type SeedProduct = {
   description: string;
   longDescription: string | null;
   categorySlug: string;
+  categorySlugs?: string[];
   price: string;
   salePrice: string | null;
   stock: number;
@@ -84,7 +85,9 @@ async function main() {
   let variationCount = 0;
 
   for (const item of seed.products) {
-    const category = await prisma.category.findUnique({ where: { slug: item.categorySlug }, select: { id: true } });
+    const categorySlugs = [...new Set([item.categorySlug, ...(item.categorySlugs ?? [])])];
+    const importedCategories = await prisma.category.findMany({ where: { slug: { in: categorySlugs } }, select: { id: true, slug: true } });
+    const category = importedCategories.find((candidate) => candidate.slug === item.categorySlug);
     if (!category) {
       console.warn(`  ! skipped ${item.slug}: category "${item.categorySlug}" not found`);
       continue;
@@ -134,6 +137,9 @@ async function main() {
         seoDescription: item.seoDescription,
       },
     });
+
+    await prisma.productCategory.deleteMany({ where: { productId: product.id } });
+    await prisma.productCategory.createMany({ data: importedCategories.map((itemCategory) => ({ productId: product.id, categoryId: itemCategory.id })), skipDuplicates: true });
 
     await prisma.productImage.deleteMany({ where: { productId: product.id } });
     if (item.imagesDetails.length) {

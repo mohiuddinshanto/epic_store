@@ -22,6 +22,7 @@ type Product = {
   images: string[];
   productType?: string;
   categoryId: string;
+  categoryLinks?: { categoryId: string }[];
   category: { name: string; slug: string };
   attributes?: { id: string; name: string; values: { id: string; value: string }[] }[];
   variations?: {
@@ -36,7 +37,7 @@ type Product = {
   }[];
 };
 type Variation = NonNullable<Product["variations"]>[number];
-type CartItem = { id: string; slug: string; name: string; images: string[]; price: number; categoryId: string; qty: number; variationId?: string; sku?: string };
+type CartItem = { id: string; slug: string; name: string; images: string[]; price: number; categoryId: string; categoryIds?: string[]; qty: number; variationId?: string; sku?: string };
 
 const money = (v: number | string) => "৳ " + Number(v).toLocaleString("en-BD");
 
@@ -239,7 +240,7 @@ export function CategoryView({ slug, initialProducts, initialCategories, initial
     const old = JSON.parse(localStorage.getItem("epic-cart") ?? "[]");
     const key = variationId ? `${p.id}__${variationId}` : p.id;
     const hit = old.find((i: CartItem) => i.id === key);
-    const item: CartItem = { id: key, slug: p.slug, name: p.name, images: p.images, price, categoryId: p.categoryId, qty: hit ? hit.qty + 1 : 1, variationId, sku };
+    const item: CartItem = { id: key, slug: p.slug, name: p.name, images: p.images, price, categoryId: p.categoryId, categoryIds: [...new Set([p.categoryId, ...(p.categoryLinks ?? []).map((link) => link.categoryId)])], qty: hit ? hit.qty + 1 : 1, variationId, sku };
     localStorage.setItem("epic-cart", JSON.stringify(hit ? old.map((i: CartItem) => i.id === key ? item : i) : [...old, item]));
     toast.success("কার্টে যোগ হয়েছে");
   }

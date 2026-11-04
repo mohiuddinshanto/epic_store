@@ -44,6 +44,7 @@ type Product = {
   images: string[];
   productType?: string;
   categoryId: string;
+  categoryLinks?: { categoryId: string }[];
   category: { id?: string; name: string; slug: string };
   attributes?: { id: string; name: string; values: { id: string; value: string }[] }[];
   variations?: {
@@ -76,6 +77,7 @@ type CartItem = {
   images: string[];
   price: number;
   categoryId: string;
+  categoryIds?: string[];
   qty: number;
   variationId?: string;
   sku?: string;
@@ -582,7 +584,7 @@ export function ShopView({ initialLayout = "classic", initialProducts, initialCa
     const counts: Record<string, number> = {};
     categories.forEach((cat) => {
       counts[cat.slug] = products.filter(
-        (p) => p.categoryId === cat.id || p.category?.slug === cat.slug
+        (p) => p.categoryId === cat.id || p.categoryLinks?.some((link) => link.categoryId === cat.id) || p.category?.slug === cat.slug
       ).length;
     });
     return counts;
@@ -606,6 +608,7 @@ export function ShopView({ initialLayout = "classic", initialProducts, initialCa
       images: variation?.image ? [variation.image, ...p.images] : p.images,
       price,
       categoryId: p.categoryId,
+      categoryIds: [...new Set([p.categoryId, ...(p.categoryLinks ?? []).map((link) => link.categoryId)])],
       qty: hit ? hit.qty + 1 : 1,
       variationId,
       sku,
@@ -657,7 +660,8 @@ export function ShopView({ initialLayout = "classic", initialProducts, initialCa
         const matchesCat =
           p.category?.slug === selectedCategory ||
           p.categoryId === selectedCategory ||
-          categories.find((c) => c.slug === selectedCategory)?.id === p.categoryId;
+          categories.find((c) => c.slug === selectedCategory)?.id === p.categoryId ||
+          Boolean(categories.find((c) => c.slug === selectedCategory && p.categoryLinks?.some((link) => link.categoryId === c.id)));
         if (!matchesCat) return false;
       }
 

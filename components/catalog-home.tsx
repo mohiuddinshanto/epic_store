@@ -34,6 +34,7 @@ type Product = {
   description?: string;
   images: string[];
   categoryId: string;
+  categoryLinks?: { categoryId: string }[];
   productType?: string;
   category: { id?: string; name: string; slug: string };
   attributes?: { id: string; name: string; values: { id: string; value: string }[] }[];
@@ -379,15 +380,15 @@ export function CatalogHome({
     : categories;
   const catCounts = showcaseCategories.map((c) => ({
     ...c,
-    count: products.filter((p) => p.categoryId === c.id).length,
+    count: products.filter((p) => p.categoryId === c.id || p.categoryLinks?.some((link) => link.categoryId === c.id)).length,
   }));
   const tabCats = catCounts;
   const filteredProducts =
-    activeTab === "all" ? products : products.filter((p) => p.categoryId === activeTab);
+    activeTab === "all" ? products : products.filter((p) => p.categoryId === activeTab || p.categoryLinks?.some((link) => link.categoryId === activeTab));
 
   const categorySliders = tabCats.slice(0, maxCategories).map((c) => ({
     ...c,
-    items: products.filter((p) => p.categoryId === c.id),
+    items: products.filter((p) => p.categoryId === c.id || p.categoryLinks?.some((link) => link.categoryId === c.id)),
   }));
 
   const defaultHomepageCategories: HomepageCategoriesSettings = {
@@ -422,7 +423,7 @@ export function CatalogHome({
         ? Date.parse(b.createdAt ?? "") - Date.parse(a.createdAt ?? "")
         : a.name.localeCompare(b.name));
     return ordered.flatMap((category) => {
-      const categoryProducts = products.filter((product) => product.categoryId === category.id);
+      const categoryProducts = products.filter((product) => product.categoryId === category.id || product.categoryLinks?.some((link) => link.categoryId === category.id));
       const entry = entries.get(category.id);
       const visible = entry?.visible ?? settings.mode === "automatic";
       if (!visible || categoryProducts.length === 0) return [];
@@ -457,7 +458,7 @@ export function CatalogHome({
   const configuredSections = (sections ?? [])
     .map((s) => {
       if (!s.categoryIds.length) return null;
-      const allItems = s.categoryIds.flatMap((cid) => products.filter((p) => p.categoryId === cid));
+      const allItems = products.filter((p) => s.categoryIds.some((categoryId) => categoryId === p.categoryId || p.categoryLinks?.some((link) => link.categoryId === categoryId)));
       const limit = s.productLimit === null ? null : Math.max(1, Math.min(50, Math.floor(s.productLimit ?? 8)));
       const items = limit === null ? allItems : allItems.slice(0, limit);
       if (!items.length) return null;
@@ -615,7 +616,7 @@ export function CatalogHome({
           >
             <div className="relative mb-2.5 aspect-square overflow-hidden rounded-lg bg-emerald-50">
               <Image
-                src={c.image ?? img(products.find((p) => p.categoryId === c.id) ?? { images: [] } as any)}
+                src={c.image ?? img(products.find((p) => p.categoryId === c.id || p.categoryLinks?.some((link) => link.categoryId === c.id)) ?? { images: [] } as any)}
                 alt={c.name}
                 fill
                 sizes="200px"
