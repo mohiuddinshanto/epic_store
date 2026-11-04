@@ -5181,6 +5181,7 @@ function BannerSettings({ save, saving, config, token }: { save: (payload: objec
   const [mediaItems, setMediaItems] = useState<{ url: string; filename: string; altText?: string | null }[]>([]);
   const [mediaPickerSlide, setMediaPickerSlide] = useState<string | null>(null);
   const [mediaLoading, setMediaLoading] = useState(false);
+  const [mediaError, setMediaError] = useState("");
 
   type SlideData = {
     id: string;
@@ -5266,16 +5267,16 @@ function BannerSettings({ save, saving, config, token }: { save: (payload: objec
   async function toggleMediaPicker(id: string) {
     if (mediaPickerSlide === id) { setMediaPickerSlide(null); return; }
     setMediaPickerSlide(id);
+    setMediaError("");
     if (mediaItems.length) return;
     setMediaLoading(true);
     try {
-      const response = await fetch(apiUrl + "/api/admin/media", { headers: { Authorization: `Bearer ${token}` } });
-      if (!response.ok) throw new Error("Could not load image library");
+      const response = await api("/api/admin/media", token);
       const data = await response.json();
-      setMediaItems(Array.isArray(data) ? data : data.items ?? []);
+      if (!response.ok || !Array.isArray(data)) throw new Error(data.error ?? "Could not load image library");
+      setMediaItems(data);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not load image library");
-      setMediaPickerSlide(null);
+      setMediaError(error instanceof Error ? error.message : "Could not load image library");
     } finally { setMediaLoading(false); }
   }
 
@@ -5416,7 +5417,7 @@ function BannerSettings({ save, saving, config, token }: { save: (payload: objec
                 <input type="file" accept="image/*" className="hidden" onChange={(e) => handleUpload(slide.id, e)} disabled={slide.uploading} />
               </label>
               <button type="button" onClick={() => toggleMediaPicker(slide.id)} className="flex items-center gap-2 px-3 h-9 rounded-lg border border-primary/20 text-xs font-semibold text-primary hover:bg-primary/5">
-                <FiImage size={14} /> {mediaPickerSlide === slide.id ? "Hide image library" : "Choose existing image"}
+                <FiImage size={14} /> {mediaPickerSlide === slide.id ? "Hide existing images" : "Use an existing image"}
               </button>
               {slide.image && (
                 <button type="button" onClick={() => updateSlide(slide.id, { image: "" })} className="px-3 h-8 rounded-lg text-xs font-semibold text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors">
@@ -5427,7 +5428,7 @@ function BannerSettings({ save, saving, config, token }: { save: (payload: objec
           </div>
           {mediaPickerSlide === slide.id && (
             <div className="rounded-xl border border-gray-100 p-3 dark:border-white/10">
-              {mediaLoading ? <p className="py-5 text-center text-sm text-gray-500">Loading images…</p> : mediaItems.length ? (
+              {mediaLoading ? <p className="py-5 text-center text-sm text-gray-500">Loading images…</p> : mediaError ? <p role="alert" className="py-5 text-center text-sm text-rose-600">{mediaError}</p> : mediaItems.length ? (
                 <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
                   {mediaItems.map((image) => <button type="button" key={image.url} onClick={() => { updateSlide(slide.id, { image: image.url }); setMediaPickerSlide(null); }} className={`overflow-hidden rounded-lg border-2 ${slide.image === image.url ? "border-primary" : "border-transparent"}`} title={image.filename}>
                     <img src={image.url} alt={image.altText ?? image.filename} className="h-20 w-full object-cover" />
