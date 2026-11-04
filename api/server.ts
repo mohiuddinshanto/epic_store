@@ -1781,6 +1781,7 @@ app.patch("/api/admin/config", requireAuth, requireRole("ADMIN"), async (req, re
           categories: z
             .object({
               maxCategories: z.number().int().min(1).max(50).optional(),
+              categoryIds: z.array(z.string()).max(100).optional(),
               mode: z.enum(["grid", "carousel", "loop"]).optional(),
               auto: z.boolean().optional(),
               loop: z.boolean().optional(),

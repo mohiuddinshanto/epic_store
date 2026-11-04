@@ -2230,6 +2230,7 @@ function AdminProducts({ token }: { token: string }) {
 /* ==================== CATEGORIES ==================== */
 type CategoryDisplay = {
   maxCategories?: number;
+  categoryIds?: string[];
   mode?: "grid" | "carousel" | "loop";
   auto?: boolean;
   loop?: boolean;
@@ -3725,7 +3726,7 @@ function FeatureSettings({ config, save, saving }: { config: Config; save: (payl
 }
 
 /* ==================== HOME LAYOUT ==================== */
-type SmallCategory = { id: string; name: string; slug?: string; createdAt?: string; _count?: { products?: number } };
+type SmallCategory = { id: string; name: string; slug?: string; parentId?: string | null; createdAt?: string; _count?: { products?: number } };
 
 const defaultHomepageCategories: HomepageCategoriesSettings = {
   mode: "automatic",
@@ -3978,6 +3979,7 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
     const mode: CategoryDisplay["mode"] = catShow.mode === "carousel" || catShow.mode === "loop" ? catShow.mode : "grid";
     const clean: typeof catShow = { mode };
     clean.maxCategories = Math.max(1, Math.min(50, Math.floor(Number(catShow.maxCategories) || 8)));
+    clean.categoryIds = catShow.categoryIds?.length ? catShow.categoryIds : undefined;
     clean.eyebrow = catShow.eyebrow?.trim() || undefined;
     clean.title = catShow.title?.trim() || undefined;
     clean.accent = catShow.accent?.trim() || undefined;
@@ -4231,16 +4233,16 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
             {popularProductsDirty && <div className="flex justify-end"><button type="button" onClick={savePopularProducts} disabled={saving} className="h-10 rounded-xl bg-primary px-5 text-sm font-bold text-white shadow-sm transition hover:bg-primary-dark disabled:opacity-60">{saving ? "Saving…" : "Save changes"}</button></div>}
           </div>
         </details>
-        <details className="border-t border-gray-100 dark:border-white/10">
-          <summary className="cursor-pointer px-5 py-4 text-sm font-semibold text-gray-800 dark:text-slate-200">Shop by Category display</summary>
+        <details open className="border-t border-gray-100 dark:border-white/10">
+          <summary className="cursor-pointer px-5 py-4 text-sm font-semibold text-gray-800 dark:text-slate-200">Home page category section: choose categories and layout</summary>
           <div className="px-5 pb-5 sm:px-6">
 
       <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-5 sm:p-6 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h3 className="font-display font-bold text-gray-900 dark:text-white">Shop by Category</h3>
-            <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
-              The "SHOP BY CATEGORY" grid/carousel on the home page. Edits both heading and display mode.
+            <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+              Choose which categories or sub-categories appear in the home page “Shop by Category” section. Changes apply after saving.
             </p>
           </div>
           {catShowDirty && (
@@ -4255,6 +4257,25 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
           )}
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Select
+            label="Categories shown in this section"
+            aria-label="Choose categories and sub-categories for the home page category section"
+            selectionMode="multiple"
+            selectedKeys={new Set(catShow.categoryIds ?? [])}
+            onSelectionChange={(keys) => {
+              const ids = Array.from(keys as Set<string>);
+              setCatShow((current) => ({ ...current, categoryIds: ids.length ? ids : undefined }));
+              setCatShowDirty(true);
+            }}
+            description="Choose individual categories and sub-categories. Leave empty to show all top-level categories."
+            className="sm:col-span-3"
+          >
+            {cats.map((category) => (
+              <SelectItem key={category.id} textValue={category.name}>
+                {category.parentId ? `↳ ${category.name} (sub-category)` : category.name}
+              </SelectItem>
+            ))}
+          </Select>
           <Input type="number" label="Categories to show on home page" min={1} max={50} value={String(catShow.maxCategories ?? 8)} onValueChange={(v) => { setCatShow((s) => ({ ...s, maxCategories: Math.max(1, Math.min(50, Math.floor(Number(v) || 1))) })); setCatShowDirty(true); }} />
           <Input label="Eyebrow" placeholder="SHOP BY CATEGORY" value={catShow.eyebrow ?? ""} onValueChange={(v) => { setCatShow((s) => ({ ...s, eyebrow: v })); setCatShowDirty(true); }} />
           <Input label="Title" placeholder="Curated collections," value={catShow.title ?? ""} onValueChange={(v) => { setCatShow((s) => ({ ...s, title: v })); setCatShowDirty(true); }} />
