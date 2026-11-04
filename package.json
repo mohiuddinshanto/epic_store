@@ -24,6 +24,7 @@
     "db:backup": "node scripts/backup-db.mjs",
     "smoke": "node scripts/smoke.mjs",
     "prisma:studio": "prisma studio",
+    "optimize:images": "tsx scripts/optimize-existing-images.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {
@@ -44,10 +45,12 @@
     "react-dom": "^19.1.1",
     "react-hot-toast": "^2.5.2",
     "react-icons": "^5.5.0",
+    "sharp": "^0.35.5",
     "swiper": "^14.2.0",
     "zod": "^4.1.5"
   },
   "devDependencies": {
+    "@next/bundle-analyzer": "^15.5.2",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
@@ -58,5 +61,13 @@
     "tailwindcss": "^4.3.3",
     "tsx": "^4.20.5",
     "typescript": "^5.9.2"
-  }
+  },
+  "browserslist": [
+    "Chrome >= 111",
+    "Firefox >= 113",
+    "Safari >= 16.4",
+    "Edge >= 111",
+    "not dead",
+    "not IE 11"
+  ]
 }

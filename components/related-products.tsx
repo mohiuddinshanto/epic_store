@@ -23,7 +23,7 @@ function RelatedCard({ p }: { p: RelatedProduct }) {
   const hasSale = Boolean(p.salePrice && Number(p.salePrice) < Number(p.price));
   const discountPercent = hasSale ? Math.round(((Number(p.price) - Number(p.salePrice)) / Number(p.price)) * 100) : 0;
   return (
-    <article className="group h-full overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/40 hover:shadow-md">
+    <article className="group h-full overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm transition-transform duration-200 hover:-translate-y-1 hover:border-primary/40 hover:shadow-md">
       <Link href={`/products/${p.slug}`} className="relative block aspect-[3/4] overflow-hidden bg-slate-100">
         <ProductImage
           src={p.images[0] || FALLBACK_IMG}

@@ -3,6 +3,7 @@ import { mkdirSync, readdirSync, statSync, unlinkSync, writeFileSync } from "nod
 import { basename, extname, isAbsolute, join, resolve, sep } from "node:path";
 import { prisma } from "./prisma.js";
 import { decrypt } from "./crypto.js";
+import sharp from "sharp";
 
 export type StorageConfig =
   | { provider: "local"; folderPath: string; publicBaseUrl: string }
@@ -72,30 +73,34 @@ export async function loadStorageConfig(): Promise<StorageConfig | null> {
   return null;
 }
 
-export async function uploadImage(file: { buffer: Buffer; mimetype: string; originalname: string }): Promise<string> {
+export async function uploadImage(file: { buffer: Buffer; mimetype: string; originalname: string }, hero = false): Promise<string> {
   const storageConfig = await loadStorageConfig();
   if (!storageConfig) throw new Error("Storage is not configured. Add it from the Storage settings, then retry.");
 
-  const ext = (extname(file.originalname) || ".img").toLowerCase();
+  const originalExt = (extname(file.originalname) || ".img").toLowerCase();
+  const optimized = [".gif", ".svg"].includes(originalExt)
+    ? file.buffer
+    : await sharp(file.buffer).rotate().resize({ width: hero ? 1600 : 1000, withoutEnlargement: true }).webp({ quality: hero ? 70 : 78 }).toBuffer();
+  const ext = optimized === file.buffer ? originalExt : ".webp";
 
   if (storageConfig.provider === "local") {
     const productsDir = resolve(storageConfig.folderPath);
     mkdirSync(productsDir, { recursive: true, mode: 0o755 });
-    const hash = createHash("sha256").update(file.buffer).digest("hex");
+    const hash = createHash("sha256").update(optimized).digest("hex");
     const existing = readdirSync(productsDir).find((name) => name.startsWith(hash));
     const baseUrl = storageConfig.publicBaseUrl.replace(/\/+$/, "");
     if (existing) return `${baseUrl}/${existing}`;
     const filename = `${hash}${ext}`;
-    writeFileSync(join(productsDir, filename), file.buffer, { mode: 0o644 });
+    writeFileSync(join(productsDir, filename), optimized, { mode: 0o644 });
     return `${baseUrl}/${filename}`;
   }
 
   const { PutObjectCommand, S3Client } = await import("@aws-sdk/client-s3");
-  const hash = createHash("sha256").update(file.buffer).digest("hex").slice(0, 12);
+  const hash = createHash("sha256").update(optimized).digest("hex").slice(0, 12);
   const filename = `${hash}${ext}`;
   const key = `uploads/products/${filename}`;
   const client = new S3Client({ region: storageConfig.region, endpoint: storageConfig.endpoint, forcePathStyle: true, credentials: { accessKeyId: storageConfig.accessKeyId, secretAccessKey: storageConfig.secretAccessKey } });
-  await client.send(new PutObjectCommand({ Bucket: storageConfig.bucket, Key: key, Body: file.buffer, ContentType: file.mimetype, ACL: "public-read" }));
+  await client.send(new PutObjectCommand({ Bucket: storageConfig.bucket, Key: key, Body: optimized, ContentType: ext === ".webp" ? "image/webp" : file.mimetype, ACL: "public-read" }));
   const base = storageConfig.publicBaseUrl?.replace(/[\\/]+$/, "") ?? `${storageConfig.endpoint.replace(/[\\/]+$/, "")}/${storageConfig.bucket}`;
   return `${base}/${key}`;
 }

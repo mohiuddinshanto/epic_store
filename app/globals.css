@@ -2177,3 +2177,5 @@ button[color="danger"]:not(:is([data-slot] *)):hover,
   .order-success-card{padding:32px 22px}
   .order-success-meta{grid-template-columns:1fr}
 }
+
+.home-deferred{content-visibility:auto;contain-intrinsic-size:auto 700px}

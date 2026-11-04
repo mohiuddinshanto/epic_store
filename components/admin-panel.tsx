@@ -5286,6 +5286,7 @@ function BannerSettings({ save, saving, config, token }: { save: (payload: objec
     try {
       const form = new FormData();
       form.append("image", file);
+      form.append("kind", "hero");
       const response = await fetch(apiUrl + "/api/admin/upload", { method: "POST", body: form });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);

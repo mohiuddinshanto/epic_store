@@ -1332,7 +1332,7 @@ app.post("/api/admin/upload", requireAuth, requireRole("ADMIN", "STAFF"), requir
   const file = req.file;
   if (!file) return res.status(400).json({ error: "No image file provided" });
   try {
-    const url = await uploadImage(file);
+    const url = await uploadImage(file, req.body.kind === "hero");
     await prisma.mediaAsset.upsert({ where: { url }, create: { url }, update: {} });
     res.status(201).json({ url });
   } catch (error) {

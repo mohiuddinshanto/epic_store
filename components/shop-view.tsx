@@ -232,7 +232,7 @@ function ShopProductCard({
             <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
               <span className="text-xl font-bold text-[var(--shop-brand)]">{money(displayPrice)}</span>
               {displayOriginal && (
-                <span className="text-xs text-gray-400 line-through">{money(displayOriginal)}</span>
+                <span className="text-xs text-gray-500 line-through">{money(displayOriginal)}</span>
               )}
             </div>
 
@@ -257,8 +257,8 @@ function ShopProductCard({
                         className={`min-w-[34px] rounded-md px-2 py-1 text-center text-xs font-semibold transition ${
                           oos
                             ? sel
-                              ? "border-2 border-gray-400 bg-gray-300 text-white shadow-sm"
-                              : "border border-dashed border-gray-300 bg-gray-50 text-gray-400"
+                              ? "border-2 border-gray-400 bg-gray-300 text-gray-700 shadow-sm"
+                              : "border border-dashed border-gray-300 bg-gray-50 text-gray-500"
                             : sel
                             ? "border-2 border-[var(--shop-brand)] bg-[var(--shop-brand)] text-white shadow-sm"
                             : "border border-gray-200 bg-gray-50 text-gray-700 hover:border-[var(--shop-brand)] hover:bg-[var(--shop-brand-soft)]"
@@ -290,7 +290,7 @@ function ShopProductCard({
               disabled={!allowAddToCart}
               className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2.5 text-xs font-semibold transition ${
                 !allowAddToCart
-                  ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400"
+                  ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-500"
                   : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
               }`}
             >
@@ -355,7 +355,7 @@ function ShopProductCard({
         <div className="mb-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
           <span className="text-base sm:text-lg font-bold text-[var(--shop-brand)]">{money(displayPrice)}</span>
           {displayOriginal && (
-            <span className="text-xs text-gray-400 line-through">{money(displayOriginal)}</span>
+            <span className="text-xs text-gray-500 line-through">{money(displayOriginal)}</span>
           )}
         </div>
 
@@ -380,8 +380,8 @@ function ShopProductCard({
                     className={`min-w-[32px] rounded px-1.5 py-0.5 text-center text-[11px] font-semibold leading-tight transition ${
                       oos
                         ? sel
-                          ? "border-2 border-gray-400 bg-gray-300 text-white shadow-sm"
-                          : "border border-dashed border-gray-300 bg-gray-50 text-gray-400"
+                          ? "border-2 border-gray-400 bg-gray-300 text-gray-700 shadow-sm"
+                          : "border border-dashed border-gray-300 bg-gray-50 text-gray-500"
                         : sel
                         ? "border-2 border-[var(--shop-brand)] bg-[var(--shop-brand)] text-white shadow-sm"
                         : "border border-gray-200 bg-gray-50 text-gray-700 hover:border-[var(--shop-brand)] hover:bg-[var(--shop-brand-soft)]"
@@ -414,7 +414,7 @@ function ShopProductCard({
             disabled={!allowAddToCart}
             className={`flex items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold transition ${
               !allowAddToCart
-                ? "cursor-not-allowed bg-gray-100 text-gray-400"
+                ? "cursor-not-allowed bg-gray-100 text-gray-500"
                 : "bg-gray-100 text-gray-700 hover:bg-gray-200"
             }`}
           >

@@ -3,6 +3,7 @@
 import { Button } from "@heroui/react";
 import Image from "next/image";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import { waNumber } from "../lib/wa";
 import { stripHtml } from "../lib/html";
@@ -43,6 +44,8 @@ import {
   FiCheck,
   FiHeadphones,
 } from "react-icons/fi";
+
+const StoreTestimonials = dynamic(() => import("./store-testimonials").then((module) => module.StoreTestimonials));
 
 const apiUrl = "";
 
@@ -263,32 +266,6 @@ const DEFAULT_TRUST_BADGES: TrustBadgeConfig[] = [
   { enabled: true, icon: "refresh", title: "Easy Exchange", subtitle: "7-day hassle-free returns" },
 ];
 
-type Testimonial = { init?: string; image?: string; name?: string; role?: string; quote?: string; rating?: number };
-
-const DEFAULT_TESTIMONIALS: Testimonial[] = [
-  {
-    init: "TM",
-    name: "Tasnim Mahbub",
-    role: "Verified Buyer • Dhaka",
-    quote:
-      "The linen shirt felt premium the moment I opened the box. Delivery to Dhanmondi took just two days — quality and speed both exceeded expectations.",
-  },
-  {
-    init: "SR",
-    name: "Sakib Rahman",
-    role: "Verified Buyer • Chattogram",
-    quote:
-      "Ordered the sneakers during the festive drop and got a solid discount. Comfort is real — I wear them daily. bKash checkout was effortless.",
-  },
-  {
-    init: "NF",
-    name: "Nusrat Faria",
-    role: "Boutique Owner • Sylhet",
-    quote:
-      "We stock EPIC essentials for our boutique clients. Consistent quality, honest pricing, and their exchange policy keeps our customers happy.",
-  },
-];
-
 const scrollToId = (link: string) => {
   const id = link.replace(/^#/, "");
   document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
@@ -309,7 +286,7 @@ function HeroCta({ label, link, secondary }: { label: string | null; link: strin
   if (href.startsWith("#")) {
     return secondary ? (
       <button
-        className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-6 py-3.5 text-sm font-bold text-slate-600 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:text-primary"
+        className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-6 py-3.5 text-sm font-bold text-slate-600 shadow-sm transition-transform hover:-translate-y-0.5 hover:border-primary/40 hover:text-primary"
         onClick={() => scrollToId(href)}
       >
         {content}
@@ -328,8 +305,8 @@ function HeroCta({ label, link, secondary }: { label: string | null; link: strin
   }
   const isExternal = /^https?:/.test(href);
   const cls = secondary
-    ? "inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-6 py-3.5 text-sm font-bold text-slate-600 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:text-primary"
-    : "inline-flex items-center gap-2 rounded-full bg-primary px-8 py-3.5 text-sm font-bold text-white shadow-lg shadow-indigo-500/20 transition-all hover:-translate-y-0.5 hover:bg-primary-dark";
+    ? "inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-6 py-3.5 text-sm font-bold text-slate-600 shadow-sm transition-transform hover:-translate-y-0.5 hover:border-primary/40 hover:text-primary"
+    : "inline-flex items-center gap-2 rounded-full bg-primary px-8 py-3.5 text-sm font-bold text-white shadow-lg shadow-indigo-500/20 transition-transform hover:-translate-y-0.5 hover:bg-primary-dark";
   return (
     <Link href={href} target={isExternal ? "_blank" : undefined} className={cls}>
       {content}
@@ -954,12 +931,12 @@ export function Storefront({
               <Link
                 key={c.id}
                 href={`/categories/${c.slug}`}
-                className="group flex flex-col items-center rounded-2xl border border-slate-100 bg-white p-5 text-center shadow-sm transition-all hover:-translate-y-1 hover:border-primary/40 hover:shadow-md"
+                className="group flex flex-col items-center rounded-2xl border border-slate-100 bg-white p-5 text-center shadow-sm transition-transform hover:-translate-y-1 hover:border-primary/40 hover:shadow-md"
               >
                 <div className="mb-3 h-16 w-16 overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 to-cyan/10">
                   {c.image ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={c.image} alt={c.name} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110" loading="lazy" />
+                    <img src={c.image} alt="" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110" loading="lazy" />
                   ) : (
                     <span className="grid h-full w-full place-items-center text-primary transition-transform group-hover:scale-110">
                       {CATEGORY_ICONS[c.slug.toLowerCase()] ?? <FiShoppingBag size={24} />}
@@ -981,12 +958,12 @@ export function Storefront({
               <Link
                 key={c.id}
                 href={`/categories/${c.slug}`}
-                className="group flex h-full flex-col items-center rounded-2xl border border-slate-100 bg-white p-5 text-center shadow-sm transition-all hover:-translate-y-1 hover:border-primary/40 hover:shadow-md"
+                className="group flex h-full flex-col items-center rounded-2xl border border-slate-100 bg-white p-5 text-center shadow-sm transition-transform hover:-translate-y-1 hover:border-primary/40 hover:shadow-md"
               >
                 <div className="mb-3 h-16 w-16 overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 to-cyan/10">
                   {c.image ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={c.image} alt={c.name} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110" loading="lazy" />
+                    <img src={c.image} alt="" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110" loading="lazy" />
                   ) : (
                     <span className="grid h-full w-full place-items-center text-primary transition-transform group-hover:scale-110">
                       {CATEGORY_ICONS[c.slug.toLowerCase()] ?? <FiShoppingBag size={24} />}
@@ -1035,7 +1012,7 @@ export function Storefront({
           />
         );
         return (
-          <section key={s.id} className="border-y border-slate-100">
+          <section key={s.id} className="home-deferred border-y border-slate-100">
             <div className="mx-auto max-w-[1400px] px-[6vw] py-10">
               <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
                 <div>
@@ -1083,57 +1060,7 @@ export function Storefront({
         );
       })}
 
-      {/* Customer Reviews */}
-      {(() => {
-        const cfg = homeConfig?.testimonials ?? {};
-        const items = cfg.items && cfg.items.length > 0 ? cfg.items : DEFAULT_TESTIMONIALS;
-        if (cfg.enabled === false || !items.length) return null;
-        return (
-          <section className="border-t border-slate-100 bg-slate-50 py-16">
-            <div className="mx-auto max-w-[1400px] px-[6vw]">
-              <div className="mx-auto mb-12 max-w-2xl text-center">
-                <span className="eyebrow justify-center">{cfg.eyebrow ?? "CUSTOMER CHRONICLES"}</span>
-                <h2 className="font-display text-4xl font-extrabold tracking-tight text-slate-900">
-                  {cfg.title ?? "Loved by"} <span className="gradient-text">{cfg.accent ?? "thousands."}</span>
-                </h2>
-                <p className="muted mt-2">
-                  {cfg.subtitle ?? "Real stories from customers across Bangladesh and beyond."}
-                </p>
-              </div>
-              <div className="grid gap-6 md:grid-cols-3">
-                {items.map((r) => (
-                  <div
-                    key={r.name || r.quote}
-                    className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm transition-all hover:-translate-y-1 hover:shadow-md"
-                  >
-                    <div className="mb-4 flex items-center gap-1 text-amber-400">
-                      {[0, 1, 2, 3, 4].map((i) => (
-                        <FiStar key={i} fill="currentColor" />
-                      ))}
-                    </div>
-                    <p className="mb-6 text-[0.95rem] italic leading-relaxed text-slate-600">
-                      “{r.quote}”
-                    </p>
-                    <div className="flex items-center gap-3 border-t border-slate-100 pt-4">
-                      {r.image ? (
-                        <img src={r.image} alt={r.name ?? "customer"} className="h-10 w-10 rounded-full object-cover" />
-                      ) : (
-                        <div className="grid h-10 w-10 place-items-center rounded-full bg-gradient-to-br from-primary to-cyan font-mono text-xs font-bold text-white">
-                          {r.init || r.name?.slice(0, 2).toUpperCase() || "A"}
-                        </div>
-                      )}
-                      <div>
-                        <h4 className="text-sm font-bold text-slate-900">{r.name}</h4>
-                        <p className="text-xs text-slate-400">{r.role}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-        );
-      })()}
+      <StoreTestimonials config={homeConfig?.testimonials} />
 
         </>
       )}
@@ -1474,7 +1401,7 @@ export function MiniProductCard({
   const discountPercent = hasSale ? Math.round(((Number(p.price) - Number(p.salePrice)) / Number(p.price)) * 100) : 0;
   return (
     <article
-      className={`group overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/40 hover:shadow-md ${
+      className={`group overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm transition-transform duration-200 hover:-translate-y-1 hover:border-primary/40 hover:shadow-md ${
         fill ? "w-full h-full" : "min-w-[240px] max-w-[260px] snap-start sm:min-w-[270px]"
       }`}
     >
@@ -1494,7 +1421,7 @@ export function MiniProductCard({
         <button
           onClick={(e) => onWishlist(p.id, e)}
           aria-label="Wishlist"
-          className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full border border-white/60 bg-white/85 text-slate-500 backdrop-blur-md transition-all hover:text-rose-500"
+          className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full border border-white/60 bg-white/85 text-slate-500 backdrop-blur-md transition-colors hover:text-rose-500"
           style={{ color: wishlisted ? "#ef4444" : "inherit" }}
         >
           <FiHeart size={16} fill={wishlisted ? "#ef4444" : "none"} />
@@ -1522,7 +1449,7 @@ export function MiniProductCard({
           </span>
           <button
             onClick={allowAddToCart ? onAdd : buyNow}
-            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all active:scale-[0.98] max-sm:w-full max-sm:justify-center ${
+            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-transform active:scale-[0.98] max-sm:w-full max-sm:justify-center ${
               allowAddToCart
                 ? "bg-slate-100 text-slate-700 hover:bg-gradient-to-r hover:from-primary hover:to-indigo-600 hover:text-white"
                 : "bg-gradient-to-r from-primary to-indigo-600 text-white shadow-sm hover:shadow-md"

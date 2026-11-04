@@ -98,7 +98,7 @@ function CatalogCard({
         <Link href={`/products/${p.slug}`} className="mb-1 block text-base font-bold leading-snug text-gray-900 line-clamp-2 hover:text-[var(--primary)]">{p.name}</Link>
         <div className="mb-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
           <span className="text-lg font-bold text-gray-900">{money(displayPrice)}</span>
-          {displayOriginal && <span className="text-xs text-gray-400 line-through">{money(displayOriginal)}</span>}
+          {displayOriginal && <span className="text-xs text-gray-500 line-through">{money(displayOriginal)}</span>}
         </div>
         {sizes.length > 0 && (
           <div className="mb-3">
@@ -110,7 +110,7 @@ function CatalogCard({
                 const sel = selectedSize === size;
                 return (
                   <button key={size} type="button" onClick={() => setSelectedSize(size)}
-                    className={`min-w-[36px] rounded px-2 py-1 text-center text-xs font-semibold leading-tight transition ${oos ? (sel ? "border-2 border-gray-400 bg-gray-300 text-white shadow-sm" : "border border-dashed border-gray-300 bg-gray-50 text-gray-400") : sel ? "border-2 border-[var(--primary)] bg-[var(--primary)] text-white shadow-sm" : "border border-gray-200 bg-gray-50 text-gray-700 hover:border-[var(--primary)] hover:bg-emerald-50"}`}>
+                    className={`min-w-[36px] rounded px-2 py-1 text-center text-xs font-semibold leading-tight transition ${oos ? (sel ? "border-2 border-gray-400 bg-gray-300 text-gray-700 shadow-sm" : "border border-dashed border-gray-300 bg-gray-50 text-gray-500") : sel ? "border-2 border-[var(--primary)] bg-[var(--primary)] text-white shadow-sm" : "border border-gray-200 bg-gray-50 text-gray-700 hover:border-[var(--primary)] hover:bg-emerald-50"}`}>
                     {size}{oos ? " ✕" : ""}
                   </button>
                 );

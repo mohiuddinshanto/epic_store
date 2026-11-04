@@ -163,7 +163,7 @@ export function CatalogCard({
     : null;
 
   return (
-    <div className={`flex flex-col justify-between rounded-2xl border border-gray-100 bg-white p-2.5 shadow-sm transition-all duration-300 hover:shadow-xl sm:p-3 ${fill ? "h-full w-full" : "w-[270px] min-w-[270px] sm:w-[290px] sm:min-w-[290px] max-w-[290px]"}`}>
+    <div className={`flex flex-col justify-between rounded-2xl border border-gray-100 bg-white p-2.5 shadow-sm transition-transform duration-300 hover:shadow-xl sm:p-3 ${fill ? "h-full w-full" : "w-[270px] min-w-[270px] sm:w-[290px] sm:min-w-[290px] max-w-[290px]"}`}>
       <div>
         <div className="relative mb-3 aspect-[4/5] overflow-hidden rounded-xl bg-gray-100 group">
           <span className="absolute left-2.5 top-2.5 z-10 rounded bg-white/90 px-2.5 py-0.5 text-xs font-medium text-gray-800 shadow-sm backdrop-blur-sm">
@@ -189,7 +189,7 @@ export function CatalogCard({
         </Link>
         <div className="mb-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
           <span className="text-base font-bold text-gray-900 sm:text-lg">{money(displayPrice)}</span>
-          {displayOriginal && <span className="text-xs text-gray-400 line-through">{money(displayOriginal)}</span>}
+          {displayOriginal && <span className="text-xs text-gray-500 line-through">{money(displayOriginal)}</span>}
         </div>
 
         {sizes.length > 0 && (
@@ -213,8 +213,8 @@ export function CatalogCard({
                     className={`min-w-[32px] rounded px-1.5 py-1 text-center text-xs font-semibold leading-tight transition sm:min-w-[36px] sm:px-2
                       ${outOfStock
                         ? isSelected
-                          ? "border-2 border-gray-400 bg-gray-300 text-white shadow-sm"
-                          : "border border-dashed border-gray-300 bg-gray-50 text-gray-400 hover:border-gray-400"
+                          ? "border-2 border-gray-400 bg-gray-300 text-gray-700 shadow-sm"
+                          : "border border-dashed border-gray-300 bg-gray-50 text-gray-500 hover:border-gray-400"
                         : isSelected
                           ? "border-2 border-[var(--primary)] bg-[var(--primary)] text-white shadow-sm"
                           : "border border-gray-200 bg-gray-50 text-gray-700 hover:border-[var(--primary)] hover:bg-emerald-50"
@@ -247,7 +247,7 @@ export function CatalogCard({
             title="কার্টে যোগ করুন"
             className={`flex min-h-10 min-w-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg px-1 py-2 text-[0px] font-semibold leading-tight transition min-[480px]:px-2 min-[480px]:text-xs ${
               !allowAddToCart
-                ? "cursor-not-allowed bg-gray-100 text-gray-400"
+                ? "cursor-not-allowed bg-gray-100 text-gray-500"
                 : "bg-gray-100 text-gray-800 hover:bg-gray-200"
             }`}
           >
@@ -618,14 +618,14 @@ export function CatalogHome({
             <div className="relative mb-2.5 aspect-square overflow-hidden rounded-lg bg-emerald-50">
               <Image
                 src={c.image ?? img(products.find((p) => p.categoryId === c.id || p.categoryLinks?.some((link) => link.categoryId === c.id)) ?? { images: [] } as any)}
-                alt={c.name}
+                alt=""
                 fill
                 sizes="200px"
                 className="rounded-lg object-cover transition duration-300 group-hover:scale-105"
               />
             </div>
             <h3 className="truncate text-sm font-bold text-gray-800 group-hover:text-[var(--primary)] sm:text-[0.95rem]">{c.name}</h3>
-            <p className="text-xs text-gray-600">({c.count} টি)</p>
+            <p className="text-xs text-gray-500">({c.count} টি)</p>
           </Link>
         );
         return (
@@ -717,7 +717,7 @@ export function CatalogHome({
 
       {/* CATEGORY SLIDERS */}
       {sectionVisibility?.collections !== false && sectionList.map((c) => (
-        <section key={c.id} className="mx-auto max-w-7xl px-4 py-8">
+        <section key={c.id} className="home-deferred mx-auto max-w-7xl px-4 py-8">
           <div className="mb-5 flex items-end justify-between border-b border-gray-100 pb-3">
             <div>
               <div className="mb-1 flex items-center gap-2">
