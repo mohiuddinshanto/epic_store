@@ -41,6 +41,7 @@ type ShippingConfig = {
   defaultCharge?: number;
   freeAbove?: number | null;
   zones?: { name?: string; charge?: number; districts?: string[] }[];
+  options?: { id?: string; name?: string; charge?: number }[];
 };
 
 const FALLBACK_SHIPPING = 80;
@@ -93,11 +94,15 @@ export default function CheckoutPage() {
   const [form, setForm] = useState<CheckoutForm>(DEFAULT_CHECKOUT_FORM);
   const [optionsLoading, setOptionsLoading] = useState(true);
   const [shippingConfig, setShippingConfig] = useState<ShippingConfig | null>(null);
+  const [selectedShipping, setSelectedShipping] = useState("");
   const [districtValue, setDistrictValue] = useState("");
   const [divisionValue, setDivisionValue] = useState("");
 
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
-  const shipping = computeShipping(subtotal, shippingConfig, districtValue, divisionValue);
+  const shippingOptions = shippingConfig?.options ?? [];
+  const shipping = shippingOptions.length
+    ? (shippingOptions.find((option, index) => String(option.id ?? index) === selectedShipping)?.charge ?? 0)
+    : computeShipping(subtotal, shippingConfig, districtValue, divisionValue);
   const totalAmount = Math.max(0, subtotal - discountAmount + shipping);
 
   useEffect(() => {
@@ -125,7 +130,10 @@ export default function CheckoutPage() {
           ]),
         );
         if (Object.keys(mergedForm).length) setForm(mergedForm);
-        setShippingConfig(data.shippingConfig ?? null);
+        const nextShippingConfig = data.shippingConfig ?? null;
+        setShippingConfig(nextShippingConfig);
+        const nextOptions = nextShippingConfig?.options ?? [];
+        if (nextOptions.length) setSelectedShipping(String(nextOptions[0].id ?? 0));
       })
       .catch(() => {
         setMethods([]);
@@ -187,10 +195,13 @@ export default function CheckoutPage() {
           discountAmount: discountAmount || undefined,
           couponId: couponId || undefined,
           totalAmount,
-          shippingDetails: Object.fromEntries(
+          shippingDetails: {
+            ...Object.fromEntries(
             enabledFields
               .map(([key]) => [key, fd.get(key)]),
-          ),
+            ),
+            ...(shippingOptions.length ? { shippingOptionId: selectedShipping } : {}),
+          },
           orderItems: cart.map((item) => ({
             productId: item.variationId ? item.id.split("__")[0] : item.id,
             name: item.name,
@@ -259,6 +270,20 @@ export default function CheckoutPage() {
                   />
                 ))}
             </div>
+
+            {shippingOptions.length > 0 && (
+              <div>
+                <label style={{ display: "block", fontSize: "0.9rem", fontWeight: 700, marginBottom: "10px" }}>Shipping Method</label>
+                <div className="payment-methods-grid">
+                  {shippingOptions.map((option, index) => {
+                    const id = String(option.id ?? index);
+                    return <div key={id} className={`payment-card ${selectedShipping === id ? "selected" : ""}`} onClick={() => setSelectedShipping(id)}>
+                      <FiMapPin /><span>{option.name} — {money(option.charge ?? 0)}</span>
+                    </div>;
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Payment Method Selector */}
             <div>
@@ -354,7 +379,7 @@ export default function CheckoutPage() {
           )}
 
           <div className="summary-row">
-            <span>Nationwide Delivery</span>
+            <span>{shippingOptions.length ? (shippingOptions.find((option, index) => String(option.id ?? index) === selectedShipping)?.name ?? "Shipping") : "Nationwide Delivery"}</span>
             <strong>{money(shipping)}</strong>
           </div>
 

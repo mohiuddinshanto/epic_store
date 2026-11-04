@@ -169,7 +169,8 @@ const ACTIVE_PAYMENT_GATEWAYS = new Set<string>([]);
 const DEFAULT_SHIPPING_CENTS = 8000;
 
 export type ShippingZone = { name?: string; charge?: number; districts?: string[] };
-export type ShippingConfig = { defaultCharge?: number; freeAbove?: number | null; zones?: ShippingZone[] };
+export type ShippingOption = { id?: string; name?: string; charge?: number };
+export type ShippingConfig = { defaultCharge?: number; freeAbove?: number | null; zones?: ShippingZone[]; options?: ShippingOption[] };
 
 /** Resolve the shipping charge (in poisha/cents) from the admin zone config. */
 export function computeShippingCents(subtotalCents: number, config: unknown, details: Record<string, unknown>): number {
@@ -762,7 +763,20 @@ app.post("/api/orders", rateLimit({ windowMs: 10 * 60_000, max: 20, message: "To
         normalizedItems.push({ productId: product.id, variationId: item.variationId, name, qty: item.qty, price: asMoney(unitPrice), categoryId: product.categoryId, categoryIds: product.categoryLinks.map((link) => link.categoryId), sku });
       }
 
-      const shippingCents = computeShippingCents(subtotalCents, storeConfig?.shippingConfig, shippingDetails);
+      const shippingConfig = (storeConfig?.shippingConfig ?? {}) as ShippingConfig;
+      const shippingChoice = String(shippingDetails.shippingOptionId ?? "");
+      const configuredOptions = Array.isArray(shippingConfig.options) ? shippingConfig.options : [];
+      let shippingCents: number;
+      if (configuredOptions.length) {
+        const option = configuredOptions.find((item, index) => String(item.id ?? index) === shippingChoice);
+        if (!option || typeof option.charge !== "number" || !Number.isFinite(option.charge) || option.charge < 0) {
+          throw new OrderRequestError(400, "Select a valid shipping option.");
+        }
+        shippingCents = Math.round(option.charge * 100);
+        shippingDetails.shippingOptionName = option.name ?? "Delivery";
+      } else {
+        shippingCents = computeShippingCents(subtotalCents, shippingConfig, shippingDetails);
+      }
       let discountCents = 0;
       let couponId: string | undefined;
       if (parsed.data.couponId) {
@@ -1810,6 +1824,7 @@ app.patch("/api/admin/config", requireAuth, requireRole("ADMIN"), async (req, re
             )
             .max(50)
             .optional(),
+          options: z.array(z.object({ id: z.string().max(80).optional(), name: z.string().min(1).max(80), charge: z.number().min(0).max(100000) })).max(20).optional(),
         })
         .optional(),
       marketingPixels: z.unknown().optional(),

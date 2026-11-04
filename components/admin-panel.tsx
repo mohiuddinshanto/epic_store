@@ -103,6 +103,7 @@ type Config = {
     defaultCharge?: number;
     freeAbove?: number | null;
     zones?: { name?: string; charge?: number; districts?: string[] }[];
+    options?: { id?: string; name?: string; charge?: number }[];
   };
   courierConfig?: {
     steadfast?: { enabled: boolean; apiKey?: string; secretKey?: string };
@@ -5452,6 +5453,9 @@ function DeliverySettings({ save, saving, config, token }: { save: (payload: obj
   const [zones, setZones] = useState<{ name: string; charge: string; districts: string }[]>(
     (config.shippingConfig?.zones ?? []).map((z) => ({ name: z.name ?? "", charge: z.charge != null ? String(z.charge) : "", districts: (z.districts ?? []).join(", ") })),
   );
+  const [shippingOptions, setShippingOptions] = useState<{ id: string; name: string; charge: string }[]>(
+    (config.shippingConfig?.options ?? []).map((option, index) => ({ id: option.id ?? `shipping-${index}`, name: option.name ?? "", charge: option.charge != null ? String(option.charge) : "" })),
+  );
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -5468,6 +5472,7 @@ function DeliverySettings({ save, saving, config, token }: { save: (payload: obj
       shippingConfig: {
         defaultCharge: Number(shippingDefault) || 0,
         freeAbove: freeAbove.trim() === "" ? null : Number(freeAbove) || 0,
+        options: shippingOptions.filter((option) => option.name.trim()).map((option) => ({ ...option, name: option.name.trim(), charge: Number(option.charge) || 0 })),
         zones: zones
           .map((z) => ({ name: z.name.trim() || undefined, charge: Number(z.charge) || 0, districts: z.districts.split(",").map((s) => s.trim()).filter(Boolean) }))
           .filter((z) => z.name || z.districts.length),
@@ -5558,7 +5563,16 @@ function DeliverySettings({ save, saving, config, token }: { save: (payload: obj
 
       <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-6">
         <h3 className="font-display font-bold text-gray-900 dark:text-white mb-1">Shipping Charges</h3>
-        <p className="text-xs text-gray-400 dark:text-slate-500 mb-5">A default charge applies everywhere; add zones to override it by district or division.</p>
+        <p className="text-xs text-gray-400 dark:text-slate-500 mb-5">Add named delivery choices to let customers select a shipping charge at checkout. Leave the list empty to use district zones.</p>
+        <div className="space-y-3 mb-5">
+          {shippingOptions.map((option, index) => <div key={option.id} className="grid grid-cols-1 sm:grid-cols-[1fr_160px_auto] gap-3 items-end">
+            <Input label="Option name shown at checkout" placeholder="Inside Dhaka" value={option.name} onValueChange={(name) => setShippingOptions((prev) => prev.map((item, i) => i === index ? { ...item, name } : item))} />
+            <Input type="number" min={0} label="Charge (৳)" value={option.charge} onValueChange={(charge) => setShippingOptions((prev) => prev.map((item, i) => i === index ? { ...item, charge } : item))} />
+            <button type="button" onClick={() => setShippingOptions((prev) => prev.filter((_, i) => i !== index))} className="h-10 px-3 text-sm font-semibold text-danger hover:bg-danger/5 rounded-xl">Remove</button>
+          </div>)}
+          <button type="button" onClick={() => setShippingOptions((prev) => [...prev, { id: `shipping-${Date.now()}`, name: "", charge: "" }])} className="inline-flex items-center gap-1.5 px-4 h-9 text-sm font-semibold text-primary border border-primary/30 rounded-xl hover:bg-primary/5 transition">+ Add Shipping Option</button>
+        </div>
+        {!shippingOptions.length && <p className="text-xs text-gray-400 dark:text-slate-500 mb-4">Using the existing default charge and district zones.</p>}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input type="number" min={0} label="Default Charge (৳)" value={shippingDefault} onValueChange={setShippingDefault} />
           <Input
