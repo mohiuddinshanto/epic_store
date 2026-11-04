@@ -100,9 +100,6 @@ type Config = {
   emailConfig?: { host: string; port: number; user: string; pass: string; fromEmail: string };
   checkoutForm?: Record<string, { enabled?: boolean; required?: boolean; label?: string; placeholder?: string }> | null;
   shippingConfig?: {
-    defaultCharge?: number;
-    freeAbove?: number | null;
-    zones?: { name?: string; charge?: number; districts?: string[] }[];
     options?: { id?: string; name?: string; charge?: number }[];
   };
   courierConfig?: {
@@ -254,7 +251,7 @@ type Order = {
   createdAt: string;
   paymentStatus: string;
   customerId: string | null;
-  shippingDetails: { name?: string; phone?: string; email?: string; address?: string; district?: string; division?: string; sfStatus?: string; sfSyncedAt?: string; sfConsignmentId?: string; sfTrackingCode?: string } | null;
+  shippingDetails: { name?: string; phone?: string; email?: string; address?: string; district?: string; division?: string; shippingOptionName?: string; sfStatus?: string; sfSyncedAt?: string; sfConsignmentId?: string; sfTrackingCode?: string } | null;
   orderItems?: { name: string; qty: number; price: number; sku?: string }[];
   subtotal?: string;
   shippingCharge?: string;
@@ -3506,7 +3503,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
                   {Number(detail.discountAmount) > 0 && (
                     <div className="flex justify-between text-emerald"><span>Discount{detail.coupon ? ` (${detail.coupon.code})` : ""}</span><strong>- {money(detail.discountAmount ?? 0)}</strong></div>
                   )}
-                  <div className="flex justify-between text-gray-500 dark:text-slate-400"><span>Shipping</span><strong className="text-gray-800 dark:text-slate-200">{money(detail.shippingCharge ?? 0)}</strong></div>
+                  <div className="flex justify-between text-gray-500 dark:text-slate-400"><span>Shipping{detail.shippingDetails?.shippingOptionName ? ` · ${detail.shippingDetails.shippingOptionName}` : ""}</span><strong className="text-gray-800 dark:text-slate-200">{money(detail.shippingCharge ?? 0)}</strong></div>
                   <div className="flex justify-between pt-2 border-t border-gray-100 dark:border-white/6 font-bold text-sm text-gray-900 dark:text-white">
                     <span>Total</span><span>{money(detail.totalAmount)}</span>
                   </div>
@@ -5448,11 +5445,6 @@ function DeliverySettings({ save, saving, config, token }: { save: (payload: obj
   const [pathao, setPathao] = useState(Boolean(config.courierConfig?.pathao?.enabled));
   const [redx, setRedx] = useState(Boolean(config.courierConfig?.redx?.enabled));
   const [testSending, setTestSending] = useState(false);
-  const [shippingDefault, setShippingDefault] = useState<string>(String(config.shippingConfig?.defaultCharge ?? 80));
-  const [freeAbove, setFreeAbove] = useState<string>(config.shippingConfig?.freeAbove != null ? String(config.shippingConfig.freeAbove) : "");
-  const [zones, setZones] = useState<{ name: string; charge: string; districts: string }[]>(
-    (config.shippingConfig?.zones ?? []).map((z) => ({ name: z.name ?? "", charge: z.charge != null ? String(z.charge) : "", districts: (z.districts ?? []).join(", ") })),
-  );
   const [shippingOptions, setShippingOptions] = useState<{ id: string; name: string; charge: string }[]>(
     (config.shippingConfig?.options ?? []).map((option, index) => ({ id: option.id ?? `shipping-${index}`, name: option.name ?? "", charge: option.charge != null ? String(option.charge) : "" })),
   );
@@ -5470,12 +5462,7 @@ function DeliverySettings({ save, saving, config, token }: { save: (payload: obj
         redx: { enabled: redx, apiKey: f.get("redxKey") || undefined },
       },
       shippingConfig: {
-        defaultCharge: Number(shippingDefault) || 0,
-        freeAbove: freeAbove.trim() === "" ? null : Number(freeAbove) || 0,
         options: shippingOptions.filter((option) => option.name.trim()).map((option) => ({ ...option, name: option.name.trim(), charge: Number(option.charge) || 0 })),
-        zones: zones
-          .map((z) => ({ name: z.name.trim() || undefined, charge: Number(z.charge) || 0, districts: z.districts.split(",").map((s) => s.trim()).filter(Boolean) }))
-          .filter((z) => z.name || z.districts.length),
       },
     });
   }
@@ -5563,7 +5550,7 @@ function DeliverySettings({ save, saving, config, token }: { save: (payload: obj
 
       <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-6">
         <h3 className="font-display font-bold text-gray-900 dark:text-white mb-1">Shipping Charges</h3>
-        <p className="text-xs text-gray-400 dark:text-slate-500 mb-5">Add named delivery choices to let customers select a shipping charge at checkout. Leave the list empty to use district zones.</p>
+        <p className="text-xs text-gray-400 dark:text-slate-500 mb-5">Add named delivery choices and charges for customers to select at checkout.</p>
         <div className="space-y-3 mb-5">
           {shippingOptions.map((option, index) => <div key={option.id} className="grid grid-cols-1 sm:grid-cols-[1fr_160px_auto] gap-3 items-end">
             <Input label="Option name shown at checkout" placeholder="Inside Dhaka" value={option.name} onValueChange={(name) => setShippingOptions((prev) => prev.map((item, i) => i === index ? { ...item, name } : item))} />
@@ -5571,57 +5558,6 @@ function DeliverySettings({ save, saving, config, token }: { save: (payload: obj
             <button type="button" onClick={() => setShippingOptions((prev) => prev.filter((_, i) => i !== index))} className="h-10 px-3 text-sm font-semibold text-danger hover:bg-danger/5 rounded-xl">Remove</button>
           </div>)}
           <button type="button" onClick={() => setShippingOptions((prev) => [...prev, { id: `shipping-${Date.now()}`, name: "", charge: "" }])} className="inline-flex items-center gap-1.5 px-4 h-9 text-sm font-semibold text-primary border border-primary/30 rounded-xl hover:bg-primary/5 transition">+ Add Shipping Option</button>
-        </div>
-        {!shippingOptions.length && <p className="text-xs text-gray-400 dark:text-slate-500 mb-4">Using the existing default charge and district zones.</p>}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input type="number" min={0} label="Default Charge (৳)" value={shippingDefault} onValueChange={setShippingDefault} />
-          <Input
-            type="number"
-            min={0}
-            label="Free shipping above (৳, optional)"
-            placeholder="e.g. 2000"
-            value={freeAbove}
-            onValueChange={setFreeAbove}
-          />
-        </div>
-        <div className="mt-5 space-y-3">
-          {zones.map((zone, index) => (
-            <div key={index} className="grid grid-cols-1 sm:grid-cols-[1fr_120px_1.6fr_auto] gap-3 items-end">
-              <Input
-                label="Zone name"
-                placeholder="Dhaka"
-                value={zone.name}
-                onValueChange={(v) => setZones((prev) => prev.map((z, i) => (i === index ? { ...z, name: v } : z)))}
-              />
-              <Input
-                type="number"
-                min={0}
-                label="Charge (৳)"
-                value={zone.charge}
-                onValueChange={(v) => setZones((prev) => prev.map((z, i) => (i === index ? { ...z, charge: v } : z)))}
-              />
-              <Input
-                label="Districts / Divisions (comma separated)"
-                placeholder="Dhaka, Gazipur"
-                value={zone.districts}
-                onValueChange={(v) => setZones((prev) => prev.map((z, i) => (i === index ? { ...z, districts: v } : z)))}
-              />
-              <button
-                type="button"
-                onClick={() => setZones((prev) => prev.filter((_, i) => i !== index))}
-                className="h-10 px-3 text-sm font-semibold text-danger hover:bg-danger/5 rounded-xl"
-              >
-                Remove
-              </button>
-            </div>
-          ))}
-          <button
-            type="button"
-            onClick={() => setZones((prev) => [...prev, { name: "", charge: "", districts: "" }])}
-            className="inline-flex items-center gap-1.5 px-4 h-9 text-sm font-semibold text-primary border border-primary/30 rounded-xl hover:bg-primary/5 transition"
-          >
-            + Add Zone
-          </button>
         </div>
       </div>
 
