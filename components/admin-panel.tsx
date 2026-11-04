@@ -2346,7 +2346,7 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
     } else toast.error("Could not remove image");
   }
 
-  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string; productCount: number } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string; productCount: number; categoryIds: string[] } | null>(null);
   const [moveTo, setMoveTo] = useState<string>("");
 
   async function doDelete(id: string, moveToCategoryId?: string) {
@@ -2365,23 +2365,22 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
 
   async function deleteCategory(id: string) {
     const cat = categories.find((c) => c.id === id);
-    const productCount = cat?._count?.products ?? 0;
-    if (productCount > 0 && cat) {
-      setMoveTo("");
-      setDeleteTarget({ id, name: cat.name, productCount });
-      return;
+    if (!cat) return;
+    const categoryIds = [id];
+    for (let index = 0; index < categoryIds.length; index++) {
+      categoryIds.push(...categories.filter((item) => item.parentId === categoryIds[index]).map((item) => item.id));
     }
-    if (!confirm("Delete this category?")) return;
-    await doDelete(id);
+    const productCount = categories.filter((item) => categoryIds.includes(item.id)).reduce((sum, item) => sum + (item._count?.products ?? 0), 0);
+    setMoveTo("");
+    setDeleteTarget({ id, name: cat.name, productCount, categoryIds });
   }
 
   async function confirmMoveDelete() {
     if (!deleteTarget) return;
-    if (!moveTo) return toast.error("Select a category to move the products into");
-    await doDelete(deleteTarget.id, moveTo);
+    if (deleteTarget.productCount > 0 && !moveTo) return toast.error("Select a category to move the products into");
+    await doDelete(deleteTarget.id, moveTo || undefined);
     setDeleteTarget(null);
   }
-
   const subCategories = (parentId: string) => categories.filter((c) => c.parentId === parentId);
 
   return (
@@ -2570,25 +2569,23 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
             className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 border border-gray-100 dark:border-white/8 p-6 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <h4 className="font-display font-bold text-gray-900 dark:text-white text-base">Delete & Move Products</h4>
+            <h4 className="font-display font-bold text-gray-900 dark:text-white text-base">Delete Category</h4>
             <p className="mt-2 text-sm text-gray-500 dark:text-slate-400">
-              Category <strong className="text-gray-900 dark:text-white">“{deleteTarget.name}”</strong>-এ{" "}
-              <strong className="text-gray-900 dark:text-white">{deleteTarget.productCount}টি প্রোডাক্ট</strong> আছে। প্রোডাক্টগুলো কোন ক্যাটাগরিতে
-              সরিয়ে তারপর ক্যাটাগরিটা মুছবেন — সেটা বেছে নিন।
+              Deleting <strong className="text-gray-900 dark:text-white">{deleteTarget.name}</strong> also deletes its sub-categories.
+              {deleteTarget.productCount > 0 && <> Move the {deleteTarget.productCount} products in this category tree to another category first.</>}
             </p>
-            <div className="mt-4">
+            {deleteTarget.productCount > 0 && <div className="mt-4">
               <Select
                 label="Move products to"
                 aria-label="Move products to"
                 selectedKeys={moveTo ? [moveTo] : []}
                 onChange={(e) => setMoveTo(e.target.value)}
               >
-                {(categories.filter((c) => c.id !== deleteTarget.id) ?? []).map((c) => (
+                {categories.filter((c) => !deleteTarget.categoryIds.includes(c.id)).map((c) => (
                   <SelectItem key={c.id}>{c.name} ({c._count?.products ?? 0})</SelectItem>
                 ))}
               </Select>
-            </div>
-            <div className="mt-6 flex flex-wrap items-center justify-end gap-2">
+            </div>}\n            <div className="mt-6 flex flex-wrap items-center justify-end gap-2">
               <button
                 onClick={() => setDeleteTarget(null)}
                 className="px-4 h-9 rounded-xl bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-slate-300 text-sm font-semibold hover:bg-gray-200 transition-colors"
@@ -2597,10 +2594,10 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
               </button>
               <button
                 onClick={confirmMoveDelete}
-                disabled={!moveTo}
+                disabled={deleteTarget.productCount > 0 && !moveTo}
                 className="px-4 h-9 rounded-xl bg-rose-500 text-white text-sm font-bold hover:bg-rose-600 transition-colors disabled:opacity-50"
               >
-                Move & Delete
+                {deleteTarget.productCount > 0 ? "Move & Delete" : "Delete Category"}
               </button>
             </div>
           </div>
