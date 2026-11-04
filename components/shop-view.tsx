@@ -906,33 +906,6 @@ export function ShopView({ initialLayout = "classic", initialProducts, initialCa
           className="w-full accent-[var(--shop-brand)]"
         />
 
-        {/* Quick Presets */}
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          <button
-            onClick={() => { setPriceMin(0); setPriceMax(500); }}
-            className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-medium text-gray-600 hover:border-[var(--shop-brand)] hover:text-[var(--shop-brand)]"
-          >
-            ৳৫০০ এর নিচে
-          </button>
-          <button
-            onClick={() => { setPriceMin(500); setPriceMax(1500); }}
-            className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-medium text-gray-600 hover:border-[var(--shop-brand)] hover:text-[var(--shop-brand)]"
-          >
-            ৳৫০০ - ৳১৫০০
-          </button>
-          <button
-            onClick={() => { setPriceMin(1500); setPriceMax(3000); }}
-            className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-medium text-gray-600 hover:border-[var(--shop-brand)] hover:text-[var(--shop-brand)]"
-          >
-            ৳১৫০০ - ৳৩০০০
-          </button>
-          <button
-            onClick={() => { setPriceMin(3000); setPriceMax(maxPriceLimit); }}
-            className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-medium text-gray-600 hover:border-[var(--shop-brand)] hover:text-[var(--shop-brand)]"
-          >
-            ৳৩০০০+
-          </button>
-        </div>
       </div>
 
       {/* Toggles: Stock & Discount */}
