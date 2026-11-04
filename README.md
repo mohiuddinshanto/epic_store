@@ -28,7 +28,8 @@ store-app/
 
 The `/account` sign-in and registration page uses a responsive customer portal
 layout with clear tab states, readable form fields, visible keyboard focus, and
-touch-friendly controls. Its styling is scoped to the sign-in experience so it
+touch-friendly controls. Customers can toggle password visibility while signing
+in or creating an account. Its styling is scoped to the sign-in experience so it
 does not change the customer dashboard after login.
 
 ## Local development

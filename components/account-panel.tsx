@@ -9,6 +9,8 @@ import { AccountSkeleton } from "./skeletons";
 import {
   FiArrowLeft,
   FiCalendar,
+  FiEye,
+  FiEyeOff,
   FiHeart,
   FiLock,
   FiLogOut,
@@ -76,6 +78,7 @@ export function AccountPanel() {
   const [checking, setChecking] = useState(true);
   const [showForgot, setShowForgot] = useState(false);
   const [resending, setResending] = useState(false);
+  const [authMode, setAuthMode] = useState<"sign-in" | "sign-up">("sign-in");
 
   async function resendVerification() {
     setResending(true);
@@ -211,8 +214,8 @@ export function AccountPanel() {
             </Link>
           </div>
 
-          <div className="overflow-hidden rounded-3xl border border-white/70 bg-white/85 shadow-xl shadow-slate-900/10 glass">
-            <div className="relative bg-gradient-to-br from-primary via-indigo-600 to-cyan px-8 py-9 text-white">
+          <div className="account-auth-card overflow-hidden rounded-3xl border border-white/70 bg-white/85 shadow-xl shadow-slate-900/10 glass">
+            <div className="account-auth-hero relative bg-gradient-to-br from-primary via-indigo-600 to-cyan px-8 py-9 text-white">
               <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-bold uppercase tracking-wide backdrop-blur-sm">
                 <FiUser size={12} /> কাস্টমার পোর্টাল
               </span>
@@ -222,7 +225,7 @@ export function AccountPanel() {
               <div aria-hidden className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-white/10 blur-2xl" />
             </div>
 
-            <div className="px-7 py-7 sm:px-9">
+            <div className="account-auth-content px-7 py-7 sm:px-9">
               {showForgot ? (
                 <form onSubmit={requestReset} className="flex flex-col gap-4">
                   <p className="text-sm text-slate-500">
@@ -238,14 +241,11 @@ export function AccountPanel() {
                 </form>
               ) : (
                 <>
-                  <Tabs className="account-auth-tabs" aria-label="Account" color="primary" fullWidth size="md" variant="solid">
-                    <Tab key="signin" title="লগইন">
-                      <AccountForm mode="sign-in" submit={submit} />
-                    </Tab>
-                    <Tab key="signup" title="নতুন অ্যাকাউন্ট">
-                      <AccountForm mode="sign-up" submit={submit} />
-                    </Tab>
-                  </Tabs>
+                  <div className="account-auth-tabs" role="tablist" aria-label="Account">
+                    <button type="button" role="tab" aria-selected={authMode === "sign-in"} onClick={() => setAuthMode("sign-in")}>লগইন</button>
+                    <button type="button" role="tab" aria-selected={authMode === "sign-up"} onClick={() => setAuthMode("sign-up")}>নতুন অ্যাকাউন্ট</button>
+                  </div>
+                  <AccountForm mode={authMode} submit={submit} />
                   <button
                     type="button"
                     onClick={() => setShowForgot(true)}
@@ -503,6 +503,8 @@ function AccountForm({
   mode: "sign-in" | "sign-up";
   submit: (event: FormEvent<HTMLFormElement>, mode: "sign-in" | "sign-up") => void;
 }) {
+  const [showPassword, setShowPassword] = useState(false);
+
   return (
     <form
       onSubmit={(event) => submit(event, mode)}
@@ -514,12 +516,23 @@ function AccountForm({
       <Input name="email" type="email" label="Email" placeholder="you@example.com" isRequired startContent={<FiMail />} />
       <Input
         name="password"
-        type="password"
+        type={showPassword ? "text" : "password"}
         label="Password"
         placeholder="••••••••"
         minLength={8}
         isRequired
         startContent={<FiLock />}
+        endContent={
+          <button
+            type="button"
+            className="account-password-toggle"
+            onClick={() => setShowPassword((visible) => !visible)}
+            aria-label={showPassword ? "পাসওয়ার্ড লুকান" : "পাসওয়ার্ড দেখান"}
+            aria-pressed={showPassword}
+          >
+            {showPassword ? <FiEyeOff aria-hidden="true" /> : <FiEye aria-hidden="true" />}
+          </button>
+        }
       />
 
       <Button

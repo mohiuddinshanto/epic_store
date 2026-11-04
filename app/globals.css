@@ -2006,34 +2006,36 @@ button[color="danger"]:not(:is([data-slot] *)):hover,
 .account-auth .brand { color: var(--ink); font-size: 1.55rem; font-weight: 850; letter-spacing: -.06em; }
 .account-auth .back-link { color: #64748b; font-size: .9rem; font-weight: 600; }
 .account-auth .back-link:hover { color: var(--primary); }
-.account-auth > div.relative > div.overflow-hidden {
+.account-auth-card {
   border: 1px solid #e7eaf2;
   border-radius: 24px;
   background: #fff;
   box-shadow: 0 18px 48px rgba(15, 23, 42, .11);
 }
-.account-auth > div.relative > div.overflow-hidden > div:first-child {
+.account-auth-hero {
   background: linear-gradient(118deg, #123f38 0%, #4f46e5 57%, #27b8dc 100%);
   padding: 30px 32px 34px;
 }
-.account-auth > div.relative > div.overflow-hidden > div:first-child > span {
+.account-auth-hero > span {
   background: rgba(255,255,255,.18);
   color: #fff;
 }
 .account-auth h1 { position: relative; z-index: 1; font-size: clamp(1.6rem, 5vw, 2rem); line-height: 1.35; }
 .account-auth h1 span { color: #fff; -webkit-text-fill-color: #fff; }
-.account-auth > div.relative > div.overflow-hidden > div:nth-child(2) { padding: 26px 32px 30px; }
-.account-auth-tabs { width: 100%; }
-.account-auth [data-slot="tabList"] {
-  width: 100%; min-height: 44px; padding: 4px !important;
-  background: #f1f4f8 !important; border-radius: 14px !important;
+.account-auth-content { padding: 26px 32px 30px; }
+.account-auth-tabs {
+  display: grid; grid-template-columns: 1fr 1fr; width: 100%; min-height: 44px;
+  gap: 4px; padding: 4px; margin-bottom: 16px; border-radius: 14px; background: #f1f4f8;
 }
-.account-auth [data-slot="tab"] { min-height: 36px; color: #64748b; font-size: .88rem; }
-.account-auth [data-slot="tab"][data-selected="true"] {
-  color: #123f38 !important; background: #fff !important;
-  box-shadow: 0 2px 8px rgba(15,23,42,.09) !important;
+.account-auth-tabs button {
+  min-width: 0; min-height: 36px; padding: 8px 10px; border: 0; border-radius: 11px;
+  background: transparent; color: #64748b; font-size: .88rem; font-weight: 700;
+  white-space: nowrap; cursor: pointer; transition: background .18s ease, color .18s ease, box-shadow .18s ease;
 }
-.account-auth [data-slot="tabContent"] { width: 100%; }
+.account-auth-tabs button[aria-selected="true"] {
+  background: #fff; color: #123f38; box-shadow: 0 2px 8px rgba(15,23,42,.1);
+}
+.account-auth-tabs button:focus-visible { outline: 3px solid rgba(79,70,229,.25); outline-offset: 1px; }
 .account-auth .account-form { width: 100%; max-width: none; gap: 14px; padding: 12px 0 0; }
 .account-auth [data-slot="input-wrapper"] {
   min-height: 54px; background: #f8fafc !important;
@@ -2047,17 +2049,31 @@ button[color="danger"]:not(:is([data-slot] *)):hover,
 .account-auth [data-slot="input"] { color: #172033; }
 .account-auth [data-slot="input"]::placeholder { color: #94a3b8; }
 .account-auth [data-slot="label"] { color: #586579; font-weight: 600; }
-.account-auth [data-slot="button"] {
+.account-auth .account-password-toggle {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 36px; min-height: 36px;
+  padding: 6px; border: 0; border-radius: 9px; background: transparent; color: #64748b;
+  cursor: pointer;
+}
+.account-auth .account-password-toggle:hover { color: #123f38; background: #e9f2ef; }
+.account-auth .account-password-toggle:focus-visible { outline: 3px solid rgba(79,70,229,.25); outline-offset: 1px; }
+.account-auth form button[type="submit"] {
   min-height: 50px; margin-top: 4px; color: #fff !important;
   background: #0b4935 !important; box-shadow: 0 8px 18px rgba(11,73,53,.18) !important;
 }
-.account-auth [data-slot="button"]:hover { background: #083d2d !important; transform: translateY(-1px); }
+.account-auth form button[type="submit"]:hover { background: #083d2d !important; transform: translateY(-1px); }
 .account-auth > div.relative > p { color: #94a3b8; letter-spacing: .08em; }
 @media (max-width: 520px) {
   .account-auth { padding: 24px 16px 36px; }
   .account-auth > div.relative > div.mb-7 { margin-bottom: 20px; }
-  .account-auth > div.relative > div.overflow-hidden > div:first-child { padding: 25px 22px 28px; }
-  .account-auth > div.relative > div.overflow-hidden > div:nth-child(2) { padding: 22px 20px 24px; }
+  .account-auth-hero { padding: 25px 22px 28px; }
+  .account-auth-content { padding: 22px 20px 24px; }
+}
+@layer base {
+.account-auth form button[type="submit"] {
+  background: #0b4935 !important; color: #fff !important;
+  box-shadow: 0 8px 18px rgba(11,73,53,.18) !important;
+}
+.account-auth form button[type="submit"]:hover { background: #083d2d !important; }
 }
 
 
