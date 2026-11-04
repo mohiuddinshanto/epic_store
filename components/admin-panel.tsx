@@ -2329,12 +2329,15 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
           name,
           slug,
           parentId: parentId || undefined,
+          image: newCategoryImage,
         }),
       });
       if (!res.ok) throw new Error((await res.json()).error);
       toast.success(parentId ? "Sub-category created!" : "Category created!");
       setCreating(false);
       setParentId("");
+      setNewCategoryImage(null);
+      setCategoryMediaPickerId(null);
       load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not create category");
@@ -2379,6 +2382,69 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
   }
 
   const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const [categoryMediaPickerId, setCategoryMediaPickerId] = useState<string | null>(null);
+  const [categoryMediaItems, setCategoryMediaItems] = useState<{ url: string; filename: string; altText?: string | null }[]>([]);
+  const [categoryMediaLoading, setCategoryMediaLoading] = useState(false);
+  const [newCategoryImage, setNewCategoryImage] = useState<string | null>(null);
+
+  async function toggleCategoryMediaPicker(categoryId: string) {
+    if (categoryMediaPickerId === categoryId) {
+      setCategoryMediaPickerId(null);
+      return;
+    }
+    setCategoryMediaPickerId(categoryId);
+    if (categoryMediaItems.length) return;
+    setCategoryMediaLoading(true);
+    try {
+      const response = await api("/api/admin/media", token);
+      const items = await response.json();
+      if (!response.ok || !Array.isArray(items)) throw new Error(items.error ?? "Could not load image library");
+      setCategoryMediaItems(items);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not load image library");
+      setCategoryMediaPickerId(null);
+    } finally {
+      setCategoryMediaLoading(false);
+    }
+  }
+
+  async function selectCategoryImage(categoryId: string, imageUrl: string) {
+    if (categoryId === "new") {
+      setNewCategoryImage(imageUrl);
+      setCategoryMediaPickerId(null);
+      return;
+    }
+    try {
+      const response = await api(`/api/admin/categories/${categoryId}`, token, {
+        method: "PATCH",
+        body: JSON.stringify({ image: imageUrl }),
+      });
+      if (!response.ok) throw new Error("Could not save the selected image");
+      toast.success("Category image updated");
+      setCategoryMediaPickerId(null);
+      load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not save the selected image");
+    }
+  }
+
+  async function uploadNewCategoryImage(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      const form = new FormData();
+      form.append("image", file);
+      const response = await fetch(apiUrl + "/api/admin/upload", { method: "POST", body: form });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Upload failed");
+      setNewCategoryImage(data.url);
+      toast.success("Image ready for the new category");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      event.target.value = "";
+    }
+  }
 
   async function uploadCategoryImage(id: string, event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -2468,7 +2534,13 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
           Categories & Sub-categories ({categories.filter((c) => !c.parentId).length} parents)
         </h3>
         <button
-          onClick={() => setCreating((v) => !v)}
+          onClick={() => {
+            if (creating) {
+              setNewCategoryImage(null);
+              setCategoryMediaPickerId(null);
+            }
+            setCreating(!creating);
+          }}
           className="flex items-center gap-2 px-4 h-9 bg-gradient-to-r from-primary to-indigo-500 text-white text-sm font-bold rounded-xl hover:shadow-lg hover:shadow-primary/30 transition-all"
         >
           {creating ? (
@@ -2497,6 +2569,33 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
               ))}
             </>
           </Select>
+          <div className="space-y-3">
+            <p className="text-sm font-semibold text-gray-700 dark:text-slate-200">Category image <span className="font-normal text-gray-400">(optional)</span></p>
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg bg-primary/10 px-3 text-xs font-bold text-primary transition-colors hover:bg-primary/20">
+                <FiUpload /> Upload new image
+                <input type="file" accept="image/*" className="hidden" onChange={uploadNewCategoryImage} />
+              </label>
+              <button type="button" onClick={() => toggleCategoryMediaPicker("new")} className="inline-flex h-9 items-center gap-2 rounded-lg border border-primary/20 bg-white px-3 text-xs font-bold text-primary transition-colors hover:bg-primary/5 dark:bg-white/5">
+                <FiImage /> Choose existing image
+              </button>
+              {newCategoryImage && <img src={newCategoryImage} alt="Selected category image" className="h-10 w-10 rounded-lg border border-gray-200 object-cover dark:border-white/10" />}
+            </div>
+            {categoryMediaPickerId === "new" && (
+              <div className="rounded-xl border border-gray-200 bg-white p-3 dark:border-white/10 dark:bg-slate-900">
+                <p className="mb-3 text-xs text-gray-500 dark:text-slate-400">Choose an image from the media library.</p>
+                {categoryMediaLoading ? <p className="py-5 text-center text-sm text-gray-500">Loading images…</p> : categoryMediaItems.length ? (
+                  <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
+                    {categoryMediaItems.map((image) => (
+                      <button key={image.url} type="button" onClick={() => selectCategoryImage("new", image.url)} title={image.filename} aria-label={`Use ${image.filename} for this category`} className="relative aspect-square overflow-hidden rounded-lg border border-gray-200 dark:border-white/10">
+                        <img src={image.url} alt={image.altText ?? image.filename} className="h-full w-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                ) : <p className="py-5 text-center text-sm text-gray-500">No images available yet. Upload one above first.</p>}
+              </div>
+            )}
+          </div>
           <button type="submit" className="h-10 px-5 bg-primary text-white text-sm font-bold font-display rounded-xl hover:bg-primary-dark transition-colors">
             {parentId ? "Create Sub-category" : "Create Category"}
           </button>
@@ -2543,6 +2642,13 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
                             {cat.image ? "Change image" : "Upload image"}
                             <input type="file" accept="image/*" className="hidden" onChange={(e) => uploadCategoryImage(cat.id, e)} disabled={uploadingId === cat.id} />
                           </label>
+                          <button
+                            type="button"
+                            onClick={() => toggleCategoryMediaPicker(cat.id)}
+                            className="flex h-8 items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 text-xs font-bold text-primary transition-colors hover:bg-primary/10"
+                          >
+                            <FiImage /> {categoryMediaPickerId === cat.id ? "Hide image library" : "Choose existing image"}
+                          </button>
                           {cat.image && (
                             <button
                               type="button"
@@ -2565,6 +2671,29 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
                             Cancel
                           </button>
                         </div>
+                        {categoryMediaPickerId === cat.id && (
+                          <div className="rounded-xl border border-gray-200 p-3 dark:border-white/10">
+                            <p className="mb-3 text-xs text-gray-500 dark:text-slate-400">Choose an image from the media library for this category.</p>
+                            {categoryMediaLoading ? <p className="py-5 text-center text-sm text-gray-500">Loading images…</p> : categoryMediaItems.length ? (
+                              <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
+                                {categoryMediaItems.map((image) => (
+                                  <button
+                                    key={image.url}
+                                    type="button"
+                                    onClick={() => selectCategoryImage(cat.id, image.url)}
+                                    disabled={cat.image === image.url}
+                                    title={image.filename}
+                                    aria-label={`Use ${image.filename} as the category image`}
+                                    className="relative aspect-square overflow-hidden rounded-lg border border-gray-200 disabled:opacity-60 dark:border-white/10"
+                                  >
+                                    <img src={image.url} alt={image.altText ?? image.filename} className="h-full w-full object-cover" />
+                                    {cat.image === image.url && <span className="absolute inset-x-0 bottom-0 bg-primary/90 px-1 py-0.5 text-[10px] font-semibold text-white">Current</span>}
+                                  </button>
+                                ))}
+                              </div>
+                            ) : <p className="py-5 text-center text-sm text-gray-500">No images available yet. Upload an image above first.</p>}
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <>
@@ -2608,6 +2737,28 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
                         <span className="text-xs text-primary font-bold">↳</span>
                         <p className="flex-1 text-sm font-medium text-gray-700 dark:text-slate-300">{sub.name}</p>
                         <p className="text-xs text-gray-400 dark:text-slate-500">/{sub.slug} · {sub._count?.products ?? 0}</p>
+                        <label className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg bg-primary/10 px-3 text-xs font-semibold text-primary transition-colors hover:bg-primary/20">
+                          <FiUpload /> Upload image
+                          <input type="file" accept="image/*" className="hidden" onChange={(event) => uploadCategoryImage(sub.id, event)} disabled={uploadingId === sub.id} />
+                        </label>
+                        <button type="button" onClick={() => toggleCategoryMediaPicker(sub.id)} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-primary/20 bg-white px-3 text-xs font-semibold text-primary transition-colors hover:bg-primary/5 dark:bg-white/5">
+                          <FiImage /> {categoryMediaPickerId === sub.id ? "Hide images" : "Choose image"}
+                        </button>
+                        {categoryMediaPickerId === sub.id && (
+                          <div className="w-full rounded-xl border border-gray-200 bg-white p-3 dark:border-white/10 dark:bg-slate-900">
+                            <p className="mb-3 text-xs text-gray-500 dark:text-slate-400">Choose an existing image for {sub.name}.</p>
+                            {categoryMediaLoading ? <p className="py-5 text-center text-sm text-gray-500">Loading images…</p> : categoryMediaItems.length ? (
+                              <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
+                                {categoryMediaItems.map((image) => (
+                                  <button key={image.url} type="button" onClick={() => selectCategoryImage(sub.id, image.url)} disabled={sub.image === image.url} title={image.filename} aria-label={`Use ${image.filename} as the category image`} className="relative aspect-square overflow-hidden rounded-lg border border-gray-200 disabled:opacity-60 dark:border-white/10">
+                                    <img src={image.url} alt={image.altText ?? image.filename} className="h-full w-full object-cover" />
+                                    {sub.image === image.url && <span className="absolute inset-x-0 bottom-0 bg-primary/90 px-1 py-0.5 text-[10px] font-semibold text-white">Current</span>}
+                                  </button>
+                                ))}
+                              </div>
+                            ) : <p className="py-5 text-center text-sm text-gray-500">No images available yet. Upload one above first.</p>}
+                          </div>
+                        )}
                         <button
                           type="button"
                           onClick={() => promoteSubCategory(sub)}
