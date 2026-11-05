@@ -6,6 +6,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { AccountSkeleton } from "./skeletons";
+import { productUrl } from "../lib/product-url";
 import {
   FiArrowLeft,
   FiCalendar,
@@ -421,7 +422,7 @@ export function AccountPanel() {
                     className="group overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm transition-all hover:-translate-y-1 hover:border-primary/25 hover:shadow-md"
                   >
                     <Link
-                      href={`/products/${item.product.slug}`}
+                      href={productUrl(item.product.slug)}
                       className="relative block aspect-[4/3] overflow-hidden bg-slate-100"
                     >
                       <Image
@@ -440,7 +441,7 @@ export function AccountPanel() {
                         {item.product.category.name}
                       </div>
                       <Link
-                        href={`/products/${item.product.slug}`}
+                        href={productUrl(item.product.slug)}
                         className="mt-1 block text-sm font-semibold text-slate-900 hover:text-primary"
                       >
                         {item.product.name}

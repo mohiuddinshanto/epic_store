@@ -645,6 +645,8 @@ function AdminOverview({ token, onNavigate }: { token: string; onNavigate: (sect
   const [range, setRange] = useState<7 | 30>(7);
   const [salesMode, setSalesMode] = useState<"paid" | "gross">("paid");
   const [sfBalance, setSfBalance] = useState<number | null>(null);
+  const [sfBalanceVisible, setSfBalanceVisible] = useState(false);
+  const [syncingSteadfast, setSyncingSteadfast] = useState(false);
 
   const load = () => {
     api(`/api/admin/dashboard?days=${range}`, token)
@@ -678,6 +680,18 @@ function AdminOverview({ token, onNavigate }: { token: string; onNavigate: (sect
     } catch { toast.error("Steadfast balance load failed"); }
   }
 
+  async function syncSteadfastFromOverview() {
+    setSyncingSteadfast(true);
+    try {
+      const response = await api("/api/admin/orders/sync-all-steadfast", token, { method: "POST" });
+      const result = await response.json();
+      if (!response.ok) { toast.error(result.error || "Steadfast sync failed"); return; }
+      toast.success(`Synced ${result.synced ?? 0} parcels${result.failed ? ` · ${result.failed} failed` : ""}`);
+      load();
+    } catch { toast.error("Steadfast sync failed"); }
+    finally { setSyncingSteadfast(false); }
+  }
+
   const orders = data?.recentOrders ?? [];
   const paidRevenue = data?.payment?.PAID?.amount ?? 0;
   const unpaidRevenue = data?.payment?.UNPAID?.amount ?? 0;
@@ -703,9 +717,9 @@ function AdminOverview({ token, onNavigate }: { token: string; onNavigate: (sect
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-bold text-gray-900 dark:text-white">Store overview</h2><p className="text-xs text-gray-400">Live store performance and action items</p></div><div className="flex gap-2">{[["Add Product","products"],["Create Order","orders"],["Add Coupon","coupons"],["Sync Steadfast","orders"]].map(([label, target])=><Button key={label} size="sm" variant="flat" onPress={()=>onNavigate(target as Section)}>{label}</Button>)}</div></div>
+      <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-bold text-gray-900 dark:text-white">Store overview</h2><p className="text-xs text-gray-400">Live store performance and action items</p></div><div className="flex gap-2">{[["Add Product","products"],["Create Order","orders"],["Add Coupon","coupons"]].map(([label, target])=><Button key={label} size="sm" variant="flat" onPress={()=>onNavigate(target as Section)}>{label}</Button>)}<Button size="sm" variant="flat" onPress={syncSteadfastFromOverview} isLoading={syncingSteadfast}><FiRefreshCw className={syncingSteadfast ? "animate-spin" : ""} /> Sync Steadfast</Button></div></div>
       <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">{kpis.map(([label,value,sub])=><div key={label} className="rounded-2xl border border-gray-100 dark:border-white/6 bg-white dark:bg-white/4 p-4"><p className="text-xs text-gray-400">{label}</p><p className="mt-1 text-xl font-bold text-gray-900 dark:text-white">{value}</p><p className="mt-1 text-[11px] text-gray-400">{sub}</p></div>)}</div>
-      <div className="grid sm:grid-cols-2 gap-3"><div className="rounded-2xl border border-gray-100 dark:border-white/6 bg-white dark:bg-white/4 p-4"><p className="text-xs text-gray-400">Delivered COD outstanding</p><p className="mt-1 text-xl font-bold">{money(data?.codOutstanding.amount ?? 0)}</p><p className="text-[11px] text-gray-400">{data?.codOutstanding.count ?? 0} delivered unpaid orders</p></div><div className="rounded-2xl border border-gray-100 dark:border-white/6 bg-white dark:bg-white/4 p-4 flex items-center justify-between"><div><p className="text-xs text-gray-400">Steadfast balance</p><p className="mt-1 text-xl font-bold">{sfBalance === null ? "—" : money(sfBalance)}</p></div><Button size="sm" variant="flat" onPress={loadSfBalance}>Load balance</Button></div></div>
+      <div className="grid sm:grid-cols-2 gap-3"><div className="rounded-2xl border border-gray-100 dark:border-white/6 bg-white dark:bg-white/4 p-4"><p className="text-xs text-gray-400">Delivered COD outstanding</p><p className="mt-1 text-xl font-bold">{money(data?.codOutstanding.amount ?? 0)}</p><p className="text-[11px] text-gray-400">{data?.codOutstanding.count ?? 0} delivered unpaid orders</p></div><div className="rounded-2xl border border-gray-100 dark:border-white/6 bg-white dark:bg-white/4 p-4 flex items-center justify-between"><div><p className="text-xs text-gray-400">Steadfast balance</p><p className="mt-1 text-xl font-bold">{sfBalance === null ? "—" : sfBalanceVisible ? money(sfBalance) : "৳ •••"}</p></div><div className="flex items-center gap-1"><Button size="sm" variant="flat" onPress={loadSfBalance}>Refresh</Button><Button isIconOnly size="sm" variant="light" aria-label={sfBalanceVisible ? "Hide Steadfast balance" : "Show Steadfast balance"} title={sfBalanceVisible ? "Hide balance" : "Show balance"} onPress={()=>setSfBalanceVisible((visible)=>!visible)} className="min-w-9 text-gray-600 dark:text-slate-300"><span className="flex items-center justify-center">{sfBalanceVisible ? <FiEyeOff size={16} strokeWidth={2.5} /> : <FiEye size={16} strokeWidth={2.5} />}</span></Button></div></div></div>
       <div className="grid xl:grid-cols-2 gap-4">
         <div className="rounded-2xl border border-gray-100 dark:border-white/6 bg-white dark:bg-white/4 p-5"><div className="flex flex-wrap justify-between items-center gap-2 mb-4"><h3 className="font-bold text-gray-900 dark:text-white">{salesMode === "paid" ? "Paid sales trend" : "All orders (Gross)"}</h3><div className="flex gap-1">{([7,30] as const).map(n=><Button key={n} size="sm" variant={range===n?"solid":"light"} onPress={()=>setRange(n)}>{n} days</Button>)}{(["paid","gross"] as const).map(m=><Button key={m} size="sm" variant={salesMode===m?"flat":"light"} onPress={()=>setSalesMode(m)}>{m === "paid" ? "Paid" : "All orders (Gross)"}</Button>)}</div></div><div className="flex h-36 items-end gap-1">{daily.map((d,i)=><div key={i} title={`${d.label}: ${money(d.value)}`} className={`flex-1 rounded-t ${d.value ? "bg-primary/70 hover:bg-primary" : "bg-gray-200 dark:bg-white/10"}`} style={{height:`${Math.max(3,d.value/maxDaily*100)}%`}} />)}</div><div className="mt-2 flex justify-between text-[10px] text-gray-400"><span>{daily[0]?.label}</span><span>{daily.at(-1)?.label}</span></div>{!daily.some((d)=>d.value>0)&&<p className="text-center text-xs text-gray-400 mt-2">এই সময়ে কোনো {salesMode === "paid" ? "paid sale" : "order"} নেই</p>}</div>
         <div className="rounded-2xl border border-gray-100 dark:border-white/6 bg-white dark:bg-white/4 p-5"><h3 className="font-bold text-gray-900 dark:text-white mb-4">Order status breakdown</h3><div className="space-y-3">{statuses.map(s=>{const n=statusCount(s);return <div key={s}><div className="flex justify-between text-xs mb-1"><span>{STATUS_LABEL[s]??s}</span><span>{n} · {orders.length?Math.round(n/orders.length*100):0}%</span></div><div className="h-2 rounded-full bg-gray-100 dark:bg-white/8"><div className={`h-full rounded-full ${STATUS_COLORS[s]??"bg-primary"}`} style={{width:`${orders.length?n/orders.length*100:0}%`}} /></div></div>})}</div></div>
@@ -3142,16 +3156,18 @@ function AdminOrders({ token, config, isAdmin }: { token: string; config: Config
                 <span className="font-mono font-bold text-gray-900 dark:text-white">
                   {loadingBal ? <FiRefreshCw size={12} className="animate-spin" /> : sfBalance !== null ? (sfBalVisible ? money(sfBalance) : "৳ •••") : "—"}
                 </span>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSfBalVisible((v) => !v);
-                  }}
-                  className="ml-0.5 flex items-center justify-center w-4 h-4 rounded hover:bg-gray-100 dark:hover:bg-white/10"
-                  title={sfBalVisible ? "ব্যালেন্স লুকান" : "ব্যালেন্স দেখুন"}
+                <Button
+                  isIconOnly
+                  type="button"
+                  size="sm"
+                  variant="light"
+                  onPress={() => setSfBalVisible((visible) => !visible)}
+                  aria-label={sfBalVisible ? "Hide Steadfast balance" : "Show Steadfast balance"}
+                  title={sfBalVisible ? "Hide balance" : "Show balance"}
+                  className="ml-1 min-w-8 h-8 text-gray-700 dark:text-slate-200 opacity-100"
                 >
-                  {sfBalVisible ? <FiEyeOff size={12} /> : <FiEye size={12} />}
-                </button>
+                  {sfBalVisible ? <FiEyeOff size={16} strokeWidth={2.5} /> : <FiEye size={16} strokeWidth={2.5} />}
+                </Button>
               </div>
             </>
           )}

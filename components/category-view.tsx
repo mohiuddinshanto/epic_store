@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { waNumber } from "../lib/wa";
 import { stripHtml } from "../lib/html";
+import { productUrl } from "../lib/product-url";
 import { getStoreStatus, type StoreStatusResult } from "../lib/store-status";
 import { ProductGridSkeleton, Skeleton } from "./skeletons";
 import { FiArrowLeft, FiHeart, FiMessageCircle, FiShoppingBag, FiZap } from "react-icons/fi";
@@ -91,11 +92,11 @@ function CatalogCard({
         <div className="relative mb-3 aspect-[4/5] overflow-hidden rounded-xl bg-gray-100 group">
           <span className="absolute left-2.5 top-2.5 z-10 rounded bg-white/90 px-2.5 py-0.5 text-xs font-medium text-gray-800 shadow-sm backdrop-blur-sm">{p.category.name}</span>
           {hasSale && <span className="absolute right-2.5 top-2.5 z-10 rounded bg-rose-700 px-2.5 py-0.5 text-xs font-bold text-white shadow-sm">{discountPercent}% ছাড়</span>}
-          <Link href={`/products/${p.slug}`} className="block h-full w-full">
+          <Link href={productUrl(p.slug)} className="block h-full w-full">
             <ProductImage src={img} alt={p.name} fill sizes="(max-width: 650px) 50vw, 290px" className="object-cover object-top transition duration-500 group-hover:scale-105" />
           </Link>
         </div>
-        <Link href={`/products/${p.slug}`} className="mb-1 block text-base font-bold leading-snug text-gray-900 line-clamp-2 hover:text-[var(--primary)]">{p.name}</Link>
+        <Link href={productUrl(p.slug)} className="mb-1 block text-base font-bold leading-snug text-gray-900 line-clamp-2 hover:text-[var(--primary)]">{p.name}</Link>
         <div className="mb-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
           <span className="text-lg font-bold text-gray-900">{money(displayPrice)}</span>
           {displayOriginal && <span className="text-xs text-gray-500 line-through">{money(displayOriginal)}</span>}
@@ -156,7 +157,7 @@ function ClassicCard({
   const discountPercent = hasSale ? Math.round(((Number(p.price) - Number(p.salePrice)) / Number(p.price)) * 100) : 0;
   return (
     <article className="group overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/40 hover:shadow-md w-full h-full">
-      <Link href={`/products/${p.slug}`} className="relative block aspect-[3/4] overflow-hidden bg-slate-100">
+      <Link href={productUrl(p.slug)} className="relative block aspect-[3/4] overflow-hidden bg-slate-100">
         <ProductImage src={p.images[0] || FALLBACK_IMG} alt={p.name} fill sizes="(max-width: 650px) 50vw, 280px" className="object-cover transition-transform duration-300 group-hover:scale-105" />
         {hasSale && <span className="absolute left-3 top-3 rounded-full border border-rose-500/30 bg-rose-500/90 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide text-white backdrop-blur-md">{discountPercent}% ছাড়</span>}
         <button onClick={(e) => onWishlist(p.id, e)} aria-label="Wishlist" className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full border border-white/60 bg-white/85 text-slate-500 backdrop-blur-md transition-all hover:text-rose-500" style={{ color: wishlisted ? "#ef4444" : "inherit" }}>
@@ -253,7 +254,7 @@ export function CategoryView({ slug, initialProducts, initialCategories, initial
   }
 
   function handleClassicAdd(p: Product) {
-    if (p.productType === "VARIABLE") { window.location.href = "/products/" + p.slug; return; }
+    if (p.productType === "VARIABLE") { window.location.href = productUrl(p.slug); return; }
     addToCart(p);
   }
 

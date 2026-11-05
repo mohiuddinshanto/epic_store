@@ -7,6 +7,7 @@ import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import { waNumber } from "../lib/wa";
 import { stripHtml } from "../lib/html";
+import { productUrl } from "../lib/product-url";
 import { getStoreStatus, type StoreStatusResult } from "../lib/store-status";
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
@@ -533,7 +534,7 @@ export function Storefront({
   const totalCount = cart.reduce((s, i) => s + i.qty, 0);
   function add(p: Product, variation?: Variation) {
     if (p.productType === "VARIABLE" && !variation) {
-      window.location.href = "/products/" + p.slug;
+      window.location.href = productUrl(p.slug);
       return;
     }
     const price = variation
@@ -568,7 +569,7 @@ export function Storefront({
 
   function buyNow(p: Product, variation?: Variation) {
     if (p.productType === "VARIABLE" && !variation) {
-      window.location.href = "/products/" + p.slug;
+      window.location.href = productUrl(p.slug);
       return;
     }
     const price = variation
@@ -1405,7 +1406,7 @@ export function MiniProductCard({
         fill ? "w-full h-full" : "min-w-[240px] max-w-[260px] snap-start sm:min-w-[270px]"
       }`}
     >
-      <Link href={`/products/${p.slug}`} className="relative block aspect-[3/4] overflow-hidden bg-slate-100">
+      <Link href={productUrl(p.slug)} className="relative block aspect-[3/4] overflow-hidden bg-slate-100">
         <ProductImage
           src={p.images[0] || FALLBACK_IMG}
           alt={p.name}

@@ -147,7 +147,7 @@ export function ProductView({ slug, initialProduct }: { slug: string; initialPro
       return;
     }
 
-    fetch(`${apiUrl}/api/products/${slug}`)
+    fetch(`${apiUrl}/api/products/${encodeURIComponent(slug)}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (active) apply(data);

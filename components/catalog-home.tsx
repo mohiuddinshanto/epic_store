@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
 import { ProductImage } from "./product-image";
+import { productUrl } from "../lib/product-url";
 import toast from "react-hot-toast";
 import { FiChevronLeft, FiChevronRight, FiShoppingBag, FiArrowRight, FiCheck, FiTruck, FiRefreshCw, FiShield, FiMessageCircle, FiClock, FiStar, FiHeadphones } from "react-icons/fi";
 import type { IconType } from "react-icons";
@@ -174,7 +175,7 @@ export function CatalogCard({
               {discountPercent}% ছাড়
             </span>
           )}
-          <Link href={`/products/${p.slug}`} className="block h-full w-full">
+          <Link href={productUrl(p.slug)} className="block h-full w-full">
             <ProductImage
               src={img}
               alt={p.name}
@@ -184,7 +185,7 @@ export function CatalogCard({
             />
           </Link>
         </div>
-        <Link href={`/products/${p.slug}`} className="mb-1 block text-[15px] font-bold leading-snug text-gray-900 line-clamp-2 hover:text-[var(--primary)] sm:text-base">
+        <Link href={productUrl(p.slug)} className="mb-1 block text-[15px] font-bold leading-snug text-gray-900 line-clamp-2 hover:text-[var(--primary)] sm:text-base">
           {p.name}
         </Link>
         <div className="mb-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
