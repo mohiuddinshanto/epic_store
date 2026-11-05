@@ -6,6 +6,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { AdminSkeleton } from "./skeletons";
 import { RichTextEditor } from "./rich-text";
+import { productUrl } from "../lib/product-url";
 import { FiArrowDown, FiArrowUp, FiBox, FiCheck, FiChevronDown, FiCopy, FiEdit2, FiEye, FiEyeOff, FiExternalLink, FiImage, FiLayers, FiLoader, FiMail, FiMenu, FiPhone, FiPlus, FiPrinter, FiRefreshCw, FiSend, FiShuffle, FiStar, FiTag, FiTrash2, FiTruck, FiUpload, FiUser, FiX } from "react-icons/fi";
 
 const apiUrl = "";
@@ -2296,7 +2297,7 @@ function AdminProducts({ token }: { token: string }) {
                           <FiEdit2 size={14} />
                         </button>
                         <Link
-                          href={`/products/${encodeURIComponent(p.slug)}`}
+                          href={productUrl(p.slug, p.name, p.id)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="icon-square-btn w-7 h-7 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-slate-400 hover:bg-primary/10 hover:text-primary transition-colors flex items-center justify-center text-xs"

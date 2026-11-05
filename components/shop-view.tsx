@@ -199,7 +199,7 @@ function ShopProductCard({
               {discountPercent}% ছাড়
             </span>
           )}
-          <Link href={productUrl(p.slug)} className="block h-full w-full">
+          <Link href={productUrl(p.slug, p.name, p.id)} className="block h-full w-full">
             <ProductImage
               src={img}
               alt={p.name}
@@ -221,7 +221,7 @@ function ShopProductCard({
         <div className="flex flex-1 flex-col justify-between space-y-3">
           <div>
             <Link
-              href={productUrl(p.slug)}
+              href={productUrl(p.slug, p.name, p.id)}
               className="mb-1 block text-lg font-bold leading-snug text-gray-900 transition hover:text-[var(--shop-brand)]"
             >
               {p.name}
@@ -326,7 +326,7 @@ function ShopProductCard({
               {discountPercent}% ছাড়
             </span>
           )}
-          <Link href={productUrl(p.slug)} className="block h-full w-full">
+          <Link href={productUrl(p.slug, p.name, p.id)} className="block h-full w-full">
             <ProductImage
               src={img}
               alt={p.name}
@@ -347,7 +347,7 @@ function ShopProductCard({
         </div>
 
         <Link
-              href={productUrl(p.slug)}
+              href={productUrl(p.slug, p.name, p.id)}
           className="mb-1 block text-sm sm:text-base font-bold leading-snug text-gray-900 line-clamp-2 min-h-[2.5rem] transition hover:text-[var(--shop-brand)]"
         >
           {p.name}

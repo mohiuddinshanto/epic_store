@@ -175,7 +175,7 @@ export function CatalogCard({
               {discountPercent}% ছাড়
             </span>
           )}
-          <Link href={productUrl(p.slug)} className="block h-full w-full">
+          <Link href={productUrl(p.slug, p.name, p.id)} className="block h-full w-full">
             <ProductImage
               src={img}
               alt={p.name}
@@ -185,7 +185,7 @@ export function CatalogCard({
             />
           </Link>
         </div>
-        <Link href={productUrl(p.slug)} className="mb-1 block text-[15px] font-bold leading-snug text-gray-900 line-clamp-2 hover:text-[var(--primary)] sm:text-base">
+        <Link href={productUrl(p.slug, p.name, p.id)} className="mb-1 block text-[15px] font-bold leading-snug text-gray-900 line-clamp-2 hover:text-[var(--primary)] sm:text-base">
           {p.name}
         </Link>
         <div className="mb-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">

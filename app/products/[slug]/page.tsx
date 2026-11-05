@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 type Status = { config?: Record<string, any> | null } | null;
 type Categories = { name: string; slug: string; parentId?: string | null }[];
 
-const loadProduct = cache(async (slug: string): Promise<Product | null> => {
+const loadProduct = cache(async (slug: string, productId?: string): Promise<Product | null> => {
   const include = {
     category: { select: { id: true, name: true, slug: true } },
     categoryLinks: { select: { categoryId: true, category: { select: { id: true, name: true, slug: true } } } },
@@ -26,8 +26,22 @@ const loadProduct = cache(async (slug: string): Promise<Product | null> => {
     },
     reviews: { where: { isApproved: true }, include: { user: { select: { name: true } } }, orderBy: { createdAt: "desc" as const } },
   };
-  const found = await prisma.product.findUnique({ where: { slug }, include })
-    ?? await prisma.product.findUnique({ where: { id: slug }, include });
+  const candidates = new Set([slug]);
+  let decoded = slug;
+  for (let pass = 0; pass < 2; pass++) {
+    try { decoded = decodeURIComponent(decoded); candidates.add(decoded); } catch { break; }
+  }
+  for (const candidate of [...candidates]) {
+    try { candidates.add(encodeURIComponent(candidate)); } catch {}
+  }
+  let found = productId ? await prisma.product.findUnique({ where: { id: productId }, include }) : null;
+  for (const candidate of candidates) {
+    if (found) break;
+    found = await prisma.product.findUnique({ where: { slug: candidate }, include });
+  }
+  if (!found) {
+    found = await prisma.product.findFirst({ where: { name: { equals: decoded }, isActive: true }, include, orderBy: { createdAt: "desc" } });
+  }
   return found?.isActive ? found as unknown as Product : null;
 });
 
@@ -38,10 +52,11 @@ async function requestOrigin() {
   return `${protocol}://${host}`;
 }
 
-export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
-  const { slug } = await params;
+export async function generateMetadata({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ productId?: string | string[] }> }): Promise<Metadata> {
+  const [{ slug }, query] = await Promise.all([params, searchParams]);
+  const productId = Array.isArray(query.productId) ? query.productId[0] : query.productId;
   const [product, status, origin] = await Promise.all([
-    loadProduct(slug),
+    loadProduct(slug, productId),
     fetchInternalJson<Status>("/api/store/status"),
     requestOrigin(),
   ]);
@@ -50,7 +65,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const storeName = String(status?.config?.storeName || "Online Store");
   const title = product.seoTitle?.trim() || `${product.name} | ${storeName}`;
   const description = product.seoDescription?.trim() || stripHtml(product.description).replace(/\s+/g, " ").slice(0, 155) || `Shop ${product.name} from ${storeName}.`;
-  const url = new URL(productUrl(product.slug), origin);
+  const url = new URL(productUrl(product.slug, product.name, product.id), origin);
   const image = product.images?.[0];
 
   return {
@@ -70,10 +85,11 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   };
 }
 
-export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params;
+export default async function ProductPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ productId?: string | string[] }> }) {
+  const [{ slug }, query] = await Promise.all([params, searchParams]);
+  const productId = Array.isArray(query.productId) ? query.productId[0] : query.productId;
   const [data, status, categories] = await Promise.all([
-    loadProduct(slug),
+    loadProduct(slug, productId),
     fetchInternalJson<Status>("/api/store/status"),
     fetchInternalJson<Categories>("/api/categories"),
   ]);
@@ -87,11 +103,11 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
     sku: data.sku || undefined,
     category: data.category.name,
     image: data.images.map((image) => new URL(image, origin).toString()),
-    url: new URL(productUrl(data.slug), origin).toString(),
+    url: new URL(productUrl(data.slug, data.name, data.id), origin).toString(),
     brand: { "@type": "Brand", name: storeName },
     offers: {
       "@type": "Offer",
-      url: new URL(productUrl(data.slug), origin).toString(),
+      url: new URL(productUrl(data.slug, data.name, data.id), origin).toString(),
       priceCurrency: "BDT",
       price: data.salePrice && Number(data.salePrice) < Number(data.price) ? data.salePrice : data.price,
       availability: data.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
@@ -108,7 +124,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   return (
     <>
       {productSchema && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productSchema).replace(/</g, "\\u003c") }} />}
-      <ProductView key={slug} slug={slug} initialProduct={data} />
+      <ProductView key={data?.id ?? slug} slug={data?.slug ?? slug} initialProduct={data} />
       <SiteFooter initialStatus={status} initialCategories={categories} />
     </>
   );
