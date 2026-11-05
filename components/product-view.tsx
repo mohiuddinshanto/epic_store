@@ -215,8 +215,9 @@ export function ProductView({ slug, initialProduct }: { slug: string; initialPro
 
   const variationInStock =
     isVariable && selectedVariation
-      ? Number(selectedVariation.stock) > 0
-      : product.stock > 0;
+      ? selectedVariation.manageStock === false || Number(selectedVariation.stock) > 0
+      : product.manageStock === false || product.stock > 0;
+  const showVariationStock = activeVariations.some((variation) => variation.manageStock !== false);
 
   const displayImages = (() => {
     if (!isVariable) return product.images;
@@ -420,30 +421,19 @@ export function ProductView({ slug, initialProduct }: { slug: string; initialPro
 
           {isVariable ? (
             selectedVariation ? (
-              variationInStock ? (
-                <div className="stock-badge">
-                  <span className="dot" />{" "}
-                  {selectedVariation.manageStock === false ? "In Stock (unlimited)" : `In Stock (${selectedVariation.stock} items available)`}
-                </div>
+              selectedVariation.manageStock !== false ? variationInStock ? (
+                <div className="stock-badge"><span className="dot" /> In Stock ({selectedVariation.stock} items available)</div>
               ) : (
-                <div className="stock-badge" style={{ color: "#ef4444", background: "#fef2f2" }}>
-                  <span className="dot" style={{ background: "#ef4444" }} /> Out of stock
-                </div>
-              )
-            ) : (
-              <div className="stock-badge" style={{ color: "#ef4444", background: "#fef2f2" }}>
-                <span className="dot" style={{ background: "#ef4444" }} /> Select options to check availability
-              </div>
-            )
-          ) : product.stock > 0 ? (
-            <div className="stock-badge">
-              <span className="dot" /> {product.manageStock === false ? "In Stock (unlimited)" : `In Stock (${product.stock} items available)`}
-            </div>
+                <div className="stock-badge" style={{ color: "#ef4444", background: "#fef2f2" }}><span className="dot" style={{ background: "#ef4444" }} /> Out of stock</div>
+              ) : null
+            ) : showVariationStock ? (
+              <div className="stock-badge" style={{ color: "#ef4444", background: "#fef2f2" }}><span className="dot" style={{ background: "#ef4444" }} /> Select options to check availability</div>
+            ) : null
+          ) : product.manageStock ? product.stock > 0 ? (
+            <div className="stock-badge"><span className="dot" /> In Stock ({product.stock} items available)</div>
           ) : (
-            <div className="stock-badge" style={{ color: "#ef4444", background: "#fef2f2" }}>
-              <span className="dot" style={{ background: "#ef4444" }} /> Out of stock
-            </div>
-          )}
+            <div className="stock-badge" style={{ color: "#ef4444", background: "#fef2f2" }}><span className="dot" style={{ background: "#ef4444" }} /> Out of stock</div>
+          ) : null}
 
           <RichContent className="description" value={selectedVariation?.description || product.description} />
 
@@ -529,7 +519,7 @@ export function ProductView({ slug, initialProduct }: { slug: string; initialPro
               color="primary"
               size="lg"
               className="flex-1 font-bold shadow-lg"
-              isDisabled={isVariable ? !selectedVariation || !variationInStock : !product.stock}
+              isDisabled={isVariable ? !selectedVariation || !variationInStock : product.manageStock && !product.stock}
               onPress={() => addToCart(true)}
             >
               এখনই কিনুন
@@ -538,7 +528,7 @@ export function ProductView({ slug, initialProduct }: { slug: string; initialPro
               variant="flat"
               size="lg"
               className="flex-1 font-bold"
-              isDisabled={isVariable ? !selectedVariation || !variationInStock : !product.stock}
+              isDisabled={isVariable ? !selectedVariation || !variationInStock : product.manageStock && !product.stock}
               onPress={() => addToCart(false)}
             >
               <FiShoppingBag /> ব্যাগে রাখুন
