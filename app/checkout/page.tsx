@@ -2,7 +2,7 @@
 
 import { Button, Input } from "@heroui/react";
 import Link from "next/link";
-import { FormEvent, useEffect, useState, type ReactNode } from "react";
+import { FormEvent, useEffect, useRef, useState, type ReactNode } from "react";
 import toast from "react-hot-toast";
 import { CheckoutSkeleton } from "../../components/skeletons";
 import {
@@ -97,6 +97,8 @@ export default function CheckoutPage() {
   const [selectedShipping, setSelectedShipping] = useState("");
   const [districtValue, setDistrictValue] = useState("");
   const [divisionValue, setDivisionValue] = useState("");
+  const [checkoutSessionId, setCheckoutSessionId] = useState("");
+  const abandonTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
   const shippingOptions = shippingConfig?.options ?? [];
@@ -106,6 +108,9 @@ export default function CheckoutPage() {
   const totalAmount = Math.max(0, subtotal - discountAmount + shipping);
 
   useEffect(() => {
+    let sessionId = sessionStorage.getItem("epic-checkout-session");
+    if (!sessionId) { sessionId = crypto.randomUUID(); sessionStorage.setItem("epic-checkout-session", sessionId); }
+    setCheckoutSessionId(sessionId);
     try {
       const stored = JSON.parse(localStorage.getItem("epic-cart") ?? "[]");
       setCart(stored);
@@ -141,6 +146,17 @@ export default function CheckoutPage() {
       })
       .finally(() => setOptionsLoading(false));
   }, []);
+
+  function recordCheckout(event: React.ChangeEvent<HTMLFormElement>) {
+    if (!checkoutSessionId || !cart.length) return;
+    const fd = new FormData(event.currentTarget);
+    const details = Object.fromEntries(fd.entries());
+    if (abandonTimer.current) clearTimeout(abandonTimer.current);
+    abandonTimer.current = setTimeout(() => {
+      fetch(apiUrl + "/api/checkout/abandoned", { method: "POST", headers: { "Content-Type": "application/json" }, keepalive: true,
+        body: JSON.stringify({ sessionId: checkoutSessionId, name: details.name, phone: details.phone, email: details.email, address: details.address, items: cart.map(({ name, qty, price }) => ({ name, qty, price })), total: totalAmount }) }).catch(() => {});
+    }, 700);
+  }
 
   async function applyCoupon() {
     if (!couponCode.trim()) return;
@@ -189,6 +205,7 @@ export default function CheckoutPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          checkoutSessionId,
           paymentMethod: selectedMethod,
           subtotal,
           shippingCharge: shipping,
@@ -251,7 +268,8 @@ export default function CheckoutPage() {
           </span>
           <h2>Shipping & Payment Details</h2>
 
-          <form onSubmit={submit} style={{ display: "grid", gap: "24px" }}>
+          <form onSubmit={submit} onChange={recordCheckout} style={{ display: "grid", gap: "24px" }}>
+            <p className="text-xs text-gray-500" role="note">If you leave checkout before placing your order, the contact details and cart you entered may be kept for up to 30 days so the store can follow up. This checkout record is removed automatically after 30 days.</p>
             <div className="form-grid">
               {Object.entries(form)
                 .filter(([, field]) => field.enabled)

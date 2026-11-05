@@ -2,6 +2,7 @@ import "dotenv/config";
 import bcrypt from "bcryptjs";
 import cors from "cors";
 import express from "express";
+import { randomUUID } from "node:crypto";
 import multer from "multer";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library.js";
 import type { Prisma } from "@prisma/client";
@@ -602,7 +603,7 @@ app.post("/api/products/:productId/reviews", requireAuth, async (req, res) => {
 });
 
 app.get("/api/account/orders", requireAuth, async (req, res) => {
-  res.json(await prisma.order.findMany({ where: { customerId: req.user!.id }, orderBy: { createdAt: "desc" } }));
+  res.json(await prisma.order.findMany({ where: { customerId: req.user!.id, deletedAt: null }, orderBy: { createdAt: "desc" } }));
 });
 
 // Coupons Validation API
@@ -658,10 +659,24 @@ app.post("/api/onboarding", async (req, res) => {
 });
 
 // Create Order API
+app.post("/api/checkout/abandoned", rateLimit({ windowMs: 10 * 60_000, max: 60 }), async (req, res) => {
+  const parsed = z.object({
+    sessionId: z.string().min(16).max(64).regex(/^[a-zA-Z0-9_-]+$/),
+    name: z.string().max(191).optional(), phone: z.string().max(32).optional(), email: z.string().max(191).optional(), address: z.string().max(2000).optional(),
+    items: z.array(z.object({ name: z.string().max(191), qty: z.number().int().positive(), price: z.number().nonnegative() })).max(50),
+    total: z.number().nonnegative(),
+  }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid checkout snapshot" });
+  const d = parsed.data;
+  await prisma.abandonedCheckout.upsert({ where: { sessionId: d.sessionId }, create: { ...d, total: d.total, items: d.items as Prisma.InputJsonValue }, update: { name: d.name, phone: d.phone, email: d.email, address: d.address, total: d.total, items: d.items as Prisma.InputJsonValue, updatedAt: new Date() } });
+  res.json({ ok: true });
+});
+
 app.post("/api/orders", rateLimit({ windowMs: 10 * 60_000, max: 20, message: "Too many order attempts. Please try again later." }), checkIpCooldown, async (req, res) => {
   const schema = z.object({
     paymentMethod: z.string().min(2),
     couponId: z.string().optional(),
+    checkoutSessionId: z.string().max(64).optional(),
     shippingDetails: z.record(z.string(), z.unknown()),
     orderItems: z
       .array(
@@ -795,7 +810,7 @@ app.post("/api/orders", rateLimit({ windowMs: 10 * 60_000, max: 20, message: "To
         if (allowedCategories?.length && !normalizedItems.some((item) => item.categoryIds.some((categoryId) => allowedCategories.includes(categoryId)))) {
           throw new OrderRequestError(400, "Coupon does not apply to items in your cart.");
         }
-        const priorUses = await tx.order.count({ where: { couponId: coupon.id, ...(customerId ? { customerId } : { ipAddress }) } });
+        const priorUses = await tx.order.count({ where: { deletedAt: null, couponId: coupon.id, ...(customerId ? { customerId } : { ipAddress }) } });
         if (coupon.perUserLimit !== null && priorUses >= coupon.perUserLimit) throw new OrderRequestError(400, "Coupon usage limit reached.");
         const rawDiscount = coupon.type === "PERCENTAGE" ? Math.round((subtotalCents * Number(coupon.value)) / 100) : cents(coupon.value);
         discountCents = Math.min(rawDiscount, coupon.maxDiscount ? cents(coupon.maxDiscount) : rawDiscount, subtotalCents);
@@ -860,19 +875,43 @@ app.post("/api/orders", rateLimit({ windowMs: 10 * 60_000, max: 20, message: "To
     }).catch((err) => console.error("order confirmation mail failed:", err.message));
   }
 
+  if (parsed.data.checkoutSessionId) {
+    await prisma.abandonedCheckout.updateMany({ where: { sessionId: parsed.data.checkoutSessionId }, data: { convertedAt: new Date() } }).catch((err) => console.error("checkout conversion tracking failed:", err.message));
+  }
+
   res.status(201).json(order);
 });
 
 // --- ADMIN API ENDPOINTS ---
 
-app.get("/api/admin/dashboard", requireAuth, requireRole("ADMIN", "STAFF"), async (_req, res) => {
-  const [products, orders, customers, revenue] = await Promise.all([
+app.get("/api/admin/dashboard", requireAuth, requireRole("ADMIN", "STAFF"), async (req, res) => {
+  const days = Math.min(30, Math.max(7, Number(req.query.days) || 7));
+  const now = new Date(); const today = new Date(now); today.setHours(0, 0, 0, 0);
+  const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
+  const from = new Date(today); from.setDate(from.getDate() - days + 1);
+  const [productCount, lowStock, customers, pendingReviews, statusGroups, paymentGroups, allRevenue, todayStats, yesterdayStats, pendingStats, codOutstanding, recentOrders, oldPending, deliveredUnpaid, confirmedUnsent, trendRows] = await Promise.all([
     prisma.product.count(),
-    prisma.order.count(),
+    prisma.product.findMany({ where: { manageStock: true, stock: { lte: 5 } }, select: { id: true, name: true, stock: true }, take: 20 }),
     prisma.user.count({ where: { role: "CUSTOMER" } }),
-    prisma.order.aggregate({ _sum: { totalAmount: true }, where: { paymentStatus: "PAID" } }),
+    prisma.review.count({ where: { isApproved: false } }),
+    prisma.order.groupBy({ by: ["status"], where: { deletedAt: null }, _count: { _all: true } }),
+    prisma.order.groupBy({ by: ["paymentStatus"], where: { deletedAt: null, createdAt: { gte: from } }, _count: { _all: true }, _sum: { totalAmount: true } }),
+    prisma.order.aggregate({ where: { deletedAt: null }, _count: { _all: true }, _avg: { totalAmount: true } }),
+    prisma.order.aggregate({ where: { deletedAt: null, createdAt: { gte: today } }, _count: { _all: true }, _sum: { totalAmount: true } }),
+    prisma.order.aggregate({ where: { deletedAt: null, createdAt: { gte: yesterday, lt: today } }, _count: { _all: true }, _sum: { totalAmount: true } }),
+    prisma.order.aggregate({ where: { deletedAt: null, status: "PENDING" }, _count: { _all: true }, _sum: { totalAmount: true } }),
+    prisma.order.aggregate({ where: { deletedAt: null, status: "DELIVERED", paymentMethod: "COD", paymentStatus: { not: "PAID" } }, _count: { _all: true }, _sum: { totalAmount: true } }),
+    prisma.order.findMany({ where: { deletedAt: null }, orderBy: { createdAt: "desc" }, take: 100, select: { id: true, status: true, paymentStatus: true, totalAmount: true, createdAt: true, customerId: true, shippingDetails: true, orderItems: true, courierName: true, courierTrackingId: true } }),
+    prisma.order.findMany({ where: { deletedAt: null, status: "PENDING", createdAt: { lt: new Date(Date.now() - 2 * 86400000) } }, orderBy: { createdAt: "asc" }, take: 20 }),
+    prisma.order.findMany({ where: { deletedAt: null, status: "DELIVERED", paymentMethod: "COD", paymentStatus: { not: "PAID" } }, orderBy: { createdAt: "desc" }, take: 20 }),
+    prisma.order.findMany({ where: { deletedAt: null, status: "CONFIRMED", courierTrackingId: null }, orderBy: { createdAt: "desc" }, take: 20 }),
+    prisma.$queryRaw<Array<{ day: Date; gross: unknown; paid: unknown }>>`SELECT DATE(createdAt) AS day, SUM(totalAmount) AS gross, SUM(CASE WHEN paymentStatus = 'PAID' THEN totalAmount ELSE 0 END) AS paid FROM \`Order\` WHERE deletedAt IS NULL AND createdAt >= ${from} GROUP BY DATE(createdAt) ORDER BY day ASC`,
   ]);
-  res.json({ products, orders, customers, paidRevenue: revenue._sum.totalAmount ?? 0 });
+  const visible = req.user?.role === "ADMIN" ? (orders: typeof recentOrders) => orders : (orders: typeof recentOrders) => orders.filter((order) => staffCanAccessOrderItems(req.user!, order.orderItems));
+  const byPayment = Object.fromEntries(paymentGroups.map((g) => [g.paymentStatus, { count: g._count._all, amount: Number(g._sum.totalAmount ?? 0) }]));
+  res.json({ products: productCount, customers, pendingReviews, recentOrders: visible(recentOrders), lowStock, statusCounts: Object.fromEntries(statusGroups.map((g) => [g.status, g._count._all])), payment: byPayment,
+    totalOrders: allRevenue._count._all, averageOrderValue: Number(allRevenue._avg.totalAmount ?? 0), today: { count: todayStats._count._all, gross: Number(todayStats._sum.totalAmount ?? 0) }, yesterday: { count: yesterdayStats._count._all, gross: Number(yesterdayStats._sum.totalAmount ?? 0) }, pending: { count: pendingStats._count._all, amount: Number(pendingStats._sum.totalAmount ?? 0) }, codOutstanding: { count: codOutstanding._count._all, amount: Number(codOutstanding._sum.totalAmount ?? 0) },
+    alerts: { oldPending: visible(oldPending), deliveredUnpaid: visible(deliveredUnpaid), confirmedUnsent: visible(confirmedUnsent) }, salesTrend: trendRows.map((r) => ({ day: r.day, gross: Number(r.gross ?? 0), paid: Number(r.paid ?? 0) })) });
 });
 
 app.get("/api/admin/products", requireAuth, requireRole("ADMIN", "STAFF"), async (_req, res) => {
@@ -1001,7 +1040,60 @@ app.get("/api/admin/categories", requireAuth, requireRole("ADMIN", "STAFF"), asy
 });
 
 app.get("/api/admin/orders", requireAuth, requireRole("ADMIN", "STAFF"), requireStaffArea("orders"), restrictStaffOrderView, async (_req, res) => {
-  res.json(await prisma.order.findMany({ orderBy: { createdAt: "desc" }, take: 100 }));
+  res.json(await prisma.order.findMany({ where: { deletedAt: null }, orderBy: { createdAt: "desc" }, take: 100 }));
+});
+
+app.get("/api/admin/abandoned-checkouts", requireAuth, requireRole("ADMIN", "STAFF"), requireStaffArea("orders"), async (_req, res) => {
+  const [count, items] = await Promise.all([
+    prisma.abandonedCheckout.count({ where: { convertedAt: null } }),
+    prisma.abandonedCheckout.findMany({ where: { convertedAt: null }, orderBy: { updatedAt: "desc" }, take: 100 }),
+  ]);
+  res.json({ count, items });
+});
+
+async function softDeleteOrders(ids: string[], actorId: string) {
+  return prisma.$transaction(async (tx) => {
+    const rows = await tx.order.findMany({ where: { id: { in: ids }, deletedAt: null }, select: { id: true, status: true, paymentStatus: true, totalAmount: true, courierName: true, courierTrackingId: true } });
+    if (!rows.length) return 0;
+    const deletedAt = new Date();
+    await tx.order.updateMany({ where: { id: { in: rows.map((row) => row.id) }, deletedAt: null }, data: { deletedAt } });
+    await tx.orderDeletionAudit.createMany({ data: rows.map((row) => ({ id: randomUUID(), orderId: row.id, actorId, action: "SOFT_DELETED", snapshot: { status: row.status, paymentStatus: row.paymentStatus, totalAmount: Number(row.totalAmount), courierName: row.courierName, courierTrackingId: row.courierTrackingId } as Prisma.InputJsonValue, createdAt: deletedAt })) });
+    return rows.length;
+  });
+}
+
+app.get("/api/admin/order-deletion-audit", requireAuth, requireRole("ADMIN"), async (_req, res) => {
+  res.json(await prisma.orderDeletionAudit.findMany({ orderBy: { createdAt: "desc" }, take: 200 }));
+});
+
+app.get("/api/admin/orders/archived", requireAuth, requireRole("ADMIN"), async (_req, res) => {
+  res.json(await prisma.order.findMany({ where: { deletedAt: { not: null } }, orderBy: { deletedAt: "desc" }, take: 100, select: { id: true, status: true, paymentStatus: true, totalAmount: true, deletedAt: true, courierName: true, courierTrackingId: true } }));
+});
+
+app.post("/api/admin/orders/:id/restore", requireAuth, requireRole("ADMIN"), async (req, res) => {
+  const id = String(req.params.id);
+  const restoredAt = new Date();
+  const restored = await prisma.$transaction(async (tx) => {
+    const result = await tx.order.updateMany({ where: { id, deletedAt: { not: null } }, data: { deletedAt: null } });
+    if (!result.count) return false;
+    await tx.orderDeletionAudit.create({ data: { id: randomUUID(), orderId: id, actorId: req.user!.id, action: "RESTORED", createdAt: restoredAt } });
+    return true;
+  });
+  if (!restored) return res.status(404).json({ error: "Archived order not found" });
+  res.json({ restored: true });
+});
+
+app.delete("/api/admin/orders/bulk", requireAuth, requireRole("ADMIN"), async (req, res) => {
+  const parsed = z.object({ ids: z.array(z.string().min(1)).min(1).max(500) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Select between 1 and 500 orders" });
+  const deleted = await softDeleteOrders(parsed.data.ids, req.user!.id);
+  res.json({ deleted });
+});
+
+app.delete("/api/admin/orders/:id", requireAuth, requireRole("ADMIN"), async (req, res) => {
+  const deleted = await softDeleteOrders([String(req.params.id)], req.user!.id);
+  if (!deleted) return res.status(404).json({ error: "Order not found" });
+  res.json({ deleted });
 });
 
 app.patch("/api/admin/orders/:id", requireAuth, requireRole("ADMIN", "STAFF"), requireStaffArea("orders"), async (req, res) => {
@@ -1014,10 +1106,10 @@ app.patch("/api/admin/orders/:id", requireAuth, requireRole("ADMIN", "STAFF"), r
     })
     .safeParse(req.body);
   if (!data.success) return res.status(400).json({ error: "Invalid order update" });
-  const prior = await prisma.order.findUnique({ where: { id: String(req.params.id) }, select: { status: true, shippingDetails: true, orderItems: true } });
+  const prior = await prisma.order.findFirst({ where: { id: String(req.params.id), deletedAt: null }, select: { status: true, shippingDetails: true, orderItems: true } });
   if (!prior) return res.status(404).json({ error: "Order not found" });
   if (req.user && !staffCanAccessOrderItems(req.user, prior.orderItems)) return res.status(403).json({ error: "Not authorized for this order" });
-  const updated = await prisma.order.update({ where: { id: String(req.params.id) }, data: data.data });
+  const updated = await prisma.order.update({ where: { id: String(req.params.id), deletedAt: null }, data: data.data });
   if (data.data.status && prior && prior.status !== data.data.status) {
     const details = (prior.shippingDetails as Record<string, unknown>) ?? {};
     const email = String(details.email ?? "").trim();
@@ -1034,7 +1126,7 @@ app.patch("/api/admin/orders/:id", requireAuth, requireRole("ADMIN", "STAFF"), r
 });
 
 app.post("/api/admin/orders/:id/send-steadfast", requireAuth, requireRole("ADMIN", "STAFF"), requireStaffArea("orders"), async (req, res) => {
-  const order = await prisma.order.findUnique({ where: { id: String(req.params.id) } });
+  const order = await prisma.order.findFirst({ where: { id: String(req.params.id), deletedAt: null } });
   if (!order) return res.status(404).json({ error: "Order not found" });
   if (req.user && !staffCanAccessOrderItems(req.user, order.orderItems)) return res.status(403).json({ error: "Not authorized for this order" });
   if (order.courierName && order.courierName !== "Steadfast") return res.status(400).json({ error: `Order already sent via ${order.courierName}` });
@@ -1091,7 +1183,7 @@ app.post("/api/admin/orders/:id/send-steadfast", requireAuth, requireRole("ADMIN
   const tracking = String(body.consignment.tracking_code ?? body.consignment.consignment_id ?? "");
   const sd = (order.shippingDetails ?? {}) as Record<string, unknown>;
   const updated = await prisma.order.update({
-    where: { id: order.id },
+    where: { id: order.id, deletedAt: null },
     data: {
       status: "IN_COURIER",
       courierName: "Steadfast",
@@ -1116,7 +1208,7 @@ function decodeSteadfast(settings: { courierConfig: unknown } | null) {
 }
 
 app.post("/api/admin/orders/:id/sync-steadfast", requireAuth, requireRole("ADMIN", "STAFF"), requireStaffArea("orders"), async (req, res) => {
-  const order = await prisma.order.findUnique({ where: { id: String(req.params.id) } });
+  const order = await prisma.order.findFirst({ where: { id: String(req.params.id), deletedAt: null } });
   if (!order) return res.status(404).json({ error: "Order not found" });
   if ((order.courierName ?? "").trim().toLowerCase() !== "steadfast" || !order.courierTrackingId)
     return res.status(400).json({ error: "Order is not sent via Steadfast" });
@@ -1139,7 +1231,7 @@ app.post("/api/admin/orders/:id/sync-steadfast", requireAuth, requireRole("ADMIN
 
   const sd = (order.shippingDetails ?? {}) as Record<string, unknown>;
   const updated = await prisma.order.update({
-    where: { id: order.id },
+    where: { id: order.id, deletedAt: null },
     data: { shippingDetails: { ...sd, sfStatus: body.delivery_status, sfTrackingCode: sd.sfTrackingCode ?? order.courierTrackingId, sfSyncedAt: new Date().toISOString() } as Prisma.InputJsonValue },
   });
   res.json({ ok: true, delivery_status: body.delivery_status, sfSyncedAt: (updated.shippingDetails as Record<string, unknown>)?.sfSyncedAt });
@@ -1149,7 +1241,7 @@ app.post("/api/admin/orders/sync-all-steadfast", requireAuth, requireRole("ADMIN
   const sf = await getSteadfastClient().then(decodeSteadfast);
   if (!sf) return res.status(400).json({ error: "Steadfast API credentials missing" });
 
-  const parcels = (await prisma.order.findMany({ where: { courierTrackingId: { not: null } } })).filter(
+  const parcels = (await prisma.order.findMany({ where: { deletedAt: null, courierTrackingId: { not: null } } })).filter(
     (o) => (o.courierName ?? "").trim().toLowerCase() === "steadfast"
   );
   if (!parcels.length) return res.json({ ok: true, synced: 0, failed: 0, statuses: {} });
@@ -1165,7 +1257,7 @@ app.post("/api/admin/orders/sync-all-steadfast", requireAuth, requireRole("ADMIN
       if (response.ok && body.status === 200 && body.delivery_status) {
         const sd = (order.shippingDetails ?? {}) as Record<string, unknown>;
         await prisma.order.update({
-          where: { id: order.id },
+          where: { id: order.id, deletedAt: null },
           data: { shippingDetails: { ...sd, sfStatus: body.delivery_status, sfTrackingCode: sd.sfTrackingCode ?? order.courierTrackingId, sfSyncedAt: new Date().toISOString() } as Prisma.InputJsonValue },
         });
         statuses[order.id] = body.delivery_status;
@@ -2245,6 +2337,13 @@ app.delete("/api/admin/failed-emails/:id", requireAuth, requireRole("ADMIN"), as
   await prisma.failedEmail.delete({ where: { id: String(req.params.id) } });
   res.status(204).end();
 });
+
+const abandonedCheckoutCleanup = () => prisma.abandonedCheckout.deleteMany({ where: { updatedAt: { lt: new Date(Date.now() - 30 * 86400000) } } })
+  .then(({ count }) => { if (count) console.info(`[checkout cleanup] removed ${count} expired sessions`); })
+  .catch((error) => console.error("abandoned checkout cleanup failed:", error instanceof Error ? error.message : error));
+void abandonedCheckoutCleanup();
+const abandonedCheckoutCleanupTimer = setInterval(() => { void abandonedCheckoutCleanup(); }, 24 * 60 * 60 * 1000);
+abandonedCheckoutCleanupTimer.unref();
 
 app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(error);

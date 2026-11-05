@@ -581,11 +581,11 @@ export function AdminPanel() {
 
         {/* CONTENT */}
         <div className="flex-1 overflow-y-auto p-4 pb-20 sm:p-6 sm:pb-6">
-          {section === "overview" && <AdminOverview token={token} />}
+          {section === "overview" && <AdminOverview token={token} onNavigate={setSection} />}
           {section === "products" && <AdminProducts token={token} />}
           {section === "media" && <MediaLibrary token={token} />}
           {section === "categories" && <AdminCategories token={token} config={config} save={save} saving={saving} />}
-          {section === "orders" && <AdminOrders token={token} config={config} />}
+          {section === "orders" && <AdminOrders token={token} config={config} isAdmin={staffScope?.role === "ADMIN"} />}
           {section === "coupons" && <AdminCoupons token={token} />}
           {section === "reviews" && <AdminReviews token={token} />}
           {section === "staff" && <AdminStaff token={token} />}
@@ -640,24 +640,22 @@ export function AdminPanel() {
 }
 
 /* ==================== OVERVIEW ==================== */
-function AdminOverview({ token }: { token: string }) {
-  const [data, setData] = useState<{ products: number; orders: number; customers: number; paidRevenue: string } | null>(null);
-  const [orders, setOrders] = useState<Order[]>([]);
+function AdminOverview({ token, onNavigate }: { token: string; onNavigate: (section: Section) => void }) {
+  const [data, setData] = useState<{ products: number; recentOrders: Order[]; customers: number; pendingReviews: number; lowStock: { id: string; name: string; stock: number }[]; statusCounts: Record<string, number>; payment: Record<string, { count: number; amount: number }>; totalOrders: number; averageOrderValue: number; today: { count: number; gross: number }; yesterday: { count: number; gross: number }; pending: { count: number; amount: number }; codOutstanding: { count: number; amount: number }; alerts: { oldPending: Order[]; deliveredUnpaid: Order[]; confirmedUnsent: Order[] }; salesTrend: { day: string; paid: number; gross: number }[] } | null>(null);
+  const [range, setRange] = useState<7 | 30>(7);
+  const [salesMode, setSalesMode] = useState<"paid" | "gross">("paid");
+  const [sfBalance, setSfBalance] = useState<number | null>(null);
 
   const load = () => {
-    api("/api/admin/dashboard", token)
+    api(`/api/admin/dashboard?days=${range}`, token)
       .then((r) => r.json())
       .then(setData)
-      .catch(() => {});
-    api("/api/admin/orders", token)
-      .then((r) => r.json())
-      .then((res) => Array.isArray(res) && setOrders(res))
       .catch(() => {});
   };
 
   useEffect(() => {
     load();
-  }, [token]);
+  }, [token, range]);
 
   async function updateOrderStatus(id: string, status: string, paymentStatus: string) {
     try {
@@ -671,25 +669,51 @@ function AdminOverview({ token }: { token: string }) {
     }
   }
 
-  const KPI = [
-    { label: "Active Products", value: data ? String(data.products) : "—", icon: "▦", color: "from-primary to-indigo-400" },
-    { label: "Total Orders", value: data ? String(data.orders) : "—", icon: "⊞", color: "from-cyan to-teal-400" },
-    { label: "Customers", value: data ? String(data.customers) : "—", icon: "◉", color: "from-violet-500 to-purple-400" },
-    { label: "Paid Revenue", value: data ? money(data.paidRevenue) : "—", icon: "¢", color: "from-amber to-orange-400" },
+  async function loadSfBalance() {
+    try {
+      const response = await api("/api/admin/steadfast/balance", token);
+      const result = await response.json();
+      if (response.ok) setSfBalance(Number(result.balance));
+      else toast.error(result.error || "Steadfast balance load failed");
+    } catch { toast.error("Steadfast balance load failed"); }
+  }
+
+  const orders = data?.recentOrders ?? [];
+  const paidRevenue = data?.payment?.PAID?.amount ?? 0;
+  const unpaidRevenue = data?.payment?.UNPAID?.amount ?? 0;
+  const pendingOrders = data?.pending ?? { count: 0, amount: 0 };
+  const todayOrders = { length: data?.today.count ?? 0 }; const todaySales = data?.today.gross ?? 0;
+  const yesterdayOrders = { length: data?.yesterday.count ?? 0 }; const yesterdaySales = data?.yesterday.gross ?? 0;
+  const pctChange = (a: number, b: number) => b ? `${a >= b ? "+" : ""}${Math.round((a - b) / b * 100)}%` : a ? "New" : "0%";
+  const statuses = ["PENDING", "CONFIRMED", "IN_COURIER", "SHIPPED", "DELIVERED", "CANCELLED"];
+  const statusCount = (s: string) => data?.statusCounts?.[s] ?? 0;
+  const alertOrders = [...(data?.alerts.oldPending ?? []), ...(data?.alerts.deliveredUnpaid ?? []), ...(data?.alerts.confirmedUnsent ?? [])];
+  const lowStock = data?.lowStock ?? [];
+  const daily = data?.salesTrend.map((row) => ({ label: new Date(row.day).toLocaleDateString(undefined, { month: "short", day: "numeric" }), value: salesMode === "paid" ? row.paid : row.gross })) ?? [];
+  const maxDaily = Math.max(1, ...daily.map((d) => d.value));
+  const productsSold: Record<string, number> = {}; const customerStats: Record<string, { name: string; count: number; total: number }> = {};
+  orders.forEach((o) => { (o.orderItems ?? []).forEach((item) => productsSold[item.name] = (productsSold[item.name] ?? 0) + item.qty); const name = o.shippingDetails?.name || "Guest"; const c = customerStats[o.customerId || name] ?? { name, count: 0, total: 0 }; c.count++; c.total += Number(o.totalAmount); customerStats[o.customerId || name] = c; });
+  const hotProducts = Object.entries(productsSold).sort((a,b) => b[1]-a[1]).slice(0, 5);
+  const repeatCustomers = Object.values(customerStats).filter((c) => c.count > 1).sort((a,b) => b.count-a.count).slice(0, 5);
+  const kpis = [
+    ["আজকের অর্ডার", `${todayOrders.length}`, `গতকাল ${yesterdayOrders.length}`], ["আজকের সেলস", money(todaySales), `গতকালের তুলনায় ${pctChange(todaySales, yesterdaySales)}`],
+    ["Pending অর্ডার", `${pendingOrders.count}টি`, money(pendingOrders.amount)], ["Avg Order Value", money(data?.averageOrderValue ?? 0), "সব অর্ডার"],
+    ["Paid Revenue", money(paidRevenue), `${range} দিনের মধ্যে`], ["Unpaid Revenue", money(unpaidRevenue), `${range} দিনের মধ্যে`],
   ];
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-        {KPI.map((k) => (
-          <div key={k.label} className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-5 hover:border-primary/20 transition-colors">
-            <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${k.color} flex items-center justify-center text-white text-lg shadow-lg mb-3`}>
-              {k.icon}
-            </div>
-            <p className="font-display font-bold text-2xl text-gray-900 dark:text-white">{k.value}</p>
-            <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">{k.label}</p>
-          </div>
-        ))}
+      <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-bold text-gray-900 dark:text-white">Store overview</h2><p className="text-xs text-gray-400">Live store performance and action items</p></div><div className="flex gap-2">{[["Add Product","products"],["Create Order","orders"],["Add Coupon","coupons"],["Sync Steadfast","orders"]].map(([label, target])=><Button key={label} size="sm" variant="flat" onPress={()=>onNavigate(target as Section)}>{label}</Button>)}</div></div>
+      <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">{kpis.map(([label,value,sub])=><div key={label} className="rounded-2xl border border-gray-100 dark:border-white/6 bg-white dark:bg-white/4 p-4"><p className="text-xs text-gray-400">{label}</p><p className="mt-1 text-xl font-bold text-gray-900 dark:text-white">{value}</p><p className="mt-1 text-[11px] text-gray-400">{sub}</p></div>)}</div>
+      <div className="grid sm:grid-cols-2 gap-3"><div className="rounded-2xl border border-gray-100 dark:border-white/6 bg-white dark:bg-white/4 p-4"><p className="text-xs text-gray-400">Delivered COD outstanding</p><p className="mt-1 text-xl font-bold">{money(data?.codOutstanding.amount ?? 0)}</p><p className="text-[11px] text-gray-400">{data?.codOutstanding.count ?? 0} delivered unpaid orders</p></div><div className="rounded-2xl border border-gray-100 dark:border-white/6 bg-white dark:bg-white/4 p-4 flex items-center justify-between"><div><p className="text-xs text-gray-400">Steadfast balance</p><p className="mt-1 text-xl font-bold">{sfBalance === null ? "—" : money(sfBalance)}</p></div><Button size="sm" variant="flat" onPress={loadSfBalance}>Load balance</Button></div></div>
+      <div className="grid xl:grid-cols-2 gap-4">
+        <div className="rounded-2xl border border-gray-100 dark:border-white/6 bg-white dark:bg-white/4 p-5"><div className="flex flex-wrap justify-between items-center gap-2 mb-4"><h3 className="font-bold text-gray-900 dark:text-white">{salesMode === "paid" ? "Paid sales trend" : "All orders (Gross)"}</h3><div className="flex gap-1">{([7,30] as const).map(n=><Button key={n} size="sm" variant={range===n?"solid":"light"} onPress={()=>setRange(n)}>{n} days</Button>)}{(["paid","gross"] as const).map(m=><Button key={m} size="sm" variant={salesMode===m?"flat":"light"} onPress={()=>setSalesMode(m)}>{m === "paid" ? "Paid" : "All orders (Gross)"}</Button>)}</div></div><div className="flex h-36 items-end gap-1">{daily.map((d,i)=><div key={i} title={`${d.label}: ${money(d.value)}`} className={`flex-1 rounded-t ${d.value ? "bg-primary/70 hover:bg-primary" : "bg-gray-200 dark:bg-white/10"}`} style={{height:`${Math.max(3,d.value/maxDaily*100)}%`}} />)}</div><div className="mt-2 flex justify-between text-[10px] text-gray-400"><span>{daily[0]?.label}</span><span>{daily.at(-1)?.label}</span></div>{!daily.some((d)=>d.value>0)&&<p className="text-center text-xs text-gray-400 mt-2">এই সময়ে কোনো {salesMode === "paid" ? "paid sale" : "order"} নেই</p>}</div>
+        <div className="rounded-2xl border border-gray-100 dark:border-white/6 bg-white dark:bg-white/4 p-5"><h3 className="font-bold text-gray-900 dark:text-white mb-4">Order status breakdown</h3><div className="space-y-3">{statuses.map(s=>{const n=statusCount(s);return <div key={s}><div className="flex justify-between text-xs mb-1"><span>{STATUS_LABEL[s]??s}</span><span>{n} · {orders.length?Math.round(n/orders.length*100):0}%</span></div><div className="h-2 rounded-full bg-gray-100 dark:bg-white/8"><div className={`h-full rounded-full ${STATUS_COLORS[s]??"bg-primary"}`} style={{width:`${orders.length?n/orders.length*100:0}%`}} /></div></div>})}</div></div>
+      </div>
+      <div className="grid xl:grid-cols-3 gap-4">
+        <div className="rounded-2xl border border-gray-100 dark:border-white/6 bg-white dark:bg-white/4 p-5"><h3 className="font-bold mb-3">Alerts · {alertOrders.length + lowStock.length}</h3>{lowStock.slice(0,4).map(p=><p key={p.id} className="text-xs py-1 text-amber-600">{p.stock===0?"Out of stock":"Low stock"}: {p.name} ({p.stock})</p>)}{alertOrders.slice(0,6).map(o=><p key={o.id} className="text-xs py-1 text-gray-500">#{o.id.slice(0,6)} · {o.status==="DELIVERED"?"Delivered, unpaid":o.status==="CONFIRMED"?"Confirmed, not sent":"Pending over 2 days"}</p>)}{!alertOrders.length&&!lowStock.length&&<p className="text-xs text-gray-400">No alerts</p>}<p className="text-xs text-gray-400 mt-2">Total orders: {data?.totalOrders ?? 0} · Customers: {data?.customers ?? 0}</p></div>
+        <div className="rounded-2xl border border-gray-100 dark:border-white/6 bg-white dark:bg-white/4 p-5"><h3 className="font-bold mb-3">Hot products</h3>{hotProducts.map(([n,q])=><p key={n} className="flex justify-between text-xs py-1"><span>{n}</span><b>{q} sold</b></p>)}{!hotProducts.length&&<p className="text-xs text-gray-400">No sales yet</p>}</div>
+        <div className="rounded-2xl border border-gray-100 dark:border-white/6 bg-white dark:bg-white/4 p-5"><h3 className="font-bold mb-3">Repeat customers</h3>{repeatCustomers.map((c,i)=><p key={i} className="flex justify-between text-xs py-1"><span>{c.name}</span><b>{c.count} orders</b></p>)}{!repeatCustomers.length&&<p className="text-xs text-gray-400">No repeat customers yet</p>}<p className="mt-3 text-xs text-gray-400">Pending reviews: {data?.pendingReviews ?? 0}</p></div>
       </div>
 
       <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-5">
@@ -2849,8 +2873,12 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
 }
 
 /* ==================== ORDERS (KANBAN) ==================== */
-function AdminOrders({ token, config }: { token: string; config: Config }) {
+function AdminOrders({ token, config, isAdmin }: { token: string; config: Config; isAdmin: boolean }) {
   const [orders, setOrders] = useState<Order[]>([]);
+  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+  const [abandonedCount, setAbandonedCount] = useState(0);
+  const [archivedOrders, setArchivedOrders] = useState<{ id: string; status: string; paymentStatus: string; totalAmount: string; deletedAt: string; courierName?: string | null; courierTrackingId?: string | null }[]>([]);
+  const [abandoned, setAbandoned] = useState<{ sessionId: string; name?: string | null; phone?: string | null; email?: string | null; items: { name: string; qty: number; price: number }[]; total: string; updatedAt: string }[]>([]);
   const [view, setView] = useState<"kanban" | "table">(() => {
     try {
       return localStorage.getItem("epic-orders-view") === "kanban" ? "kanban" : "table";
@@ -2872,6 +2900,8 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
       .then((r) => r.json())
       .then((res) => Array.isArray(res) && setOrders(res))
       .catch(() => {});
+    api("/api/admin/abandoned-checkouts", token).then((r) => r.json()).then((res) => { if (Array.isArray(res?.items)) { setAbandoned(res.items); setAbandonedCount(Number(res.count) || 0); } }).catch(() => {});
+    api("/api/admin/orders/archived", token).then((r) => r.json()).then((res) => Array.isArray(res) && setArchivedOrders(res)).catch(() => {});
   };
 
   useEffect(() => {
@@ -2884,6 +2914,24 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
       toast.success("অর্ডার স্ট্যাটাস আপডেট হয়েছে");
       load();
     } else toast.error("আপডেট করা যায়নি");
+  }
+
+  async function deleteOrders(ids: string[]) {
+    const affected = orders.filter((order) => ids.includes(order.id));
+    const paidCount = affected.filter((order) => order.paymentStatus === "PAID").length;
+    const courierCount = affected.filter((order) => Boolean(order.courierName || order.courierTrackingId)).length;
+    const warning = paidCount || courierCount ? `\n\nWarning: ${paidCount} paid and ${courierCount} courier-linked order(s).` : "";
+    if (!ids.length || !window.confirm(`Archive ${ids.length} selected order${ids.length > 1 ? "s" : ""}? They will be hidden from active lists, retained in the database, and recorded in the audit log.${warning}`)) return;
+    const response = await api(ids.length === 1 ? `/api/admin/orders/${ids[0]}` : "/api/admin/orders/bulk", token, { method: "DELETE", ...(ids.length === 1 ? {} : { body: JSON.stringify({ ids }) }) });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) { toast.error(result.error || "Could not delete orders"); return; }
+    setSelectedOrderIds([]); toast.success(`${result.deleted} order${result.deleted === 1 ? "" : "s"} archived; audit record saved`); load();
+  }
+
+  async function restoreOrder(id: string) {
+    const response = await api(`/api/admin/orders/${id}/restore`, token, { method: "POST" });
+    if (response.ok) { toast.success("Order restored to active orders"); load(); }
+    else toast.error("Could not restore order");
   }
 
   const courierPrefix: Record<string, string> = { steadfast: "ST", pathao: "PT", redx: "RX" };
@@ -2957,6 +3005,12 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
     unknown: "Unknown",
     unknown_approval_pending: "Approval Pending",
     pending: "Pending",
+  };
+  const courierStatusForOrder = (o: Order) => {
+    const raw = o.shippingDetails?.sfStatus?.trim().toLowerCase();
+    // Steadfast can keep a stale "unknown" after a consignment is removed; retain the store order's status.
+    if (raw === "unknown") return `Not found in Steadfast · ${STATUS_LABEL[o.status] ?? o.status}`;
+    return raw ? (sfStatusLabel[raw] ?? o.shippingDetails?.sfStatus ?? "Not synced") : "Not synced";
   };
 
   const safeDate = (d: string) => {
@@ -3046,7 +3100,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
       <table><tr><td style="padding:3px 0"></td><td style="padding:3px 0"></td></tr>${row("Subtotal", money(o.subtotal ?? o.totalAmount))}${Number(o.shippingCharge) ? row("Shipping", money(o.shippingCharge ?? 0)) : ""}${row("Total", money(o.totalAmount))}</table>
       <div class="dashed"></div>
       <div style="text-align:center;font-size:11px">Address: ${sd.address ?? ""}, ${sd.district ?? ""}</div>
-      ${o.courierName ? `<div class="dashed"></div><div style="text-align:center"><b>${o.courierName}</b></div>${invoiceRef.startsWith("SF-") ? `<div class="c" style="font-size:11px;margin-top:3px">Consignment ID: <span class="big">${sfRef}</span></div>` : ""}<div class="c" style="margin-top:2px"><span style="font-size:11px">Delivery Status: </span> <span class="big">${o.shippingDetails?.sfStatus ? (sfStatusLabel[o.shippingDetails.sfStatus] ?? o.shippingDetails.sfStatus) : "—"}</span></div>` : ""}
+      ${o.courierName ? `<div class="dashed"></div><div style="text-align:center"><b>${o.courierName}</b></div>${invoiceRef.startsWith("SF-") ? `<div class="c" style="font-size:11px;margin-top:3px">Consignment ID: <span class="big">${sfRef}</span></div>` : ""}<div class="c" style="margin-top:2px"><span style="font-size:11px">Delivery Status: </span> <span class="big">${o.shippingDetails?.sfStatus ? courierStatusForOrder(o) : "—"}</span></div>` : ""}
       <div class="dashed"></div>
       <div style="text-align:center">ধন্যবাদ!</div>
     </body></html>`);
@@ -3103,6 +3157,10 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
           )}
         </div>
       </div>
+
+      {isAdmin && selectedOrderIds.length > 0 && <div className="flex justify-end"><Button size="sm" color="danger" onPress={() => deleteOrders(selectedOrderIds)}><FiTrash2 size={12} /> Delete {selectedOrderIds.length} selected</Button></div>}
+      {isAdmin && <div className="rounded-2xl border border-gray-100 dark:border-white/6 bg-white dark:bg-white/4 overflow-hidden"><div className="px-4 py-3 border-b border-gray-100 dark:border-white/8"><h3 className="font-bold text-sm">Abandoned checkouts</h3><p className="text-xs text-gray-400">{abandonedCount} unfinished checkout sessions</p></div>{abandoned.length ? <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr>{["Last activity","Customer","Contact","Items","Cart total"].map(h=><th key={h} className="text-left p-3 text-xs text-gray-400">{h}</th>)}</tr></thead><tbody>{abandoned.slice(0,20).map(c=><tr key={c.sessionId} className="border-t border-gray-100 dark:border-white/6"><td className="p-3 text-xs">{new Date(c.updatedAt).toLocaleString()}</td><td className="p-3 text-xs">{c.name || "Guest"}</td><td className="p-3 text-xs">{c.phone || c.email || "—"}</td><td className="p-3 text-xs">{(c.items || []).map(i=>`${i.name} × ${i.qty}`).join(", ")}</td><td className="p-3 text-xs font-bold">{money(c.total)}</td></tr>)}</tbody></table></div>:<p className="p-4 text-xs text-gray-400">No abandoned checkouts recorded. A session appears after a shopper enters checkout details.</p>}</div>}
+      {isAdmin && archivedOrders.length > 0 && <div className="rounded-2xl border border-gray-100 dark:border-white/6 bg-white dark:bg-white/4 overflow-hidden"><div className="px-4 py-3 border-b border-gray-100 dark:border-white/8"><h3 className="font-bold text-sm">Archived orders</h3><p className="text-xs text-gray-400">Soft deleted and retained in the database · restore to return to active orders</p></div><div className="overflow-x-auto"><table className="w-full text-sm"><tbody>{archivedOrders.map(o=><tr key={o.id} className="border-t border-gray-100 dark:border-white/6"><td className="p-3 text-xs font-bold text-primary">#{o.id.slice(0,8)}</td><td className="p-3 text-xs">{STATUS_LABEL[o.status] ?? o.status}</td><td className="p-3 text-xs">{o.paymentStatus}</td><td className="p-3 text-xs">{money(o.totalAmount)}</td><td className="p-3 text-xs">{new Date(o.deletedAt).toLocaleString()}</td><td className="p-3 text-right"><Button size="sm" variant="flat" onPress={()=>restoreOrder(o.id)}>Restore</Button></td></tr>)}</tbody></table></div></div>}
 
       <button
         type="button"
@@ -3221,7 +3279,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
                             <td className="py-2.5 px-4 text-xs text-gray-500">
                               {o.courierName?.toLowerCase() === "steadfast" ? (
                                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold inline-flex items-center gap-1 ${sfStatusStyle[o.shippingDetails?.sfStatus ?? ""] ?? "bg-gray-100 dark:bg-white/8 text-gray-500"}`}>
-                                  {sfStatusLabel[o.shippingDetails?.sfStatus ?? ""] ?? "Not synced"}
+                                  {courierStatusForOrder(o)}
                                   <button type="button" onClick={() => syncSteadfast(o)} disabled={syncing === o.id} title="Sync status">
                                     <FiRefreshCw size={10} className={syncing === o.id ? "animate-spin" : ""} />
                                   </button>
@@ -3296,7 +3354,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
     )}
     {o.courierName?.toLowerCase() === "steadfast" && o.courierTrackingId && (
       <span className={`w-full shrink-0 text-[10px] px-2 py-0.5 rounded-full font-bold inline-flex items-center gap-1.5 ${sfStatusStyle[o.shippingDetails?.sfStatus ?? ""] ?? "bg-gray-100 dark:bg-white/8 text-gray-500"}`}>
-        {sfStatusLabel[o.shippingDetails?.sfStatus ?? ""] ?? "Not synced"}
+        {courierStatusForOrder(o)}
         <button type="button" onClick={() => syncSteadfast(o)} disabled={syncing === o.id} className="ml-auto inline-flex items-center gap-1 hover:underline">
           <FiRefreshCw size={10} className={syncing === o.id ? "animate-spin" : ""} /> {syncing === o.id ? "..." : "Sync"}
         </button>
@@ -3348,6 +3406,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 dark:bg-white/3 border-b border-gray-100 dark:border-white/8">
                 <tr>
+                  {isAdmin && <th className="px-3"><input aria-label="Select all visible orders" type="checkbox" checked={orders.length > 0 && selectedOrderIds.length === orders.length} onChange={(e)=>setSelectedOrderIds(e.target.checked?orders.map(o=>o.id):[])} /></th>}
                   {["Order ID", "Customer", "Date", "Total", "Payment", "Status", "Courier", ""].map((h) => (
                     <th key={h} className="py-3 px-4 text-left text-xs font-semibold text-gray-400 dark:text-slate-500 uppercase tracking-wider whitespace-nowrap">
                       {h}
@@ -3365,6 +3424,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
                         setDetail(o);
                       }}
                     >
+                    {isAdmin && <td className="py-3 px-3"><input type="checkbox" aria-label={`Select order ${o.id}`} checked={selectedOrderIds.includes(o.id)} onChange={(e)=>setSelectedOrderIds((prev)=>e.target.checked?[...prev,o.id]:prev.filter((id)=>id!==o.id))} /></td>}
                     <td className="py-3 px-4 text-xs text-primary font-bold">#{o.id.slice(0, 8)}</td>
                     <td className="py-3 px-4 font-medium text-gray-800 dark:text-slate-200 text-xs">{o.shippingDetails?.name ?? "Guest"}</td>
                     <td className="py-3 px-4 text-gray-400 dark:text-slate-500 text-xs whitespace-nowrap">{new Date(o.createdAt).toLocaleDateString()}</td>
@@ -3383,7 +3443,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
                         {o.courierTrackingId && <span className="text-xs font-mono text-gray-400">{o.courierTrackingId}</span>}
                         {o.courierName?.toLowerCase() === "steadfast" && (
                           <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-bold w-fit ${sfStatusStyle[o.shippingDetails?.sfStatus ?? ""] ?? "bg-gray-100 dark:bg-white/8 text-gray-500"}`}>
-                            {sfStatusLabel[o.shippingDetails?.sfStatus ?? ""] ?? "Not synced"}
+                            {courierStatusForOrder(o)}
                             <button type="button" onClick={() => syncSteadfast(o)} disabled={syncing === o.id} title="Sync status">
                               <FiRefreshCw size={10} className={syncing === o.id ? "animate-spin" : ""} />
                             </button>
@@ -3393,6 +3453,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-1.5">
+                        {isAdmin && <Button size="sm" color="danger" variant="light" className="h-8 w-8 min-w-0 px-0" aria-label="Delete order" onPress={() => deleteOrders([o.id])}><FiTrash2 size={12} /></Button>}
                         <Button
                           size="sm"
                           variant={o.paymentStatus === "PAID" ? "flat" : "solid"}
@@ -3425,7 +3486,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
                 ))}
                 {!orders.length && (
                   <tr>
-                    <td colSpan={8} className="py-8 text-center text-sm text-gray-400 dark:text-slate-500">
+                    <td colSpan={isAdmin ? 9 : 8} className="py-8 text-center text-sm text-gray-400 dark:text-slate-500">
                       No orders placed yet.
                     </td>
                   </tr>

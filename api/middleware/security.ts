@@ -8,7 +8,7 @@ export async function checkIpCooldown(req: Request, res: Response, next: NextFun
   try {
     const config = await prisma.storeConfig.findUnique({ where: { id: "store-config-singleton" } });
     if (!config?.enableIpLimit) return next();
-    const lastOrder = await prisma.order.findFirst({ where: { ipAddress }, orderBy: { createdAt: "desc" } });
+    const lastOrder = await prisma.order.findFirst({ where: { ipAddress, deletedAt: null }, orderBy: { createdAt: "desc" } });
     if (!lastOrder) return next();
     const waitMs = config.cooldownMinutes * 60_000 - (Date.now() - lastOrder.createdAt.getTime());
     if (waitMs > 0) return res.status(429).json({ error: "Spam Guard Activated", message: `অনুগ্রহ করে ${Math.ceil(waitMs / 60_000)} মিনিট পর আবার চেষ্টা করুন।` });

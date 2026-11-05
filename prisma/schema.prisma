@@ -362,8 +362,23 @@ model Order {
   orderItems Json
   courierName String?
   courierTrackingId String?
+  deletedAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([deletedAt, createdAt])
+}
+
+model OrderDeletionAudit {
+  id        String   @id @default(uuid())
+  orderId   String   @db.VarChar(191)
+  actorId   String   @db.VarChar(191)
+  action    String   @db.VarChar(24)
+  snapshot  Json?
+  createdAt DateTime @default(now())
+
+  @@index([orderId, createdAt])
+  @@index([actorId, createdAt])
 }
 
 model FailedEmail {
@@ -374,4 +389,19 @@ model FailedEmail {
   error     String?  @db.Text
   attempts  Int      @default(0)
   createdAt DateTime @default(now())
+}
+
+model AbandonedCheckout {
+  sessionId String   @id @db.VarChar(64)
+  name      String?  @db.VarChar(191)
+  phone     String?  @db.VarChar(32)
+  email     String?  @db.VarChar(191)
+  address   String?  @db.Text
+  items     Json
+  total     Decimal  @db.Decimal(10, 2)
+  startedAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  convertedAt DateTime?
+
+  @@index([convertedAt, updatedAt])
 }
