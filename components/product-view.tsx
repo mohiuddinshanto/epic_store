@@ -8,6 +8,7 @@ import toast from "react-hot-toast";
 import { ProductDetailSkeleton } from "./skeletons";
 import { RichContent } from "./rich-text";
 import { RelatedProducts } from "./related-products";
+import { waNumber } from "../lib/wa";
 import {
   FiArrowLeft,
   FiCheckCircle,
@@ -16,6 +17,8 @@ import {
   FiPlus,
   FiShield,
   FiShoppingBag,
+  FiPhone,
+  FiMessageCircle,
   FiStar,
   FiTruck,
 } from "react-icons/fi";
@@ -98,7 +101,7 @@ export type Product = {
   reviews?: Review[];
 };
 
-export function ProductView({ slug, initialProduct }: { slug: string; initialProduct?: Product | null }) {
+export function ProductView({ slug, initialProduct, contactOptions }: { slug: string; initialProduct?: Product | null; contactOptions?: { callEnabled?: boolean; whatsappEnabled?: boolean; phone?: string; whatsapp?: string; template?: string } }) {
   const [product, setProduct] = useState<Product | null>(initialProduct ?? null);
   const [activeImg, setActiveImg] = useState<string>("");
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -212,6 +215,13 @@ export function ProductView({ slug, initialProduct }: { slug: string; initialPro
     ? Number(selectedVariation.salePrice && Number(selectedVariation.salePrice) < Number(selectedVariation.price) ? selectedVariation.salePrice : selectedVariation.price)
     : Number(product.salePrice && Number(product.salePrice) < Number(product.price) ? product.salePrice : product.price);
   const hasSale = isVariable && selectedVariation ? Boolean(selectedVariation.salePrice && Number(selectedVariation.salePrice) < Number(selectedVariation.price)) : Boolean(product.salePrice && Number(product.salePrice) < Number(product.price));
+  const callNumber = (contactOptions?.phone ?? "").replace(/[^\d+]/g, "");
+  const whatsappNumber = waNumber(contactOptions?.whatsapp ?? "");
+  const whatsappMessage = (contactOptions?.template || "Hello, I want to order {product}.")
+    .replaceAll("{product}", product.name)
+    .replaceAll("{price}", `৳ ${finalPrice.toLocaleString("en-BD")}`)
+    .replaceAll("{quantity}", String(qty))
+    .replaceAll("{variation}", selectedVariation?.name ?? "");
 
   const variationInStock =
     isVariable && selectedVariation
@@ -543,6 +553,13 @@ export function ProductView({ slug, initialProduct }: { slug: string; initialPro
               <FiHeart fill={wishlisted ? "#ef4444" : "none"} />
             </Button>
           </div>
+
+          {(contactOptions?.callEnabled && callNumber || contactOptions?.whatsappEnabled && whatsappNumber) && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" style={{ marginTop: "-20px", marginBottom: "36px" }}>
+              {contactOptions?.callEnabled && callNumber && <a href={`tel:${callNumber}`} className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 font-bold text-white hover:bg-emerald-700"><FiPhone /> কল করুন</a>}
+              {contactOptions?.whatsappEnabled && whatsappNumber && <a href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(whatsappMessage)}`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 rounded-xl bg-green-600 px-5 py-3 font-bold text-white hover:bg-green-700"><FiMessageCircle /> হোয়াটসঅ্যাপে অর্ডার করুন</a>}
+            </div>
+          )}
 
           {/* Trust Highlights */}
           <div

@@ -124,7 +124,18 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
   return (
     <>
       {productSchema && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productSchema).replace(/</g, "\\u003c") }} />}
-      <ProductView key={data?.id ?? slug} slug={data?.slug ?? slug} initialProduct={data} />
+      <ProductView
+        key={data?.id ?? slug}
+        slug={data?.slug ?? slug}
+        initialProduct={data}
+        contactOptions={{
+          callEnabled: status?.config?.featureFlags?.productCallButton === true,
+          whatsappEnabled: status?.config?.featureFlags?.productWhatsappButton === true,
+          phone: status?.config?.chatConfig?.phone,
+          whatsapp: status?.config?.chatConfig?.whatsapp?.number,
+          template: status?.config?.chatConfig?.whatsapp?.template,
+        }}
+      />
       <SiteFooter initialStatus={status} initialCategories={categories} />
     </>
   );
